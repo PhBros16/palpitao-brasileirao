@@ -421,7 +421,7 @@ export default function Home() {
         <div className="header-badge">⚽ Edição Especial</div>
         <h1><span className="h1-main">PALPITÃO </span><span className="h1-sub">COPA DO MUNDO</span></h1>
         <div className="header-sub">USA · México · Canadá</div>
-        <div className="trophy-line">🏆 <span style={{fontSize:12,color:'#A07820',letterSpacing:2}}>48 SELEÇÕES · 3 PAÍSES SEDE · 1 CAMPEÃO</span> 🏆</div>
+        <div className="trophy-line">🏆 <span style={{fontSize:11,color:'#A07820',letterSpacing:1,whiteSpace:'nowrap'}}>48 SELEÇÕES · 3 PAÍSES SEDE · 1 CAMPEÃO</span> 🏆</div>
       </header>
 
       <div className="app">
