@@ -266,7 +266,9 @@ export default function Home() {
         .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
         header{text-align:center;padding:20px 0 16px;border-bottom:var(--border-gold);}
         .header-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-dark);padding:3px 12px;border-radius:20px;margin-bottom:8px;}
-        header h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,6vw,64px);letter-spacing:4px;color:var(--text-light);line-height:1;margin-bottom:4px;}
+        header h1{font-family:'Bebas Neue',sans-serif;letter-spacing:4px;line-height:1;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:2px;}
+        .h1-main{font-size:clamp(28px,5vw,48px);color:var(--text-light);}
+        .h1-sub{font-size:clamp(42px,8vw,80px);color:var(--gold);letter-spacing:4px;}
         header h1 span{color:var(--gold);}
         .header-sub{font-size:12px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;font-weight:300;}
         .trophy-line{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font-size:16px;}
@@ -391,7 +393,18 @@ export default function Home() {
       {showModal && <div className="modal-overlay open">
         <div className="modal">
           <h3>Acesso Admin</h3>
-          <p>Digite a senha de administração</p>
+          <div style={{
+            background:'rgba(192,57,43,0.12)',border:'1px solid rgba(192,57,43,0.4)',
+            borderRadius:8,padding:'10px 14px',marginBottom:14,
+            fontFamily:"'Barlow Condensed',sans-serif",fontSize:15,letterSpacing:1,
+            color:'#e07060',lineHeight:1.4
+          }}>
+            🤡 Tá achando que é adm?<br/>
+            <b style={{color:'#e74c3c'}}>Saí daqui palhaço!</b>
+          </div>
+          <p style={{fontSize:12,color:'var(--text-muted)',marginBottom:14}}>
+            (Se realmente for o administrador, digite a senha abaixo 👇)
+          </p>
           <input type="password" value={adminPassInput} onChange={e=>setAdminPassInput(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&checkAdminPass()} placeholder="••••••" autoFocus/>
           <div className="modal-error">{modalError}</div>
@@ -405,9 +418,9 @@ export default function Home() {
       {/* HEADER */}
       <header>
         <div className="header-badge">⚽ Edição Especial</div>
-        <h1>PALPITÃO <span>COPA</span></h1>
-        <div className="header-sub">Do Mundo 2026 · USA · México · Canadá</div>
-        <div className="trophy-line">🏆 <span style={{fontSize:12,color:'#A07820',letterSpacing:2}}>TEMPORADA 2026</span> 🏆</div>
+        <h1><span className="h1-main">PALPITÃO </span><span className="h1-sub">COPA DO MUNDO</span></h1>
+        <div className="header-sub">USA · México · Canadá</div>
+        <div className="trophy-line">🏆 <span style={{fontSize:12,color:'#A07820',letterSpacing:2}}>48 SELEÇÕES · 3 PAÍSES SEDE · 1 CAMPEÃO</span> 🏆</div>
       </header>
 
       <div className="app">
