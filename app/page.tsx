@@ -272,7 +272,7 @@ export default function Home() {
         .h1-sub{font-size:clamp(42px,8vw,80px);color:var(--gold);letter-spacing:4px;}
         header h1 span{color:var(--gold);}
         .header-sub{font-size:12px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;font-weight:300;}
-        .trophy-line{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font-size:16px;flex-wrap:wrap;}
+        .trophy-line{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font-size:16px;overflow:hidden;}
         #login-screen{min-height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center;}
         .login-box{background:var(--bg-panel);border:var(--border-gold);border-radius:16px;padding:24px 20px;width:100%;max-width:420px;text-align:center;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);}
         .login-box h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:var(--gold);margin-bottom:6px;}
