@@ -315,9 +315,10 @@ export default function Home() {
         .stat-value{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--gold);line-height:1;}
         .stat-label{font-size:11px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
         .table-wrap{overflow-x:auto;border-radius:var(--radius);border:var(--border-gold);-webkit-overflow-scrolling:touch;}
-        table.dt{width:100%;border-collapse:collapse;font-size:13px;min-width:360px;}
-        .dt thead th{background:rgba(0,40,20,.9);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:var(--border-gold);white-space:nowrap;}
-        .dt tbody td{padding:9px 14px;border-bottom:1px solid rgba(212,175,55,.07);color:var(--text-light);vertical-align:middle;}
+        table.dt{width:100%;border-collapse:collapse;font-size:13px;}
+        .dt thead th{background:rgba(0,40,20,.9);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:10px 10px;text-align:left;border-bottom:var(--border-gold);white-space:nowrap;}
+        .dt thead th.c{text-align:center;}.dt thead th.r{text-align:right;}
+        .dt tbody td{padding:9px 10px;border-bottom:1px solid rgba(212,175,55,.07);color:var(--text-light);vertical-align:middle;white-space:nowrap;}
         .dt tbody tr:last-child td{border-bottom:none;}
         .dt td.c{text-align:center;}.dt td.r{text-align:right;}
         .pos-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;font-family:'Barlow Condensed',sans-serif;}
@@ -331,17 +332,17 @@ export default function Home() {
         .pal-rname{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);}
         .st-open{color:var(--green-bright);font-size:11px;letter-spacing:2px;text-transform:uppercase;}
         .st-closed{color:var(--red);font-size:11px;letter-spacing:2px;text-transform:uppercase;}
-        .match-card{background:rgba(0,30,15,.7);border:1px solid rgba(212,175,55,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
-        .match-teams{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;}
-        .team-flag{font-size:20px;}.team-name{font-size:13px;font-weight:500;}.vs-txt{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--text-muted);}
-        .score-grp{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;}
-        .score-in{width:46px;height:46px;background:rgba(0,50,25,.8);border:1px solid rgba(212,175,55,.3);color:var(--text-light);font-family:'Bebas Neue',sans-serif;font-size:22px;text-align:center;border-radius:6px;outline:none;}
+        .match-card{background:rgba(0,30,15,.7);border:1px solid rgba(212,175,55,.15);border-radius:var(--radius);padding:20px 18px;margin-bottom:10px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;}
+        .match-teams{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;}
+        .team-flag{font-size:24px;}.team-name{font-size:15px;font-weight:600;}.vs-txt{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);}
+        .score-grp{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;}
+        .score-in{width:56px;height:56px;background:rgba(0,50,25,.8);border:1px solid rgba(212,175,55,.3);color:var(--text-light);font-family:'Bebas Neue',sans-serif;font-size:26px;text-align:center;border-radius:6px;outline:none;}
         .score-in:focus{border-color:var(--gold);}
         .score-in:disabled{opacity:.4;}
-        .score-sep{font-family:'Bebas Nye',sans-serif;font-size:18px;color:var(--text-muted);}
+        .score-sep{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text-muted);}
         .classify-sel{background:rgba(0,50,25,.8);border:1px solid rgba(212,175,55,.3);color:var(--text-light);font-size:12px;padding:6px 10px;border-radius:6px;outline:none;cursor:pointer;}
         .classify-sel:disabled{opacity:.4;}
-        .match-time{font-size:11px;color:var(--text-muted);letter-spacing:1px;text-align:center;width:100%;}
+        .match-time{font-size:12px;color:var(--text-muted);letter-spacing:1px;width:100%;text-align:center;}
         .shame-box{background:linear-gradient(135deg,rgba(50,0,0,.4),rgba(20,0,8,.3));border:1px solid rgba(192,57,43,.3);border-radius:var(--radius);padding:18px;text-align:center;}
         .shame-ttl{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#e74c3c;margin-bottom:4px;}
         .shame-sub{font-size:11px;color:var(--text-muted);margin-bottom:12px;}
@@ -377,7 +378,6 @@ export default function Home() {
           .grid-2{grid-template-columns:1fr;}
           .tab-btn{font-size:11px;padding:8px 10px;}
           .topbar-actions .btn-sm{padding:7px 12px;font-size:11px;}
-          .match-card{flex-direction:column;align-items:center;}.match-teams{width:100%;justify-content:center;}.score-grp{width:100%;justify-content:center;}
           .a-row{flex-direction:column;align-items:flex-start;}.a-in.md,.a-in.lg,.a-sel{width:100%;}
           .modal-btns{flex-direction:column;}.notif-box{top:10px;right:10px;left:10px;max-width:unset;}
         }
@@ -628,7 +628,7 @@ export default function Home() {
                 <thead><tr><th>#</th><th>Participante</th><th className="r">Pontos</th><th className="r">Rodadas</th><th className="r">Média</th></tr></thead>
                 <tbody>
                   {sorted.map((d:any,i:number)=><tr key={d.name}>
-                    <td>{posIcon(i)}</td><td style={{whiteSpace:'nowrap'}}>{d.name}</td>
+                    <td>{posIcon(i)}</td><td>{d.name}</td>
                     <td className="r" style={{fontFamily:"'Bebas Neue'",fontSize:18,color:'var(--gold)'}}>{d.total}</td>
                     <td className="r" style={{color:'var(--text-muted)'}}>{d.rodadas}</td>
                     <td className="r" style={{color:'var(--text-muted)'}}>{d.rodadas>0?(d.total/d.rodadas).toFixed(1):'—'}</td>
