@@ -260,19 +260,18 @@ export default function Home() {
         :root{--gold:#D4AF37;--gold-light:#F0D060;--gold-dark:#A07820;--green-mid:#006633;--bg-panel:rgba(0,30,15,0.85);--bg-card:rgba(0,50,25,0.7);--border-gold:1px solid rgba(212,175,55,0.4);--text-light:#FAFAFA;--text-muted:#B0A080;--red:#C0392B;--green-bright:#00A651;--radius:8px;}
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         button,input,select{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:inherit;}
-        html{overflow-x:hidden;}
-        body{font-family:'Barlow',sans-serif;background:#001a0a;color:var(--text-light);min-height:100vh;overflow-x:hidden;max-width:100%;}
+        body{font-family:'Barlow',sans-serif;background:#001a0a;color:var(--text-light);min-height:100vh;overflow-x:hidden;}
         body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,100,50,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,40,100,.2) 0%,transparent 50%);pointer-events:none;z-index:0;}
         body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 15 L60 37 L30 52 L0 37 L0 15Z' fill='none' stroke='rgba(212,175,55,0.04)' stroke-width='1'/%3E%3C/svg%3E");background-size:60px 52px;pointer-events:none;z-index:0;}
         .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
-        header{text-align:center;padding:20px 16px 16px;border-bottom:var(--border-gold);max-width:1200px;margin:0 auto;box-sizing:border-box;}
+        header{text-align:center;padding:20px 0 16px;border-bottom:var(--border-gold);}
         .header-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-dark);padding:3px 12px;border-radius:20px;margin-bottom:8px;}
         header h1{font-family:'Bebas Neue',sans-serif;letter-spacing:4px;line-height:1;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:2px;}
         .h1-main{font-size:clamp(28px,5vw,48px);color:var(--text-light);}
         .h1-sub{font-size:clamp(42px,8vw,80px);color:var(--gold);letter-spacing:4px;}
         header h1 span{color:var(--gold);}
         .header-sub{font-size:12px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;font-weight:300;}
-        .trophy-line{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font-size:16px;overflow:hidden;}
+        .trophy-line{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font-size:16px;}
         #login-screen{min-height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center;}
         .login-box{background:var(--bg-panel);border:var(--border-gold);border-radius:16px;padding:24px 20px;width:100%;max-width:420px;text-align:center;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);}
         .login-box h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:var(--gold);margin-bottom:6px;}
@@ -316,8 +315,9 @@ export default function Home() {
         .stat-value{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--gold);line-height:1;}
         .stat-label{font-size:11px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
         .table-wrap{overflow-x:auto;border-radius:var(--radius);border:var(--border-gold);-webkit-overflow-scrolling:touch;}
-        table.dt{width:100%;border-collapse:collapse;font-size:13px;min-width:300px;}
+        table.dt{width:100%;border-collapse:collapse;font-size:13px;min-width:360px;}
         .dt thead th{background:rgba(0,40,20,.9);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:var(--border-gold);white-space:nowrap;}
+        .dt thead th.c{text-align:center;}.dt thead th.r{text-align:right;}
         .dt tbody td{padding:9px 14px;border-bottom:1px solid rgba(212,175,55,.07);color:var(--text-light);vertical-align:middle;}
         .dt tbody tr:last-child td{border-bottom:none;}
         .dt td.c{text-align:center;}.dt td.r{text-align:right;}
@@ -333,7 +333,7 @@ export default function Home() {
         .st-open{color:var(--green-bright);font-size:11px;letter-spacing:2px;text-transform:uppercase;}
         .st-closed{color:var(--red);font-size:11px;letter-spacing:2px;text-transform:uppercase;}
         .match-card{background:rgba(0,30,15,.7);border:1px solid rgba(212,175,55,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-        .match-teams{flex:1;min-width:140px;display:flex;align-items:center;gap:8px;}
+        .match-teams{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;}
         .team-flag{font-size:20px;}.team-name{font-size:13px;font-weight:500;}.vs-txt{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--text-muted);}
         .score-grp{display:flex;align-items:center;gap:6px;}
         .score-in{width:46px;height:46px;background:rgba(0,50,25,.8);border:1px solid rgba(212,175,55,.3);color:var(--text-light);font-family:'Bebas Neue',sans-serif;font-size:22px;text-align:center;border-radius:6px;outline:none;}
@@ -421,7 +421,7 @@ export default function Home() {
         <div className="header-badge">⚽ Edição Especial</div>
         <h1><span className="h1-main">PALPITÃO </span><span className="h1-sub">COPA DO MUNDO</span></h1>
         <div className="header-sub">USA · México · Canadá</div>
-        <div className="trophy-line">🏆 <span style={{fontSize:11,color:'#A07820',letterSpacing:1,whiteSpace:'nowrap'}}>48 SELEÇÕES · 3 PAÍSES SEDE · 1 CAMPEÃO</span> 🏆</div>
+        <div className="trophy-line">🏆 <span style={{fontSize:12,color:'#A07820',letterSpacing:2}}>48 SELEÇÕES · 3 PAÍSES SEDE · 1 CAMPEÃO</span> 🏆</div>
       </header>
 
       <div className="app">
