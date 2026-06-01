@@ -1089,5 +1089,3 @@ export default function Home() {
     </>
   )
 }
-ENDOFFILE
-echo "Lines: $(wc -l < /home/claude/page.tsx)"
