@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   description: 'Bolão Copa do Mundo 2026',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/icon-192x192.png',
+    // Esta linha abaixo define o emoji 🏆 APENAS para a aba do navegador
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>',
+    // Esta linha garante que o iPhone/iPad continue usando a sua logo
     apple: '/apple-touch-icon.png',
   },
 }
