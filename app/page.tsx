@@ -203,7 +203,11 @@ export default function Home() {
       if(!s.novidades) s.novidades=[]
       if(s.round?.matches) {
         s.round.matches = s.round.matches.map((m:any)=>({
-          date:'', locked:false, hasQuemAvanca:false, hasPenaltis:false, ...m
+          date: m.date ?? '',
+          locked: m.locked ?? false,
+          hasQuemAvanca: m.hasQuemAvanca ?? false,
+          hasPenaltis: m.hasPenaltis ?? false,
+          ...m
         }))
       } else {
         s.round = s.round || { name:'', phase:'grupos', matches:[] }
