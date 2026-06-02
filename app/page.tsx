@@ -458,6 +458,8 @@ export default function Home() {
     } catch { showNotif('Erro ao enviar notificação','error') }
     finally { setNotifSending(false) }
   }
+
+  async function saveNovidade() {
     if(!state||!novidadeBuf.titulo.trim()) return
     const newState=JSON.parse(JSON.stringify(state))
     if(!newState.novidades) newState.novidades=[]
