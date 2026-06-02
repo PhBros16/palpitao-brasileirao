@@ -169,6 +169,10 @@ export default function Home() {
   const [showNovidade, setShowNovidade] = useState(false)
   const [novidadeAtual, setNovidadeAtual] = useState<any>(null)
   const [novidadeBuf, setNovidadeBuf] = useState({titulo:'', resumo:''})
+  const [notifTitle, setNotifTitle] = useState('')
+  const [notifMsg, setNotifMsg] = useState('')
+  const [notifSending, setNotifSending] = useState(false)
+  const [pushStatus, setPushStatus] = useState<'unknown'|'granted'|'denied'|'default'>('unknown')
   const notifTimer = useRef<any>(null)
 
   const [, setTick] = useState(0)
@@ -421,7 +425,39 @@ export default function Home() {
     await saveState(newState, authPassword); showNotif('Salvo!')
   }
 
-  async function saveNovidade() {
+  // Verificar status de notificação push
+  useEffect(()=>{
+    if(typeof window !== 'undefined' && 'Notification' in window) {
+      setPushStatus(Notification.permission as any)
+    }
+  },[])
+
+  async function requestPushPermission() {
+    if(typeof window === 'undefined') return
+    const win = window as any
+    if(win.OneSignalDeferred) {
+      win.OneSignalDeferred.push(async (OneSignal: any) => {
+        await OneSignal.Notifications.requestPermission()
+        setPushStatus(Notification.permission as any)
+        if(Notification.permission === 'granted') showNotif('Notificações ativadas! 🔔')
+      })
+    }
+  }
+
+  async function sendPushNotification() {
+    if(!notifTitle.trim()||!notifMsg.trim()) { showNotif('Preencha título e mensagem','error'); return }
+    setNotifSending(true)
+    try {
+      const res = await fetch('/api/notify', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title: notifTitle, message: notifMsg, password: authPassword })
+      })
+      const data = await res.json()
+      if(data.ok) { showNotif(`Notificação enviada para ${data.recipients} pessoas! 🔔`); setNotifTitle(''); setNotifMsg('') }
+      else showNotif('Erro ao enviar notificação','error')
+    } catch { showNotif('Erro ao enviar notificação','error') }
+    finally { setNotifSending(false) }
+  }
     if(!state||!novidadeBuf.titulo.trim()) return
     const newState=JSON.parse(JSON.stringify(state))
     if(!newState.novidades) newState.novidades=[]
@@ -1215,6 +1251,30 @@ export default function Home() {
             </div>
 
             <div style={{marginBottom:24}}>
+              <div className="section-title">Enviar Notificação Push</div>
+              <div className="a-card">
+                <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.5}}>
+                  Envia uma notificação push para todos os participantes que ativaram as notificações.
+                </div>
+                <div className="a-row"><span className="a-lbl">Título:</span>
+                  <input className="a-in lg" value={notifTitle} onChange={e=>setNotifTitle(e.target.value)} placeholder="ex: 🟢 Rodada aberta!"/>
+                </div>
+                <div className="a-row" style={{alignItems:'flex-start'}}>
+                  <span className="a-lbl" style={{paddingTop:6}}>Mensagem:</span>
+                  <textarea value={notifMsg} onChange={e=>setNotifMsg(e.target.value)}
+                    placeholder="ex: A Rodada 3 está aberta! Você tem até 19h para palpitar." rows={3}
+                    style={{flex:1,background:C.bgInput,border:`1px solid ${dm?'rgba(212,175,55,.25)':C.border}`,color:C.text,fontSize:13,padding:'7px 12px',borderRadius:5,outline:'none',resize:'vertical',fontFamily:'inherit',lineHeight:1.4}}/>
+                </div>
+                <div style={{marginTop:10,display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+                  <button className="btn-sm btn-gold" onClick={sendPushNotification} disabled={notifSending||!notifTitle.trim()||!notifMsg.trim()}>
+                    {notifSending?'Enviando...':'🔔 Enviar para Todos'}
+                  </button>
+                  <span style={{fontSize:11,color:C.textMuted}}>Só recebem quem ativou as notificações</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{marginBottom:24}}>
               <div className="section-title">Novidades</div>
               <div className="a-card">
                 <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.5}}>
@@ -1419,6 +1479,20 @@ function GuiaTab({ C, dm, state, guideTextStyle, guideTipStyle, guideHighlight }
           <div style={guideTipStyle}>
             ⚠️ Se você recusou a permissão antes, vá em Configurações do celular → Notificações → Palpitão e ative manualmente.
           </div>
+        </div>
+        {/* Botão de ativar direto */}
+        <div style={{marginTop:14,padding:'14px 16px',background:dm?'rgba(0,40,20,.5)':'rgba(0,80,40,.06)',border:`1px solid ${C.border}`,borderRadius:8,textAlign:'center' as const}}>
+          {pushStatus==='granted'
+            ? <div style={{color:C.green,fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:600,letterSpacing:1}}>✅ Notificações já ativadas!</div>
+            : pushStatus==='denied'
+              ? <div style={{color:C.red,fontSize:13}}>🚫 Notificações bloqueadas. Ative nas configurações do navegador.</div>
+              : <div>
+                  <div style={{fontSize:13,color:C.textMuted,marginBottom:10}}>Ative as notificações para ser avisado quando uma rodada abrir!</div>
+                  <button onClick={requestPushPermission} style={{background:C.gold,color:'#001a0a',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,letterSpacing:2,padding:'10px 24px',borderRadius:6,cursor:'pointer'}}>
+                    🔔 ATIVAR NOTIFICAÇÕES
+                  </button>
+                </div>
+          }
         </div>
       </GuiaItem>
 
