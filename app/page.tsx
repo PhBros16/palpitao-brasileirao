@@ -668,26 +668,37 @@ export default function Home() {
     await saveState(newState, authPassword); showNotif('Salvo!')
   }
 
-  // Push status via OneSignal (CORREÇÃO #3)
+  // Push status via OneSignal (CORREÇÃO #3 — com timeout para iPhone)
   useEffect(()=>{
-    if(typeof window !== 'undefined') {
-      const win = window as any
-      // Checa permissão nativa imediatamente
+    if(typeof window === 'undefined') return
+    const win = window as any
+
+    // Timeout de 2s: se não resolver, mostra botão direto (contorna iPhone Safari)
+    const fallbackTimer = setTimeout(()=>{
+      setPushStatus(s => s === 'unknown' ? 'default' : s)
+    }, 2000)
+
+    // Checa permissão nativa imediatamente
+    try {
       if(typeof Notification !== 'undefined') {
-        if(Notification.permission === 'granted') setPushStatus('granted')
-        else if(Notification.permission === 'denied') setPushStatus('denied')
-        else setPushStatus('default')
+        if(Notification.permission === 'granted') { setPushStatus('granted'); clearTimeout(fallbackTimer) }
+        else if(Notification.permission === 'denied') { setPushStatus('denied'); clearTimeout(fallbackTimer) }
+        else { setPushStatus('default'); clearTimeout(fallbackTimer) }
       }
-      // Refina com OneSignal se disponível
-      win.OneSignalDeferred = win.OneSignalDeferred || []
-      win.OneSignalDeferred.push(function(OneSignal: any) {
-        try {
-          if(OneSignal.Notifications.permission === true) setPushStatus('granted')
-          else if(Notification.permission === 'denied') setPushStatus('denied')
-          else setPushStatus('default')
-        } catch { /* OneSignal não carregado */ }
-      })
-    }
+    } catch { /* Safari pode não ter Notification */ }
+
+    // Refina com OneSignal se disponível
+    win.OneSignalDeferred = win.OneSignalDeferred || []
+    win.OneSignalDeferred.push(function(OneSignal: any) {
+      try {
+        clearTimeout(fallbackTimer)
+        if(OneSignal.Notifications.permission === true) setPushStatus('granted')
+        else if(typeof Notification !== 'undefined' && Notification.permission === 'denied') setPushStatus('denied')
+        else setPushStatus('default')
+      } catch { setPushStatus('default') }
+    })
+
+    return () => clearTimeout(fallbackTimer)
   },[])
 
   async function requestPushPermission() {
@@ -756,16 +767,26 @@ export default function Home() {
     await saveState(newState, authPassword); setAuthPassword(newPass); setNewPass(''); setMasterConf(''); showNotif('Senha alterada!')
   }
 
-  // Compartilhar ranking via WhatsApp
-  function shareRanking() {
+  // Compartilhar ranking ou parcial via WhatsApp (só admin)
+  function shareRanking(tipo: 'geral'|'parcial') {
     if(!state) return
-    const sorted = rankingData(state)
     const medals = ['🥇','🥈','🥉']
-    let text = `🏆 *Palpitão Copa do Mundo*\n📊 Ranking Atualizado\n\n`
-    sorted.slice(0,5).forEach((p:any,i:number)=>{
-      text += `${medals[i]||`${i+1}.`} ${p.name} — ${p.total} pts\n`
-    })
-    text += `\n⚽ Participe: palpitao-copa-mundo.vercel.app`
+    let text = ''
+    if(tipo === 'geral') {
+      const sorted = rankingData(state)
+      text = `🏆 *Palpitão Copa do Mundo*\n📊 *Ranking Geral*\n\n`
+      sorted.slice(0,5).forEach((p:any,i:number)=>{
+        text += `${medals[i]||`${i+1}.`} ${p.name} — ${p.total} pts\n`
+      })
+    } else {
+      const parc = parcialData(state)
+      text = `🏆 *Palpitão Copa do Mundo*\n⚽ *Parcial — ${state.round.name || 'Rodada Atual'}*\n\n`
+      parc.slice(0,5).forEach((p:any,i:number)=>{
+        const pts = p.roundPts > 0 ? `${p.roundPts} pts` : p.hasPal ? 'aguardando' : 'NP'
+        text += `${medals[i]||`${i+1}.`} ${p.name} — ${pts}\n`
+      })
+    }
+    text += `\n👉 Confira a tabela completa no nosso AppWeb: palpitao-copa-mundo.vercel.app`
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   }
@@ -1355,12 +1376,7 @@ export default function Home() {
 
           {/* ── RANKING ── */}
           {activeTab==='ranking'&&<div>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10,marginBottom:4}}>
-              <div className="section-title" style={{marginBottom:0}}>Ranking Geral</div>
-              <button className="btn-sm btn-whatsapp" onClick={shareRanking} style={{display:'flex',alignItems:'center',gap:6}}>
-                <span>📤</span> Compartilhar
-              </button>
-            </div>
+            <div className="section-title">Ranking Geral</div>
             <div className="section-sub">Pontuação acumulada · desempate por placares exatos e resultados corretos</div>
 
             {/* Pódio no ranking quando há histórico */}
@@ -1445,6 +1461,27 @@ export default function Home() {
           {activeTab==='admin'&&isAdmin&&<div>
             <div className="a-warn">⚠ Área restrita — alterações afetam todos os participantes.</div>
 
+            {/* Compartilhar no WhatsApp */}
+            <div style={{marginBottom:24}}>
+              <div className="section-title">Compartilhar no WhatsApp</div>
+              <div className="a-card">
+                <div style={{fontSize:12,color:C.textMuted,marginBottom:14,lineHeight:1.5}}>
+                  Envie um resumo direto no WhatsApp. Escolha o que compartilhar:
+                </div>
+                <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                  <button className="btn-sm btn-whatsapp" onClick={()=>shareRanking('geral')} style={{display:'flex',alignItems:'center',gap:6,padding:'10px 18px'}}>
+                    📊 Ranking Geral
+                  </button>
+                  <button className="btn-sm btn-whatsapp" onClick={()=>shareRanking('parcial')} style={{display:'flex',alignItems:'center',gap:6,padding:'10px 18px'}}>
+                    ⚽ Parcial da Rodada
+                  </button>
+                </div>
+                <div style={{marginTop:10,fontSize:11,color:C.textMuted,lineHeight:1.5}}>
+                  A mensagem incluirá o top 5 e o link do AppWeb.
+                </div>
+              </div>
+            </div>
+
             {/* Configuração da Rodada */}
             <div style={{marginBottom:24}}>
               <div className="section-title">Configuração da Rodada</div>
@@ -1495,7 +1532,7 @@ export default function Home() {
                       )}
                     </div>
                     <span className="a-lbl">Horário:</span>
-                    <input className="a-in md" value={m.time||''} placeholder="19:00" onChange={e=>setAdminBuf((b:any)=>({...b,matches:b.matches.map((x:any)=>x.id===m.id?{...x,time:e.target.value}:x)}))}/>
+                    <input className="a-in md" value={m.time||''} placeholder="ex: 19:00" onChange={e=>setAdminBuf((b:any)=>({...b,matches:b.matches.map((x:any)=>x.id===m.id?{...x,time:e.target.value}:x)}))}/>
                   </div>
                   <div className="a-row">
                     <span className="a-lbl">Travado:</span>
@@ -1505,13 +1542,23 @@ export default function Home() {
                   <div className="extras-admin">
                     <div className="extras-admin-title">Extras</div>
                     <div className="extras-checks">
-                      <label className="extra-check">
+                      <label className="extra-check" style={{
+                        background: m.hasQuemAvanca ? 'rgba(212,175,55,0.15)' : 'transparent',
+                        border: `1px solid ${m.hasQuemAvanca ? C.gold : 'transparent'}`,
+                        borderRadius: 6, padding: '6px 12px', transition: 'all .2s',
+                        color: m.hasQuemAvanca ? C.gold : C.textMuted
+                      }}>
                         <input type="checkbox" checked={m.hasQuemAvanca||false} onChange={e=>setAdminBuf((b:any)=>({...b,matches:b.matches.map((x:any)=>x.id===m.id?{...x,hasQuemAvanca:e.target.checked}:x)}))}/>
-                        🏴 Quem Avança?
+                        🏴 Quem Avança? {m.hasQuemAvanca && <span style={{marginLeft:4,fontSize:10,fontWeight:700}}>✓ ATIVO</span>}
                       </label>
-                      <label className="extra-check">
+                      <label className="extra-check" style={{
+                        background: m.hasPenaltis ? 'rgba(212,175,55,0.15)' : 'transparent',
+                        border: `1px solid ${m.hasPenaltis ? C.gold : 'transparent'}`,
+                        borderRadius: 6, padding: '6px 12px', transition: 'all .2s',
+                        color: m.hasPenaltis ? C.gold : C.textMuted
+                      }}>
                         <input type="checkbox" checked={m.hasPenaltis||false} onChange={e=>setAdminBuf((b:any)=>({...b,matches:b.matches.map((x:any)=>x.id===m.id?{...x,hasPenaltis:e.target.checked}:x)}))}/>
-                        ⚽ Pênaltis?
+                        ⚽ Pênaltis? {m.hasPenaltis && <span style={{marginLeft:4,fontSize:10,fontWeight:700}}>✓ ATIVO</span>}
                       </label>
                     </div>
                   </div>
