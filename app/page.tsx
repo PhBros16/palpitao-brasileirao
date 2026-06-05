@@ -376,6 +376,7 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetConfirm, setResetConfirm] = useState('')
+  const [resetMasterConfirm, setResetMasterConfirm] = useState('')
   const [adminPassInput, setAdminPassInput] = useState('')
   const [modalError, setModalError] = useState('')
   const [notif, setNotif] = useState<{msg:string,type:string}|null>(null)
@@ -402,10 +403,6 @@ export default function Home() {
   const [pushStatus, setPushStatus] = useState<'unknown'|'granted'|'denied'|'default'>('unknown')
   const [compareTarget, setCompareTarget] = useState<string|null>(null)
   const [projWindow, setProjWindow] = useState<number>(3) // janela de projeção em rodadas
-  const [importBuf, setImportBuf] = useState({league:'', season:'2026', round:''})
-  const [importResults, setImportResults] = useState<any[]>([])
-  const [importSelected, setImportSelected] = useState<string[]>([])
-  const [importLoading, setImportLoading] = useState(false)
   const [chatMsg, setChatMsg] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
@@ -664,12 +661,13 @@ export default function Home() {
   async function resetAll() {
     if(!state) return
     if(resetConfirm !== 'ZERAR') { showNotif('Digite ZERAR para confirmar','error'); return }
+    if(resetMasterConfirm !== MASTER_PASS) { showNotif('Senha master incorreta!','error'); return }
     const fresh = defaultState()
     fresh.adminPass = state.adminPass
     fresh.scoringPhases = state.scoringPhases
     fresh.multipliers = state.multipliers
     await saveState(fresh, authPassword)
-    setShowResetModal(false); setResetConfirm('')
+    setShowResetModal(false); setResetConfirm(''); setResetMasterConfirm('')
     showNotif('Dados zerados com sucesso!', 'error')
   }
 
@@ -889,41 +887,6 @@ export default function Home() {
     return result
   }
 
-  // ── Importar jogos via API-Football ─────────────────────────────────────
-  async function fetchImportJogos() {
-    if(!importBuf.league||!importBuf.round) {
-      showNotif('Preencha a liga e rodada','error'); return
-    }
-    setImportLoading(true)
-    setImportResults([])
-    try {
-      const res = await fetch(`/api/import-games?league=${importBuf.league}&season=${importBuf.season}&round=${encodeURIComponent(importBuf.round)}`)
-      const json = await res.json()
-      if(json.error) { showNotif(json.error,'error'); return }
-      setImportResults(json.games||[])
-      setImportSelected((json.games||[]).map((g:any)=>g.id))
-      if(!json.games?.length) showNotif('Nenhum jogo encontrado','error')
-    } catch { showNotif('Erro ao buscar jogos','error') }
-    finally { setImportLoading(false) }
-  }
-
-  function applyImportJogos() {
-    const toImport = importResults.filter(g=>importSelected.includes(g.id))
-    if(!toImport.length) { showNotif('Selecione ao menos 1 jogo','error'); return }
-    const newMatches = toImport.map(g=>({
-      id: 'm'+Date.now()+Math.random().toString(36).slice(2),
-      home: g.home, away: g.away,
-      homeFlag: g.homeLogo ? '' : g.homeFlag||'🏳',
-      awayFlag: g.awayLogo ? '' : g.awayFlag||'🏳',
-      homeLogo: g.homeLogo||'', awayLogo: g.awayLogo||'',
-      date: g.date, time: g.time,
-      locked: false, hasQuemAvanca: false, hasPenaltis: false
-    }))
-    setAdminBuf((b:any)=>({...b, matches:[...(b.matches||[]), ...newMatches]}))
-    setImportResults([]); setImportSelected([])
-    showNotif(`${newMatches.length} jogo(s) importado(s)! ✅`)
-  }
-
   // Compartilhar ranking ou parcial via WhatsApp (só admin)
   function shareRanking(tipo: 'geral'|'parcial') {
     if(!state) return
@@ -943,7 +906,7 @@ export default function Home() {
         text += `${medals[i]||`${i+1}.`} ${p.name} — ${pts}\n`
       })
     }
-    text += `\n👉 Confira a tabela completa no nosso AppWeb: palpitao-copa-mundo.vercel.app`
+    text += `\n👉 Confira a tabela completa no nosso AppWeb!`
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   }
@@ -994,10 +957,10 @@ export default function Home() {
           --red:${C.red};--green-bright:${C.green};--radius:8px;
         }
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-        button,input,select,textarea{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:inherit;}
+        button,input,select,textarea{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:inherit;font-size:16px;}
         html{overflow-x:hidden;}
-        body{font-family:'Barlow',sans-serif;background:${C.bg};color:${C.text};min-height:100vh;overflow-x:hidden;max-width:100%;transition:background .3s,color .3s;}
-        ${dm?`body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,100,50,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,40,100,.2) 0%,transparent 50%);pointer-events:none;z-index:0;}
+        body{font-family:'Barlow',sans-serif;background:${C.bg};color:${C.text};min-height:100vh;overflow-x:hidden;max-width:100%;transition:background .3s,color .3s;background-attachment:fixed;}
+        ${dm?`body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,100,50,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,40,100,.2) 0%,transparent 50%);pointer-events:none;z-index:0;background-attachment:fixed;}
         body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 15 L60 37 L30 52 L0 37 L0 15Z' fill='none' stroke='rgba(212,175,55,0.04)' stroke-width='1'/%3E%3C/svg%3E");background-size:60px 52px;pointer-events:none;z-index:0;}`:''}
         .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
         header{text-align:center;padding:20px 16px 16px;border-bottom:var(--border-gold);max-width:1200px;margin:0 auto;box-sizing:border-box;background:${C.headerBg};}
@@ -1193,10 +1156,12 @@ export default function Home() {
         <div className="modal">
           <h3>⚠ Zerar Dados</h3>
           <p style={{color:'#e74c3c',fontSize:13,marginBottom:12}}>Isso apagará TODOS os palpites, pontuações, histórico e resultados. A ação é irreversível!</p>
-          <p style={{fontSize:12,color:C.textMuted,marginBottom:12}}>Digite <b style={{color:C.gold}}>ZERAR</b> para confirmar:</p>
+          <p style={{fontSize:12,color:C.textMuted,marginBottom:8}}>Digite <b style={{color:C.gold}}>ZERAR</b> para confirmar:</p>
           <input type="text" value={resetConfirm} onChange={e=>setResetConfirm(e.target.value)} placeholder="ZERAR" style={{letterSpacing:4,textTransform:'uppercase'}}/>
+          <p style={{fontSize:12,color:C.textMuted,marginBottom:8,marginTop:4}}>Confirme com a <b style={{color:C.gold}}>senha master</b>:</p>
+          <input type="password" value={resetMasterConfirm} onChange={e=>setResetMasterConfirm(e.target.value)} placeholder="••••••"/>
           <div className="modal-btns" style={{marginTop:8}}>
-            <button className="btn-secondary" onClick={()=>{setShowResetModal(false);setResetConfirm('')}}>Cancelar</button>
+            <button className="btn-secondary" onClick={()=>{setShowResetModal(false);setResetConfirm('');setResetMasterConfirm('')}}>Cancelar</button>
             <button style={{flex:1,background:C.red,color:'white',border:'none',fontFamily:"'Barlow Condensed'",fontSize:14,fontWeight:700,letterSpacing:2,padding:12,borderRadius:6,cursor:'pointer'}} onClick={resetAll}>ZERAR TUDO</button>
           </div>
         </div>
@@ -1255,28 +1220,18 @@ export default function Home() {
           </div>
 
           <div className="tabs-nav">
-            {['home','palpites','geral','ranking','historico','chat','guia'].map(t=>{
+            {['home','palpites','geral','ranking','historico','guia'].map(t=>{
               const hasNovidade = t==='home' && (()=>{
                 const novs: any[] = state.novidades||[]
                 if(!novs.length) return false
                 const seen = typeof window !== 'undefined' ? localStorage.getItem('palpitao_novidade_seen') : null
                 return seen !== novs[novs.length-1]?.id
               })()
-              const hasChatNew = t==='chat' && activeTab!=='chat' && chatMessages.length > 0 && (()=>{
-                const lastSeen = typeof window !== 'undefined' ? localStorage.getItem('palpitao_chat_seen') : null
-                const lastMsg = chatMessages[chatMessages.length-1]
-                return lastMsg && lastSeen !== lastMsg.ts
-              })()
+
               return (
-                <button key={t} className={`tab-btn${activeTab===t?' active':''}`} onClick={()=>{
-                  setActiveTab(t)
-                  if(t==='chat'&&chatMessages.length>0) {
-                    const lastMsg = chatMessages[chatMessages.length-1]
-                    if(lastMsg) localStorage.setItem('palpitao_chat_seen', lastMsg.ts)
-                  }
-                }} style={{position:'relative'}}>
-                  {t==='home'?'🏠 Início':t==='palpites'?'✏ Palpites':t==='geral'?'📊 Geral':t==='ranking'?'🏆 Ranking':t==='historico'?'📅 Histórico':t==='chat'?'💬 Chat':'📖 Guia'}
-                  {(hasNovidade||hasChatNew) && <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'#e74c3c',border:'1px solid rgba(0,0,0,.3)'}}/>}
+                <button key={t} className={`tab-btn${activeTab===t?' active':''}`} onClick={()=>setActiveTab(t)} style={{position:'relative'}}>
+                  {t==='home'?'🏠 Início':t==='palpites'?'✏ Palpites':t==='geral'?'📊 Geral':t==='ranking'?'🏆 Ranking':t==='historico'?'📅 Histórico':'📖 Guia'}
+                  {hasNovidade && <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'#e74c3c',border:'1px solid rgba(0,0,0,.3)'}}/>}
                 </button>
               )
             })}
@@ -1332,7 +1287,7 @@ export default function Home() {
               <div className="card">
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}}>
                   <div className="section-title" style={{marginBottom:0,fontSize:17}}>Parcial</div>
-                  <span className={`parcial-chip ${state.roundFinalized?'chip-f':'chip-p'}`}>{state.roundFinalized?'FINALIZADA':'PARCIAL'}</span>
+                  <span className={`parcial-chip ${state.roundFinalized?'chip-f':'chip-p'}`}>{state.roundFinalized?'✔ FINALIZADA':'EM ANDAMENTO'}</span>
                   {mult>1&&<span className="mult-badge">×{mult}</span>}
                 </div>
                 <div style={{background:C.bgRow,border:`1px solid ${C.border}`,borderRadius:'var(--radius)',overflow:'hidden'}}>
@@ -1520,6 +1475,95 @@ export default function Home() {
                 Último: {new Date(state.palpiteTimes[currentUser!]).toLocaleString('pt-BR')}
               </span>}
             </div>}
+
+            {/* ── Mini Chat dentro dos Palpites ── */}
+            <div style={{marginTop:24}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,flexWrap:'wrap',gap:8}}>
+                <div className="section-title" style={{marginBottom:0,fontSize:18}}>💬 Chat da Rodada</div>
+                {isAdmin&&<button className="btn-sm btn-danger" style={{fontSize:11,padding:'5px 12px'}} onClick={clearChat}>🗑 Limpar</button>}
+              </div>
+              <div className="card" style={{padding:0,overflow:'hidden'}}>
+                <div className="chat-wrap">
+                  <div className="chat-messages">
+                    {chatMessages.length===0&&<div style={{textAlign:'center',color:C.textMuted,fontSize:13,marginTop:20,padding:'0 16px'}}>Nenhuma mensagem ainda. Seja o primeiro! 💬</div>}
+                    {chatMessages.map((m:any)=>{
+                      const isMe = m.user===currentUser
+                      const CHAT_EMOJIS = ['🤣','👍','🤬','🤡','🖕']
+                      const hasReactions = m.reactions && Object.values(m.reactions).some((v:any)=>(v as any[]).length>0)
+                      const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null)
+                      return (
+                        <div key={m.id} style={{display:'flex',flexDirection:'column',alignItems:isMe?'flex-end':'flex-start',marginBottom:6}}>
+                          {!isMe&&<span style={{fontSize:10,color:C.textMuted,marginBottom:2,marginLeft:6}}>{m.user}</span>}
+                          <div style={{position:'relative',maxWidth:'80%'}}>
+                            {/* Seletor de emoji ao pressionar */}
+                            {showEmojiPicker===m.id&&(
+                              <div style={{position:'absolute',bottom:'110%',left:isMe?'auto':'0',right:isMe?'0':'auto',
+                                background:dm?'rgba(0,30,15,.98)':'white',border:`1px solid ${C.border}`,
+                                borderRadius:20,padding:'6px 10px',display:'flex',gap:6,zIndex:100,
+                                boxShadow:'0 4px 20px rgba(0,0,0,.4)'}}>
+                                {CHAT_EMOJIS.map(emoji=>(
+                                  <button key={emoji} onClick={()=>{toggleChatReaction(m.id,emoji);setShowEmojiPicker(null)}}
+                                    style={{background:'transparent',border:'none',fontSize:22,cursor:'pointer',padding:'2px 4px',
+                                      borderRadius:6,transition:'transform .1s'}}
+                                    onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.3)')}
+                                    onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}
+                                  >{emoji}</button>
+                                ))}
+                              </div>
+                            )}
+                            <div
+                              className={`chat-bubble ${isMe?'mine':'other'}`}
+                              onContextMenu={e=>{e.preventDefault();setShowEmojiPicker(showEmojiPicker===m.id?null:m.id)}}
+                              onTouchStart={(e)=>{
+                                const timer = setTimeout(()=>setShowEmojiPicker(v=>v===m.id?null:m.id), 500)
+                                e.currentTarget.dataset.timer = String(timer)
+                              }}
+                              onTouchEnd={e=>{ clearTimeout(Number(e.currentTarget.dataset.timer)) }}
+                              onTouchMove={e=>{ clearTimeout(Number(e.currentTarget.dataset.timer)) }}
+                              style={{userSelect:'none'}}
+                            >{m.text}</div>
+                            {/* Reações embaixo da bolha */}
+                            {hasReactions&&(
+                              <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:3,justifyContent:isMe?'flex-end':'flex-start'}}>
+                                {CHAT_EMOJIS.map(emoji=>{
+                                  const users: string[] = m.reactions?.[emoji]||[]
+                                  if(!users.length) return null
+                                  const isMine = users.includes(currentUser||'')
+                                  return (
+                                    <button key={emoji} onClick={()=>toggleChatReaction(m.id,emoji)}
+                                      style={{background:isMine?'rgba(212,175,55,.2)':dm?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',
+                                        border:`1px solid ${isMine?C.gold:C.borderFaint}`,borderRadius:12,
+                                        padding:'2px 7px',fontSize:13,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:3}}>
+                                      {emoji}<span style={{fontSize:10,color:isMine?C.gold:C.textMuted}}>{users.length}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <span style={{fontSize:9,color:C.textSub,marginTop:1,marginLeft:6,marginRight:6}}>
+                            {new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    <div ref={chatEndRef}/>
+                  </div>
+                  <div className="chat-input-row" style={{padding:'8px 12px 12px'}}>
+                    <input
+                      className="a-in lg"
+                      style={{flex:1,fontSize:16}}
+                      value={chatMsg}
+                      onChange={e=>setChatMsg(e.target.value)}
+                      onKeyDown={e=>e.key==='Enter'&&sendChatMsg()}
+                      placeholder="Manda ver... 🔥"
+                      maxLength={200}
+                    />
+                    <button className="btn-sm btn-gold" onClick={sendChatMsg} disabled={!chatMsg.trim()}>Enviar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>}
 
           {/* ── GERAL ── */}
@@ -1664,83 +1708,6 @@ export default function Home() {
             ))}
           </div>}
 
-          {/* ── CHAT ── */}
-          {activeTab==='chat'&&<div>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginBottom:4}}>
-              <div className="section-title" style={{marginBottom:0}}>💬 Chat da Rodada</div>
-              {isAdmin&&<button className="btn-sm btn-danger" style={{fontSize:11,padding:'5px 12px'}} onClick={clearChat}>🗑 Limpar Chat</button>}
-            </div>
-            <div className="section-sub" style={{marginBottom:12}}>Reaja, provoque, comemore — tudo na boa 😄 · <span style={{color:C.textMuted}}>Rodada: {state.round.name||'—'}</span></div>
-            <div className="card" style={{padding:0,overflow:'hidden',marginBottom:0}}>
-              <div className="chat-wrap">
-                <div className="chat-messages">
-                  {chatMessages.length===0&&<div style={{textAlign:'center',color:C.textMuted,fontSize:13,marginTop:20,padding:'0 16px'}}>Nenhuma mensagem ainda. Seja o primeiro! 💬</div>}
-                  {chatMessages.map((m:any)=>{
-                    const isMe = m.user===currentUser
-                    const CHAT_EMOJIS = ['🏆','🔥','🤬','🤡','🥱','👀','👎','👍','🖕','🍆']
-                    const hasReactions = m.reactions && Object.values(m.reactions).some((v:any)=>v.length>0)
-                    return (
-                      <div key={m.id} style={{display:'flex',flexDirection:'column',alignItems:isMe?'flex-end':'flex-start',marginBottom:2}}>
-                        {!isMe&&<span style={{fontSize:10,color:C.textMuted,marginBottom:2,marginLeft:6}}>{m.user}</span>}
-                        {/* Bolha com long-press para reagir */}
-                        <div style={{position:'relative',maxWidth:'80%'}}>
-                          <div className={`chat-bubble ${isMe?'mine':'other'}`}
-                            onContextMenu={e=>{e.preventDefault();}}
-                          >{m.text}</div>
-                          {/* Reações embaixo da bolha */}
-                          {hasReactions&&(
-                            <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:3,justifyContent:isMe?'flex-end':'flex-start'}}>
-                              {CHAT_EMOJIS.map(emoji=>{
-                                const users: string[] = m.reactions?.[emoji]||[]
-                                if(!users.length) return null
-                                const isMine = users.includes(currentUser||'')
-                                return (
-                                  <button key={emoji} onClick={()=>toggleChatReaction(m.id,emoji)}
-                                    style={{background:isMine?'rgba(212,175,55,.2)':dm?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',
-                                      border:`1px solid ${isMine?C.gold:C.borderFaint}`,borderRadius:12,
-                                      padding:'2px 6px',fontSize:12,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:2}}>
-                                    {emoji}<span style={{fontSize:10,color:isMine?C.gold:C.textMuted}}>{users.length}</span>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                          {/* Botão de + reação */}
-                          <div style={{display:'flex',gap:3,marginTop:3,justifyContent:isMe?'flex-end':'flex-start',flexWrap:'wrap'}}>
-                            {['🔥','🤡','👍','🤬','😂'].map(emoji=>(
-                              <button key={emoji} onClick={()=>toggleChatReaction(m.id,emoji)}
-                                style={{background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:10,
-                                  padding:'1px 5px',fontSize:11,cursor:'pointer',opacity:0.5,transition:'opacity .15s'}}
-                                onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
-                                onMouseLeave={e=>(e.currentTarget.style.opacity='0.5')}
-                              >{emoji}</button>
-                            ))}
-                          </div>
-                        </div>
-                        <span style={{fontSize:9,color:C.textSub,marginTop:1,marginLeft:6,marginRight:6}}>
-                          {new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-                        </span>
-                      </div>
-                    )
-                  })}
-                  <div ref={chatEndRef}/>
-                </div>
-                <div className="chat-input-row" style={{padding:'8px 12px 12px'}}>
-                  <input
-                    className="a-in lg"
-                    style={{flex:1,fontSize:14}}
-                    value={chatMsg}
-                    onChange={e=>setChatMsg(e.target.value)}
-                    onKeyDown={e=>e.key==='Enter'&&sendChatMsg()}
-                    placeholder="Manda ver... 🔥"
-                    maxLength={200}
-                  />
-                  <button className="btn-sm btn-gold" onClick={sendChatMsg} disabled={!chatMsg.trim()}>Enviar</button>
-                </div>
-              </div>
-            </div>
-          </div>}
-
           {/* ── GUIA ── */}
           {activeTab==='guia'&&<GuiaTab C={C} dm={dm} state={state} guideTextStyle={guideTextStyle} guideTipStyle={guideTipStyle} guideHighlight={guideHighlight} requestPushPermission={requestPushPermission} pushStatus={pushStatus}/>}
 
@@ -1855,71 +1822,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Importar Jogos via API */}
+            {/* Configuração de Projeção */}
             <div style={{marginBottom:24}}>
-              <div className="section-title">⚽ Importar Jogos</div>
+              <div className="section-title">🔮 Projeção de Campeão</div>
               <div className="a-card">
-                <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.6}}>
-                  Busca jogos direto da <b style={{color:C.gold}}>API-Football</b>. A chave está configurada na Vercel automaticamente.
+                <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.5}}>
+                  Define quantas rodadas usar para calcular a projeção (%) na tabela de ranking.
                 </div>
                 <div className="a-row">
-                  <span className="a-lbl">Liga:</span>
-                  <select className="a-sel" value={importBuf.league} onChange={e=>setImportBuf(b=>({...b,league:e.target.value}))}>
-                    <option value="">Selecione...</option>
-                    <option value="1">Copa do Mundo</option>
-                    <option value="71">Brasileirão Série A</option>
-                    <option value="72">Brasileirão Série B</option>
-                    <option value="13">Copa Libertadores</option>
-                    <option value="11">Copa Sul-Americana</option>
-                    <option value="2">Champions League</option>
-                    <option value="3">Europa League</option>
+                  <span className="a-lbl">Janela:</span>
+                  <select className="a-sel" value={projWindow} onChange={e=>setProjWindow(Number(e.target.value))}>
+                    <option value={2}>Últimas 2 rodadas</option>
+                    <option value={3}>Últimas 3 rodadas</option>
+                    <option value={5}>Últimas 5 rodadas</option>
+                    <option value={10}>Últimas 10 rodadas</option>
+                    <option value={0}>Campeonato inteiro</option>
                   </select>
-                  <span className="a-lbl">Temporada:</span>
-                  <input className="a-in" style={{width:70}} value={importBuf.season} onChange={e=>setImportBuf(b=>({...b,season:e.target.value}))} placeholder="2026"/>
                 </div>
-                <div className="a-row">
-                  <span className="a-lbl">Rodada:</span>
-                  <input className="a-in lg" value={importBuf.round} onChange={e=>setImportBuf(b=>({...b,round:e.target.value}))} placeholder="ex: Regular Season - 1  ou  Group Stage - 1"/>
+                <div style={{fontSize:11,color:C.textMuted,marginTop:6,lineHeight:1.5}}>
+                  ⚠ Requer mínimo de 2 rodadas finalizadas. Com menos de 2, aparece "—" na tabela.
                 </div>
-                <button className="btn-sm btn-gold" onClick={fetchImportJogos} disabled={importLoading||!importBuf.league||!importBuf.round} style={{marginTop:4}}>
-                  {importLoading?'Buscando...':'🔍 Buscar Jogos'}
-                </button>
-
-                {/* Resultados da busca */}
-                {importResults.length > 0 && (
-                  <div style={{marginTop:14}}>
-                    <div style={{fontSize:12,fontWeight:600,color:C.gold,letterSpacing:1,marginBottom:8,fontFamily:"'Barlow Condensed',sans-serif"}}>
-                      {importResults.length} JOGO(S) ENCONTRADO(S) — selecione os que deseja importar:
-                    </div>
-                    {importResults.map((g:any)=>{
-                      const sel = importSelected.includes(g.id)
-                      return (
-                        <div key={g.id} onClick={()=>setImportSelected(prev=>sel?prev.filter(x=>x!==g.id):[...prev,g.id])}
-                          style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',marginBottom:6,
-                            background:sel?'rgba(212,175,55,.1)':'transparent',
-                            border:`1px solid ${sel?C.gold:C.borderFaint}`,
-                            borderRadius:6,cursor:'pointer',transition:'all .15s'}}>
-                          <span style={{fontSize:16}}>{sel?'✅':'⬜'}</span>
-                          {g.homeLogo&&<img src={g.homeLogo} alt="" style={{width:20,height:20,objectFit:'contain'}}/>}
-                          {!g.homeLogo&&<span style={{fontSize:16}}>{g.homeFlag||'🏳'}</span>}
-                          <span style={{flex:1,fontSize:13,fontWeight:600}}>{g.home}</span>
-                          <span style={{fontSize:11,color:C.textMuted}}>×</span>
-                          <span style={{flex:1,fontSize:13,fontWeight:600,textAlign:'right'}}>{g.away}</span>
-                          {g.awayLogo&&<img src={g.awayLogo} alt="" style={{width:20,height:20,objectFit:'contain'}}/>}
-                          {!g.awayLogo&&<span style={{fontSize:16}}>{g.awayFlag||'🏳'}</span>}
-                          <span style={{fontSize:11,color:C.textMuted,minWidth:80,textAlign:'right'}}>{g.date} {g.time}</span>
-                        </div>
-                      )
-                    })}
-                    <div style={{display:'flex',gap:10,marginTop:10,alignItems:'center',flexWrap:'wrap'}}>
-                      <button className="btn-sm btn-gold" onClick={applyImportJogos} disabled={!importSelected.length}>
-                        ✅ Importar {importSelected.length} jogo(s)
-                      </button>
-                      <button className="btn-sm btn-outline" onClick={()=>setImportSelected(importResults.map(g=>g.id))}>Selecionar todos</button>
-                      <button className="btn-sm btn-outline" onClick={()=>setImportSelected([])}>Desmarcar todos</button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -2437,18 +2359,18 @@ function GuiaTab({ C, dm, state, guideTextStyle, guideTipStyle, guideHighlight, 
 
       <GuiaItem title="Quais notificações vou receber?" icon="📣">
         <div style={guideTextStyle}>
-          <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:10}}>
-            <span style={{fontSize:20}}>🟢</span>
-            <div><b style={guideHighlight}>Rodada aberta</b><br/><span style={{fontSize:13,color:C.textMuted}}>Quando o admin abre uma nova rodada de palpites.</span></div>
-          </div>
-          <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:10}}>
-            <span style={{fontSize:20}}>⏱</span>
-            <div><b style={guideHighlight}>Lembrete de prazo</b><br/><span style={{fontSize:13,color:C.textMuted}}>Aviso 1 hora antes do primeiro jogo travar.</span></div>
-          </div>
-          <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-            <span style={{fontSize:20}}>🚨</span>
-            <div><b style={guideHighlight}>Rodada em andamento</b><br/><span style={{fontSize:13,color:C.textMuted}}>Quando o primeiro jogo da rodada começa.</span></div>
-          </div>
+          {[
+            {icon:'🟢', title:'Rodada aberta',        desc:'Quando o admin abre uma nova rodada de palpites.'},
+            {icon:'⏱',  title:'Lembrete de prazo',    desc:'Aviso ~1 hora antes do primeiro jogo travar.'},
+            {icon:'🚨', title:'Rodada em andamento',  desc:'Quando o primeiro jogo da rodada começa.'},
+            {icon:'⚽', title:'Resultado disponível', desc:'Quando o admin lança a pontuação da rodada.'},
+            {icon:'🆕', title:'Novidade no app',      desc:'Quando uma nova funcionalidade ou atualização é publicada.'},
+          ].map(({icon,title,desc})=>(
+            <div key={title} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:10}}>
+              <span style={{fontSize:20}}>{icon}</span>
+              <div><b style={guideHighlight}>{title}</b><br/><span style={{fontSize:13,color:C.textMuted}}>{desc}</span></div>
+            </div>
+          ))}
         </div>
       </GuiaItem>
 
