@@ -402,7 +402,7 @@ export default function Home() {
   const [pushStatus, setPushStatus] = useState<'unknown'|'granted'|'denied'|'default'>('unknown')
   const [compareTarget, setCompareTarget] = useState<string|null>(null)
   const [projWindow, setProjWindow] = useState<number>(3) // janela de projeção em rodadas
-  const [importBuf, setImportBuf] = useState({league:'', season:'2026', round:'', apiKey:''})
+  const [importBuf, setImportBuf] = useState({league:'', season:'2026', round:''})
   const [importResults, setImportResults] = useState<any[]>([])
   const [importSelected, setImportSelected] = useState<string[]>([])
   const [importLoading, setImportLoading] = useState(false)
@@ -891,14 +891,13 @@ export default function Home() {
 
   // ── Importar jogos via API-Football ─────────────────────────────────────
   async function fetchImportJogos() {
-    if(!importBuf.apiKey||!importBuf.league||!importBuf.round) {
-      showNotif('Preencha a chave, liga e rodada','error'); return
+    if(!importBuf.league||!importBuf.round) {
+      showNotif('Preencha a liga e rodada','error'); return
     }
     setImportLoading(true)
     setImportResults([])
     try {
-      // Busca via nosso proxy para não expor a key no front
-      const res = await fetch(`/api/import-games?league=${importBuf.league}&season=${importBuf.season}&round=${encodeURIComponent(importBuf.round)}&apiKey=${importBuf.apiKey}`)
+      const res = await fetch(`/api/import-games?league=${importBuf.league}&season=${importBuf.season}&round=${encodeURIComponent(importBuf.round)}`)
       const json = await res.json()
       if(json.error) { showNotif(json.error,'error'); return }
       setImportResults(json.games||[])
@@ -1861,11 +1860,7 @@ export default function Home() {
               <div className="section-title">⚽ Importar Jogos</div>
               <div className="a-card">
                 <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.6}}>
-                  Busca jogos direto da <b style={{color:C.gold}}>API-Football</b>. Preencha sua chave gratuita em <a href="https://api-football.com" target="_blank" style={{color:C.gold}}>api-football.com</a>.
-                </div>
-                <div className="a-row">
-                  <span className="a-lbl">Chave API:</span>
-                  <input className="a-in lg" type="password" value={importBuf.apiKey} onChange={e=>setImportBuf(b=>({...b,apiKey:e.target.value}))} placeholder="sua-chave-aqui"/>
+                  Busca jogos direto da <b style={{color:C.gold}}>API-Football</b>. A chave está configurada na Vercel automaticamente.
                 </div>
                 <div className="a-row">
                   <span className="a-lbl">Liga:</span>
@@ -1886,7 +1881,7 @@ export default function Home() {
                   <span className="a-lbl">Rodada:</span>
                   <input className="a-in lg" value={importBuf.round} onChange={e=>setImportBuf(b=>({...b,round:e.target.value}))} placeholder="ex: Regular Season - 1  ou  Group Stage - 1"/>
                 </div>
-                <button className="btn-sm btn-gold" onClick={fetchImportJogos} disabled={importLoading||!importBuf.apiKey||!importBuf.league||!importBuf.round} style={{marginTop:4}}>
+                <button className="btn-sm btn-gold" onClick={fetchImportJogos} disabled={importLoading||!importBuf.league||!importBuf.round} style={{marginTop:4}}>
                   {importLoading?'Buscando...':'🔍 Buscar Jogos'}
                 </button>
 
