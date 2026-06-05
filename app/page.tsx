@@ -155,6 +155,7 @@ function defaultState(): any {
     multipliers:defaultMultipliers(),
     novidades:[] as any[],
     admins:[] as any[],
+    adminLog:[] as any[],
   }
 }
 
@@ -362,6 +363,134 @@ function EvolucaoChart({ history, players, C }: any) {
   )
 }
 
+// ── Pizza de distribuição de palpites ────────────────────────────────────────
+function PizzaDistribuicao({ matches, palpites, C, dm }: any) {
+  if(!matches||matches.length===0) return null
+
+  // Agrega para o primeiro jogo com palpites (o mais relevante)
+  const jogoComPalpites = matches.find((m:any)=>{
+    return Object.values(palpites).some((p:any)=>p[m.id]&&p[m.id].h!=='')
+  })
+  if(!jogoComPalpites) return null
+
+  const m = jogoComPalpites
+  let homeWin=0, draw=0, awayWin=0, total=0
+  Object.values(palpites).forEach((p:any)=>{
+    const pal=p[m.id]
+    if(!pal||pal.h==='') return
+    const h=parseInt(pal.h), a=parseInt(pal.a)
+    if(isNaN(h)||isNaN(a)) return
+    total++
+    if(h>a) homeWin++
+    else if(h===a) draw++
+    else awayWin++
+  })
+  if(total===0) return null
+
+  const slices = [
+    {label:m.home, val:homeWin, color:'#D4AF37'},
+    {label:'Empate', val:draw, color:'#9b59b6'},
+    {label:m.away, val:awayWin, color:'#3498db'},
+  ].filter(s=>s.val>0)
+
+  // SVG pizza simples
+  const R=50, cx=60, cy=60
+  let cumAngle = -Math.PI/2
+  const paths: any[] = []
+  slices.forEach(s=>{
+    const angle = (s.val/total)*2*Math.PI
+    const x1=cx+R*Math.cos(cumAngle), y1=cy+R*Math.sin(cumAngle)
+    const x2=cx+R*Math.cos(cumAngle+angle), y2=cy+R*Math.sin(cumAngle+angle)
+    const large=angle>Math.PI?1:0
+    paths.push({...s, d:`M${cx},${cy} L${x1},${y1} A${R},${R},0,${large},1,${x2},${y2} Z`, pct:Math.round(s.val/total*100)})
+    cumAngle+=angle
+  })
+
+  return (
+    <div className="card" style={{marginBottom:16}}>
+      <div className="section-title" style={{fontSize:15,marginBottom:4}}>🗳 Distribuição de Palpites</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10}}>{m.home} × {m.away}</div>
+      <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+        <svg viewBox="0 0 120 120" style={{width:100,height:100,flexShrink:0}}>
+          {paths.map((p,i)=><path key={i} d={p.d} fill={p.color} opacity={0.9}/>)}
+          <circle cx={cx} cy={cy} r={22} fill={dm?'#0a1f10':'#f0f7f0'}/>
+          <text x={cx} y={cy+4} textAnchor="middle" fontSize={11} fontWeight="bold" fill={dm?'#D4AF37':'#005a2a'}>{total}</text>
+        </svg>
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          {paths.map((p,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:10,height:10,borderRadius:2,background:p.color,flexShrink:0}}/>
+              <span style={{fontSize:12,color:C.text}}>{p.label}</span>
+              <span style={{fontFamily:"'Bebas Neue'",fontSize:14,color:p.color,marginLeft:'auto'}}>{p.pct}%</span>
+              <span style={{fontSize:11,color:C.textMuted}}>({p.val})</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Heatmap de performance ───────────────────────────────────────────────────
+function HeatmapPerformance({ player, history, C }: any) {
+  if(!history||history.length===0) return (
+    <div style={{fontSize:12,color:C.textMuted,padding:'8px 0'}}>Nenhuma rodada finalizada ainda.</div>
+  )
+
+  const maxPts = Math.max(...history.map((r:any)=>r.scores?.[player]||0), 1)
+
+  function heatColor(pts: number): string {
+    if(pts===0) return 'rgba(255,255,255,0.06)'
+    const ratio = pts/maxPts
+    if(ratio < 0.33) return '#c0392b'
+    if(ratio < 0.66) return '#e67e22'
+    if(ratio < 0.85) return '#f1c40f'
+    return '#00c060'
+  }
+
+  const [tooltip, setTooltip] = useState<string|null>(null)
+
+  return (
+    <div style={{marginBottom:14}}>
+      <div style={{fontSize:11,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginBottom:8}}>🔥 Performance por Rodada</div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+        {history.map((r:any,i:number)=>{
+          const pts = r.scores?.[player]||0
+          const color = heatColor(pts)
+          const label = `${r.roundName||`R${i+1}`} · ${pts} pts`
+          return (
+            <div key={i} title={label}
+              onMouseEnter={()=>setTooltip(label)}
+              onMouseLeave={()=>setTooltip(null)}
+              onTouchStart={()=>setTooltip(label)}
+              onTouchEnd={()=>setTimeout(()=>setTooltip(null),1500)}
+              style={{
+                width:28,height:28,borderRadius:4,background:color,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                cursor:'default',transition:'transform .1s',
+                fontSize:9,fontWeight:700,color:'rgba(0,0,0,.6)',
+                fontFamily:"'Bebas Neue'"
+              }}>
+              R{i+1}
+            </div>
+          )
+        })}
+      </div>
+      {tooltip && (
+        <div style={{fontSize:11,color:C.gold,marginTop:6,fontFamily:"'Barlow Condensed'",letterSpacing:1}}>{tooltip}</div>
+      )}
+      <div style={{display:'flex',gap:8,marginTop:6,alignItems:'center'}}>
+        {[{c:'#c0392b',l:'Ruim'},{c:'#e67e22',l:'OK'},{c:'#f1c40f',l:'Bom'},{c:'#00c060',l:'Ótimo'}].map(({c,l})=>(
+          <div key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.textMuted}}>
+            <div style={{width:8,height:8,borderRadius:2,background:c}}/>
+            {l}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Estatísticas pessoais ───────────────────────────────────────────────────
 function EstatisticasPessoais({ player, history, C }: any) {
   let totalJogos = 0, exatos = 0, vencedor = 0, saldo = 0, rodadas = 0
@@ -411,6 +540,9 @@ function EstatisticasPessoais({ player, history, C }: any) {
           <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginTop:2}}>Saldo</div>
         </div>
       </div>
+
+      {/* Heatmap de performance */}
+      <HeatmapPerformance player={player} history={history} C={C}/>
 
       {/* Barras de % */}
       {[
@@ -499,6 +631,7 @@ export default function Home() {
   const [extraResults, setExtraResults] = useState<any>({})
   const [corrOpen, setCorrOpen] = useState<any>({})
   const [manualPts, setManualPts] = useState<any>({})
+  const [selectedCorrPlayer, setSelectedCorrPlayer] = useState<string|null>(null)
   const [scoringPhases, setScoringPhases] = useState<any[]>([])
   const [multipliersBuf, setMultipliersBuf] = useState<any>({})
   const [shamePlayer, setShamePlayer] = useState('')
@@ -552,6 +685,7 @@ export default function Home() {
       if(!s.multipliers) s.multipliers=defaultMultipliers()
       if(!s.novidades) s.novidades=[]
       if(!s.admins) s.admins=[]
+      if(!s.adminLog) s.adminLog=[]
       if(s.round?.matches) {
         s.round.matches = s.round.matches.map((m:any)=>({
           date: m.date ?? '',
@@ -587,9 +721,20 @@ export default function Home() {
   useEffect(()=>{ fetchState() },[fetchState])
   useEffect(()=>{ const t=setInterval(fetchState,30000); return()=>clearInterval(t) },[fetchState])
 
-  const saveState = useCallback(async (newState: any, password: string) => {
+  function addAdminLog(newState: any, action: string) {
+    if(!newState.adminLog) newState.adminLog=[]
+    newState.adminLog.unshift({
+      ts: new Date().toISOString(),
+      action,
+    })
+    // manter só os últimos 50 logs
+    if(newState.adminLog.length > 50) newState.adminLog = newState.adminLog.slice(0,50)
+  }
+
+  const saveState = useCallback(async (newState: any, password: string, logAction?: string) => {
     setSaving(true)
     try {
+      if(logAction) addAdminLog(newState, logAction)
       const res = await fetch('/api/state',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({state:newState, password})
@@ -695,7 +840,7 @@ export default function Home() {
     newState.round.name=adminBuf.name; newState.round.phase=adminBuf.phase; newState.round.number=adminBuf.number||1
     newState.palpitesOpen=adminBuf.open; newState.round.matches=adminBuf.matches
     newState.roundFinalized=false
-    await saveState(newState, authPassword)
+    await saveState(newState, authPassword, `Rodada salva: "${adminBuf.name}"`)
     showNotif('Rodada salva!')
     const ri:any={}; const er:any={}
     adminBuf.matches.forEach((m:any)=>{
@@ -726,7 +871,7 @@ export default function Home() {
         }
       })
     })
-    await saveState(newState, authPassword); showNotif('Pontuação calculada! ⚡')
+    await saveState(newState, authPassword, `Pontuação calculada automaticamente — ${state.round.name||'rodada atual'}`); showNotif('Pontuação calculada! ⚡')
   }
 
   async function applyManualPts(player: string, matchId: string) {
@@ -736,7 +881,7 @@ export default function Home() {
     const newState=JSON.parse(JSON.stringify(state))
     if(!newState.correctedScores[player]) newState.correctedScores[player]={}
     newState.correctedScores[player][matchId]=val
-    await saveState(newState, authPassword); showNotif('Pts manuais salvos!')
+    await saveState(newState, authPassword, `Correção manual: ${player} → ${val}pts no jogo ${matchId}`); showNotif('Pts manuais salvos!')
   }
 
   async function finalizeRound() {
@@ -763,7 +908,7 @@ export default function Home() {
     newState.roundHistory.push({roundName:newState.round.name,scores,tiebreak})
     newState.palpites={}; newState.palpiteTimes={}; newState.correctedScores={}; newState.results={}
     newState.roundFinalized=true; newState.round.name=''; newState.round.matches=[]
-    await saveState(newState, authPassword); showNotif('Rodada finalizada! 🏆')
+    await saveState(newState, authPassword, `Rodada finalizada: "${newState.roundHistory[newState.roundHistory.length-1]?.roundName||'rodada'}"`); showNotif('Rodada finalizada! 🏆')
   }
 
   async function clearPalpites() {
@@ -1511,6 +1656,11 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Pizza de distribuição de palpites */}
+            {state.round.matches.length > 0 && Object.keys(state.palpites).length > 0 && (
+              <PizzaDistribuicao matches={state.round.matches} palpites={state.palpites} C={C} dm={dm}/>
+            )}
+
             {/* Podium — só aparece quando há histórico */}
             {state.roundHistory.length > 0 && (()=>{
               const totalPts: Record<string,number> = {}
@@ -2118,32 +2268,98 @@ export default function Home() {
                 ))}
                 <button className="btn-sm btn-gold" onClick={applyCorrection}>⚡ Calcular Pontos Automaticamente</button>
               </div>
-              {PLAYERS.map(p=>{
-                const roundPts=Object.values(state.correctedScores[p]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number
-                const pkey=p.replace(/\s/g,'_')
-                return <div key={p} className="corr-p">
-                  <div className="corr-h" onClick={()=>setCorrOpen((o:any)=>({...o,[pkey]:!o[pkey]}))}>
-                    <span className="corr-n">{p}</span>
-                    <span className="corr-pts">{roundPts} pts <span style={{fontSize:13,color:C.textMuted}}>{state.totalPoints[p]||0} total</span></span>
-                  </div>
-                  {corrOpen[pkey]&&<div className="corr-b">
-                    {state.round.matches.map((m:any)=>{
-                      const pal=state.palpites[p]?.[m.id]; const res=state.results[m.id]; const pts=state.correctedScores[p]?.[m.id]
-                      const key=`${p}-${m.id}`
-                      return <div key={m.id} className="corr-r">
-                        <span style={{minWidth:120,color:C.textMuted,fontSize:12}}>{m.home} x {m.away}</span>
-                        <span style={{fontSize:12}}>Palpite: <b>{pal&&pal.h!==''?`${pal.h}×${pal.a}`:<span style={{color:C.textSub}}>NP</span>}</b></span>
-                        <span style={{fontSize:12}}>Result: <b style={{color:C.gold}}>{res&&res.h!==''?`${res.h}×${res.a}`:'—'}</b></span>
-                        {pts!==undefined&&<span className={`pts-badge pts-${Math.min(pts,5)}`}>{pts}pt</span>}
-                        <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                          <input className="a-in sm" type="number" inputMode="numeric" min={0} value={manualPts[key]??pts??''} placeholder="—" onChange={e=>setManualPts((mp:any)=>({...mp,[key]:e.target.value}))}/>
-                          <button className="btn-sm btn-outline" style={{padding:'5px 10px',fontSize:11}} onClick={()=>applyManualPts(p,m.id)}>Ok</button>
+              {/* ── Quadro de Palpiteiros ── */}
+              <div style={{marginTop:16}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,fontWeight:600,letterSpacing:2,color:C.textMuted,textTransform:'uppercase',marginBottom:10}}>Quadro de Palpiteiros</div>
+                {/* Grade de seleção */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))',gap:6,marginBottom:14}}>
+                  {PLAYERS.map(p=>{
+                    const roundPts=Object.values(state.correctedScores[p]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number
+                    const hasPal = !!(state.palpites[p]&&Object.keys(state.palpites[p]).length>0)
+                    const isSelected = selectedCorrPlayer===p
+                    const initials = p.split(' ').map((w:string)=>w[0]).join('').substring(0,2).toUpperCase()
+                    return (
+                      <button key={p} onClick={()=>setSelectedCorrPlayer(isSelected?null:p)}
+                        style={{
+                          background: isSelected ? 'rgba(212,175,55,.18)' : dm?'rgba(0,40,20,.5)':'rgba(0,80,40,.06)',
+                          border: `1px solid ${isSelected?C.gold:C.borderFaint}`,
+                          borderRadius:8, padding:'10px 6px', cursor:'pointer',
+                          display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                          transition:'all .15s'
+                        }}>
+                        <div style={{width:36,height:36,borderRadius:'50%',
+                          background:hasPal?`linear-gradient(135deg,${C.gold},#a07820)`:'rgba(255,255,255,.08)',
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:13,
+                          color:hasPal?'#001a0a':C.textMuted,border:`2px solid ${isSelected?C.gold:'transparent'}`}}>
+                          {initials}
                         </div>
-                      </div>
-                    })}
-                  </div>}
+                        <div style={{fontSize:11,color:isSelected?C.gold:C.text,fontWeight:isSelected?700:400,textAlign:'center',lineHeight:1.2}}>{p.split(' ')[0]}</div>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:roundPts>0?C.green:C.textMuted,lineHeight:1}}>{roundPts>0?`+${roundPts}`:'—'}</div>
+                      </button>
+                    )
+                  })}
                 </div>
-              })}
+
+                {/* Painel do jogador selecionado */}
+                {selectedCorrPlayer && (()=>{
+                  const p = selectedCorrPlayer
+                  const roundPts=Object.values(state.correctedScores[p]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number
+                  return (
+                    <div style={{background:dm?'rgba(0,30,15,.8)':'rgba(0,60,30,.06)',border:`1px solid ${C.gold}44`,borderRadius:10,padding:'14px 16px'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
+                        <div style={{display:'flex',alignItems:'center',gap:10}}>
+                          <div style={{width:40,height:40,borderRadius:'50%',background:`linear-gradient(135deg,${C.gold},#a07820)`,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,color:'#001a0a'}}>
+                            {p.split(' ').map((w:string)=>w[0]).join('').substring(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold,letterSpacing:1}}>{p}</div>
+                            <div style={{fontSize:11,color:C.textMuted}}>{roundPts} pts nesta rodada · {state.totalPoints[p]||0} total</div>
+                          </div>
+                        </div>
+                        <button onClick={()=>setSelectedCorrPlayer(null)} style={{background:'transparent',border:`1px solid ${C.borderFaint}`,color:C.textMuted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12}}>✕ Fechar</button>
+                      </div>
+
+                      {state.round.matches.length===0 && <div style={{fontSize:13,color:C.textMuted,textAlign:'center',padding:'10px 0'}}>Nenhum jogo configurado.</div>}
+                      {state.round.matches.map((m:any)=>{
+                        const pal=state.palpites[p]?.[m.id]
+                        const res=state.results[m.id]
+                        const pts=state.correctedScores[p]?.[m.id]
+                        const key=`${p}-${m.id}`
+                        const locked = isMatchLocked(m, state.round.matches.indexOf(m))
+                        return (
+                          <div key={m.id} style={{padding:'10px 0',borderBottom:`1px solid ${C.borderFaint}`}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:6,marginBottom:6}}>
+                              <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.home} × {m.away}</span>
+                              {locked && <span style={{fontSize:10,color:C.textMuted,background:'rgba(255,255,255,.06)',padding:'2px 6px',borderRadius:4}}>🔒 Travado</span>}
+                            </div>
+                            <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
+                              <div style={{fontSize:12,color:C.textMuted}}>
+                                Palpite: <b style={{color:pal&&pal.h!==''?C.text:C.textSub,fontFamily:"'Bebas Neue'",fontSize:15}}>
+                                  {pal&&pal.h!==''?`${pal.h}×${pal.a}`:'NP'}
+                                </b>
+                              </div>
+                              <div style={{fontSize:12,color:C.textMuted}}>
+                                Resultado: <b style={{color:res&&res.h!==''?C.gold:C.textSub,fontFamily:"'Bebas Neue'",fontSize:15}}>
+                                  {res&&res.h!==''?`${res.h}×${res.a}`:'—'}
+                                </b>
+                              </div>
+                              {pts!==undefined && <span className={`pts-badge pts-${Math.min(pts,5)}`}>{pts}pt</span>}
+                            </div>
+                            <div style={{display:'flex',gap:6,alignItems:'center',marginTop:8}}>
+                              <span style={{fontSize:11,color:C.textMuted}}>Corrigir pts:</span>
+                              <input className="a-in sm" type="number" inputMode="numeric" min={0}
+                                value={manualPts[key]??pts??''} placeholder="—"
+                                onChange={e=>setManualPts((mp:any)=>({...mp,[key]:e.target.value}))}/>
+                              <button className="btn-sm btn-outline" style={{padding:'5px 12px',fontSize:11}} onClick={()=>applyManualPts(p,m.id)}>✓ Ok</button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
             </div>
 
             {/* Esquema de Pontuação */}
@@ -2306,6 +2522,26 @@ export default function Home() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Log de Ações */}
+            <div style={{marginBottom:24}}>
+              <div className="section-title">📋 Log de Ações</div>
+              <div className="a-card" style={{padding:0,overflow:'hidden'}}>
+                {(state.adminLog||[]).length===0
+                  ? <div style={{padding:'16px',fontSize:13,color:C.textMuted,textAlign:'center'}}>Nenhuma ação registrada ainda.</div>
+                  : <div style={{maxHeight:260,overflowY:'auto'}}>
+                      {(state.adminLog||[]).map((log:any, i:number)=>(
+                        <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'10px 14px',borderBottom:`1px solid ${C.borderFaint}`,background:i%2===0?'transparent':dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.02)'}}>
+                          <div style={{fontSize:10,color:C.textMuted,whiteSpace:'nowrap',flexShrink:0,paddingTop:1}}>
+                            {new Date(log.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                          </div>
+                          <div style={{fontSize:12,color:C.text,lineHeight:1.4}}>{log.action}</div>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
             </div>
 
             {/* Dados & Segurança */}
