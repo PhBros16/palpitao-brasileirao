@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -6,11 +6,17 @@ export const metadata: Metadata = {
   description: 'Bolão Copa do Mundo 2026',
   manifest: '/manifest.webmanifest',
   icons: {
-    // Esta linha abaixo define o emoji 🏆 APENAS para a aba do navegador
     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>',
-    // Esta linha garante que o iPhone/iPad continue usando a sua logo
     apple: '/apple-touch-icon.png',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               allowLocalhostAsSecureOrigin: true,
             });
           });
-        `}</Script>
+        \`}</Script>
       </body>
     </html>
   )
