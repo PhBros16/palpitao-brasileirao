@@ -492,67 +492,195 @@ function HeatmapPerformance({ player, history, C }: any) {
 }
 
 // ── Estatísticas pessoais ───────────────────────────────────────────────────
-function EstatisticasPessoais({ player, history, C }: any) {
-  let totalJogos = 0, exatos = 0, vencedor = 0, saldo = 0, rodadas = 0
+function calcPlayerStats(player: string, history: any[]) {
+  let exatos=0, vencedor=0, saldo=0, rodadas=0, totalPts=0
+  let maxSaltoPos=0, seriaSemZero=0, maxSeriaSemZero=0
+  let rodadasTop3=0, rodadasUltimo=0, rodadasPrimeiro=0
+  let empatesApostados=0, totalApostados=0
+  let goleadasApostadas=0, goleadasAcertadas=0
+  let faltouPalpitar=0
 
-  history.forEach((r:any) => {
-    if(r.scores?.[player] !== undefined) rodadas++
+  history.forEach((r:any, ri:number) => {
+    const pts = r.scores?.[player]
+    if(pts === undefined) { faltouPalpitar++; seriaSemZero=0; return }
+    rodadas++
+    totalPts += pts
+
     if(r.tiebreak?.[player]) {
       const t = r.tiebreak[player]
-      exatos  += t.exact   || 0
-      vencedor+= t.correct || 0  // correct = acertou vencedor (inclui exatos)
-      saldo   += t.saldo   || 0  // saldo = acertou saldo mas não exato
-      totalJogos += (t.exact||0) + (t.correct||0) + (t.saldo||0)
+      exatos   += t.exact   || 0
+      vencedor += t.correct || 0
+      saldo    += t.saldo   || 0
+    }
+
+    // Posição nessa rodada
+    const allPts = Object.entries(r.scores||{}).sort((a:any,b:any)=>b[1]-a[1])
+    const pos = allPts.findIndex(([p])=>p===player)
+    if(pos === 0) rodadasPrimeiro++
+    if(pos <= 2) rodadasTop3++
+    if(pos === allPts.length-1) rodadasUltimo++
+
+    // Salto de posição (precisa de rodada anterior)
+    if(ri > 0) {
+      const prevScores = history[ri-1].scores||{}
+      const prevAll = Object.entries(prevScores).sort((a:any,b:any)=>b[1]-a[1])
+      const prevPos = prevAll.findIndex(([p])=>p===player)
+      const salto = prevPos - pos
+      if(salto > maxSaltoPos) maxSaltoPos = salto
+    }
+
+    // Série sem zero
+    if(pts > 0) { seriaSemZero++; if(seriaSemZero > maxSeriaSemZero) maxSeriaSemZero=seriaSemZero }
+    else seriaSemZero=0
+
+    // Palpites de empate e goleadas (via palpites armazenados na rodada)
+    if(r.palpites?.[player]) {
+      Object.values(r.palpites[player]).forEach((pal:any) => {
+        if(!pal||pal.h==='') return
+        totalApostados++
+        const h=parseInt(pal.h), a=parseInt(pal.a)
+        if(isNaN(h)||isNaN(a)) return
+        if(h===a) empatesApostados++
+        if(h+a >= 5) {
+          goleadasApostadas++
+          // Verificar se acertou
+          const matchId = Object.keys(r.palpites[player]).find(k=>r.palpites[player][k]===pal)
+          const res = r.results?.[matchId||'']
+          if(res && parseInt(res.h)===h && parseInt(res.a)===a) goleadasAcertadas++
+        }
+      })
     }
   })
 
-  // % sobre total de jogos participados (estimado como rodadas * 2 jogos médios)
-  const totalEstimado = Math.max(rodadas * 2, 1)
-  const pctExato    = Math.round((exatos   / totalEstimado) * 100)
-  const pctVencedor = Math.round((vencedor / totalEstimado) * 100)
-  const pctSaldo    = Math.round((saldo    / totalEstimado) * 100)
+  const mediaPts = rodadas > 0 ? totalPts/rodadas : 0
+  const pctEmpate = totalApostados > 0 ? empatesApostados/totalApostados : 0
 
-  // Conquistas
-  const conquistas = []
-  if(exatos   >= 1)  conquistas.push({icon:'🎯', label:'Sniper',      desc:'1+ placar exato'})
-  if(exatos   >= 5)  conquistas.push({icon:'🔥', label:'Em Chamas',   desc:'5+ placares exatos'})
-  if(rodadas  >= 3)  conquistas.push({icon:'💪', label:'Veterano',    desc:'3+ rodadas'})
-  if(vencedor >= 10) conquistas.push({icon:'⚡', label:'Consistente', desc:'10+ vencedores certos'})
-  if(saldo    >= 5)  conquistas.push({icon:'📐', label:'Calculista',  desc:'5+ saldos acertados'})
+  return {
+    exatos, vencedor, saldo, rodadas, totalPts, mediaPts,
+    maxSaltoPos, maxSeriaSemZero, rodadasTop3, rodadasUltimo,
+    rodadasPrimeiro, empatesApostados, totalApostados, pctEmpate,
+    goleadasApostadas, goleadasAcertadas, faltouPalpitar
+  }
+}
+
+function calcTrofeus(player: string, history: any[], allPlayers: string[]) {
+  const s = calcPlayerStats(player, history)
+  const allStats = allPlayers.reduce((acc:any, p:string) => { acc[p]=calcPlayerStats(p,history); return acc }, {})
+
+  const melhorMedia    = allPlayers.reduce((best,p) => allStats[p].mediaPts > (allStats[best]?.mediaPts||0) ? p : best, allPlayers[0])
+  const maisExatos     = allPlayers.reduce((best,p) => allStats[p].exatos   > (allStats[best]?.exatos  ||0) ? p : best, allPlayers[0])
+  const maisEmpates    = allPlayers.reduce((best,p) => allStats[p].pctEmpate> (allStats[best]?.pctEmpate||0) ? p : best, allPlayers[0])
+  const maisUltimo     = allPlayers.reduce((best,p) => allStats[p].rodadasUltimo>(allStats[best]?.rodadasUltimo||0) ? p : best, allPlayers[0])
+  const maisPrimeiro   = allPlayers.reduce((best,p) => allStats[p].rodadasPrimeiro>(allStats[best]?.rodadasPrimeiro||0) ? p : best, allPlayers[0])
+
+  type Trofeu = { icon:string; label:string; desc:string; raro:boolean; unlocked:boolean }
+  const todos: Trofeu[] = [
+    // ── Individuais por performance ──
+    { icon:'🎯', label:'Olho de Águia',      desc:'Acertou 3+ placares exatos na competição',          raro:false, unlocked: s.exatos >= 3 },
+    { icon:'💎', label:'Perfeição',           desc:'Acertou todos os placares de uma rodada',            raro:true,  unlocked: history.some((r:any)=>{
+        const jogos = Object.keys(r.results||{}).filter(id=>r.results[id]?.h!=='')
+        if(jogos.length<2) return false
+        return jogos.every(id=> {
+          const pal=r.palpites?.[player]?.[id]; const res=r.results?.[id]
+          return pal&&res&&pal.h!==''&&pal.h===res.h&&pal.a===res.a
+        })
+    })},
+    { icon:'🌪️', label:'Hat-trick',          desc:'3 placares exatos na mesma rodada',                  raro:true,  unlocked: history.some((r:any)=>{
+        let cnt=0
+        Object.keys(r.results||{}).forEach(id=>{ const pal=r.palpites?.[player]?.[id]; const res=r.results?.[id]; if(pal&&res&&pal.h!==''&&pal.h===res.h&&pal.a===res.a) cnt++ })
+        return cnt>=3
+    })},
+    { icon:'🧱', label:'O Muralha',           desc:'3 rodadas seguidas sem zerar em nenhum jogo',        raro:false, unlocked: s.maxSeriaSemZero >= 3 },
+    { icon:'📈', label:'Virada de Mesa',      desc:'Maior salto de posição em uma rodada (3+ posições)', raro:false, unlocked: s.maxSaltoPos >= 3 },
+    { icon:'🧊', label:'Sangue Frio',         desc:'Acertou placar exato em jogo de mata-mata',          raro:true,  unlocked: history.some((r:any)=>{
+        if(!['oitavas','quartas','semi','final','3lugar','16avos'].includes((r.phase||'').toLowerCase())) return false
+        return Object.keys(r.results||{}).some(id=>{ const pal=r.palpites?.[player]?.[id]; const res=r.results?.[id]; return pal&&res&&pal.h!==''&&pal.h===res.h&&pal.a===res.a })
+    })},
+    { icon:'💪', label:'Veterano',            desc:'Participou de 5+ rodadas',                           raro:false, unlocked: s.rodadas >= 5 },
+    { icon:'🔥', label:'Em Chamas',           desc:'5+ rodadas no top 3',                                raro:false, unlocked: s.rodadasTop3 >= 5 },
+
+    // ── Comparativos (só um ganha) ──
+    { icon:'🧠', label:'O Analista',          desc:'Maior média de pontos por rodada',                   raro:true,  unlocked: s.rodadas>=3 && player===melhorMedia },
+    { icon:'🏆', label:'Líder Absoluto',      desc:'Ficou mais rodadas em 1º lugar',                     raro:true,  unlocked: s.rodadasPrimeiro>=2 && player===maisPrimeiro },
+    { icon:'💩', label:'Lanterninha Raiz',    desc:'Ficou mais rodadas em último... muito obrigado',      raro:false, unlocked: s.rodadasUltimo>=3 && player===maisUltimo },
+    { icon:'🏳️', label:'O Pacifista',        desc:'Apostou empate em mais da metade dos jogos de uma rodada', raro:false, unlocked: history.some((r:any)=>{
+        const pals = Object.values(r.palpites?.[player]||{}).filter((p:any)=>p&&p.h!=='')
+        if((pals as any[]).length<2) return false
+        const empates = (pals as any[]).filter(p=>p.h===p.a).length
+        return empates/(pals as any[]).length > 0.5
+    })},
+    { icon:'🤝', label:'Diplomata',           desc:'Quem mais apostou empates na competição toda',        raro:false, unlocked: s.rodadas>=3 && player===maisEmpates },
+
+    // ── Zueiros ──
+    { icon:'🐔', label:'Galinha',             desc:'Nunca apostou mais de 2 gols no total num único jogo', raro:false, unlocked: s.rodadas>=3 && history.every((r:any)=>{
+        return Object.values(r.palpites?.[player]||{}).every((p:any)=>!p||p.h===''||parseInt(p.h)+parseInt(p.a)<=2)
+    })},
+    { icon:'💀', label:'O Otimista Trágico',  desc:'Apostou goleada (5+ gols) e nunca acertou',           raro:false, unlocked: s.goleadasApostadas>=3 && s.goleadasAcertadas===0 },
+    { icon:'🗿', label:'O Monólito',          desc:'Apostou o mesmo placar em todos os jogos de uma rodada', raro:false, unlocked: history.some((r:any)=>{
+        const pals = Object.values(r.palpites?.[player]||{}).filter((p:any)=>p&&p.h!=='')
+        if((pals as any[]).length<2) return false
+        const primeiro = pals[0] as any
+        return (pals as any[]).every(p=>p.h===primeiro.h&&p.a===primeiro.a)
+    })},
+    { icon:'🐢', label:'Tartaruga',           desc:'Ficou 3 rodadas em último e conseguiu sair',          raro:false, unlocked: s.rodadasUltimo>=3 && history.length>s.rodadasUltimo },
+    { icon:'😴', label:'Dormiu no Ponto',     desc:'Perdeu o prazo de palpite em 3+ rodadas',             raro:false, unlocked: s.faltouPalpitar >= 3 },
+    { icon:'📉', label:'O Eterno Vice',       desc:'3+ rodadas em 2º sem nunca chegar ao 1º',             raro:false, unlocked: (()=>{
+        let vice=0
+        history.forEach((r:any)=>{ const sorted=Object.entries(r.scores||{}).sort((a:any,b:any)=>b[1]-a[1]); if(sorted[1]?.[0]===player) vice++ })
+        return vice>=3 && s.rodadasPrimeiro===0
+    })()},
+    { icon:'👻', label:'O Fantasma',          desc:'Não palpitou em uma rodada e mesmo assim não ficou em último', raro:true, unlocked: history.some((r:any)=>{
+        if(r.palpites?.[player] && Object.keys(r.palpites[player]).length>0) return false
+        const sorted=Object.entries(r.scores||{}).sort((a:any,b:any)=>b[1]-a[1])
+        return sorted[sorted.length-1]?.[0] !== player
+    })},
+  ]
+
+  return todos
+}
+
+function EstatisticasPessoais({ player, history, allPlayers, C, dm }: any) {
+  const [showTrofeus, setShowTrofeus] = useState(false)
+  const s = calcPlayerStats(player, history)
+
+  const totalEstimado = Math.max(s.rodadas * 2, 1)
+  const pctExato    = Math.round((s.exatos   / totalEstimado) * 100)
+  const pctVencedor = Math.round((s.vencedor / totalEstimado) * 100)
+  const pctSaldo    = Math.round((s.saldo    / totalEstimado) * 100)
+
+  const trofeus = calcTrofeus(player, history, allPlayers||[player])
+  const conquistados = trofeus.filter(t=>t.unlocked)
+  const bloqueados   = trofeus.filter(t=>!t.unlocked)
 
   return (
     <div>
+      {/* Cards de stats */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:16}}>
-        <div style={{background:'rgba(0,50,25,0.5)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'12px 8px',textAlign:'center'}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:C.gold,lineHeight:1}}>{rodadas}</div>
-          <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginTop:2}}>Rodadas</div>
-        </div>
-        <div style={{background:'rgba(0,50,25,0.5)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'12px 8px',textAlign:'center'}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:'#00c060',lineHeight:1}}>{exatos}</div>
-          <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginTop:2}}>Exatos</div>
-        </div>
-        <div style={{background:'rgba(0,50,25,0.5)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'12px 8px',textAlign:'center'}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:'#3498db',lineHeight:1}}>{vencedor}</div>
-          <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginTop:2}}>Vencedor</div>
-        </div>
-        <div style={{background:'rgba(0,50,25,0.5)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'12px 8px',textAlign:'center'}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:'#e67e22',lineHeight:1}}>{saldo}</div>
-          <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase',marginTop:2}}>Saldo</div>
-        </div>
+        {[
+          {val:s.rodadas,  label:'Rodadas', color:C.gold},
+          {val:s.exatos,   label:'Exatos',  color:'#00c060'},
+          {val:s.vencedor, label:'Vencedor',color:'#3498db'},
+          {val:s.saldo,    label:'Saldo',   color:'#e67e22'},
+        ].map(({val,label,color})=>(
+          <div key={label} style={{background:'rgba(0,50,25,0.5)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:8,padding:'12px 8px',textAlign:'center'}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color,lineHeight:1}}>{val}</div>
+            <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase' as const,marginTop:2}}>{label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Heatmap de performance */}
+      {/* Heatmap */}
       <HeatmapPerformance player={player} history={history} C={C}/>
 
-      {/* Barras de % */}
+      {/* Barras % */}
       {[
-        {label:'% Placar exato',   pct:pctExato,    color:'#D4AF37,#F0D060'},
+        {label:'% Placar exato',       pct:pctExato,    color:'#D4AF37,#F0D060'},
         {label:'% Acertei o vencedor', pct:pctVencedor, color:'#3498db,#5dade2'},
         {label:'% Ganhei por saldo',   pct:pctSaldo,    color:'#e67e22,#f39c12'},
       ].map(({label,pct,color})=>(
         <div key={label} style={{marginBottom:10}}>
           <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:C.textMuted,marginBottom:4}}>
-            <span>{label}</span><span style={{color:`#${color.split(',')[0].replace('#','')}`}}>{pct}%</span>
+            <span>{label}</span><span style={{color:color.split(',')[0]}}>{pct}%</span>
           </div>
           <div style={{height:6,background:'rgba(255,255,255,0.08)',borderRadius:3,overflow:'hidden'}}>
             <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(to right,${color})`,borderRadius:3,transition:'width 1s ease'}}/>
@@ -560,26 +688,89 @@ function EstatisticasPessoais({ player, history, C }: any) {
         </div>
       ))}
 
-      {/* Conquistas */}
-      {conquistas.length > 0 && (
-        <div style={{marginTop:6}}>
-          <div style={{fontSize:11,color:C.textMuted,letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>🏅 Conquistas</div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-            {conquistas.map((c,i)=>(
-              <div key={i} style={{background:'rgba(212,175,55,0.1)',border:'1px solid rgba(212,175,55,0.3)',borderRadius:6,padding:'6px 10px',display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontSize:16}}>{c.icon}</span>
-                <div>
-                  <div style={{fontSize:12,fontWeight:600,color:C.gold}}>{c.label}</div>
-                  <div style={{fontSize:10,color:C.textMuted}}>{c.desc}</div>
+      {/* ── Sala de Troféus ── */}
+      <div style={{marginTop:16}}>
+        <button onClick={()=>setShowTrofeus(v=>!v)}
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+            background:showTrofeus?'rgba(212,175,55,.12)':'rgba(212,175,55,.06)',
+            border:`1px solid ${showTrofeus?'rgba(212,175,55,.4)':'rgba(212,175,55,.2)'}`,
+            borderRadius:8,padding:'12px 14px',cursor:'pointer',transition:'all .2s'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:20}}>🏛️</span>
+            <div style={{textAlign:'left' as const}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:C.gold,letterSpacing:2}}>Sala de Troféus</div>
+              <div style={{fontSize:11,color:C.textMuted}}>
+                {conquistados.length} conquistado{conquistados.length!==1?'s':''} · {bloqueados.length} bloqueado{bloqueados.length!==1?'s':''}
+              </div>
+            </div>
+          </div>
+          <span style={{color:C.gold,fontSize:18,transition:'transform .2s',transform:showTrofeus?'rotate(180deg)':'none'}}>▾</span>
+        </button>
+
+        {showTrofeus && (
+          <div style={{marginTop:10,animation:'fadeSlideIn .2s ease both'}}>
+            {/* Conquistados */}
+            {conquistados.length > 0 && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:10,color:C.textMuted,letterSpacing:2,textTransform:'uppercase' as const,marginBottom:8}}>✅ Conquistados</div>
+                <div style={{display:'flex',flexDirection:'column' as const,gap:8}}>
+                  {conquistados.map((t,i)=>(
+                    <div key={i} style={{
+                      background: t.raro
+                        ? 'linear-gradient(135deg,rgba(212,175,55,.18),rgba(255,215,0,.08))'
+                        : 'rgba(0,60,30,.5)',
+                      border:`1px solid ${t.raro?'rgba(212,175,55,.5)':'rgba(255,255,255,.1)'}`,
+                      borderRadius:10,padding:'12px 14px',
+                      display:'flex',alignItems:'center',gap:12,
+                      boxShadow: t.raro?'0 0 12px rgba(212,175,55,.15)':'none'
+                    }}>
+                      <span style={{fontSize:28,flexShrink:0}}>{t.icon}</span>
+                      <div style={{flex:1}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:t.raro?C.gold:'#fff',letterSpacing:1}}>{t.label}</span>
+                          {t.raro && <span style={{fontSize:9,background:'rgba(212,175,55,.2)',color:C.gold,border:'1px solid rgba(212,175,55,.3)',borderRadius:4,padding:'1px 5px',letterSpacing:1}}>RARO</span>}
+                        </div>
+                        <div style={{fontSize:11,color:C.textMuted,marginTop:2,lineHeight:1.4}}>{t.desc}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Bloqueados */}
+            {bloqueados.length > 0 && (
+              <div>
+                <div style={{fontSize:10,color:C.textMuted,letterSpacing:2,textTransform:'uppercase' as const,marginBottom:8}}>🔒 Bloqueados</div>
+                <div style={{display:'flex',flexDirection:'column' as const,gap:6}}>
+                  {bloqueados.map((t,i)=>(
+                    <div key={i} style={{
+                      background:'rgba(255,255,255,.03)',
+                      border:'1px solid rgba(255,255,255,.07)',
+                      borderRadius:8,padding:'10px 14px',
+                      display:'flex',alignItems:'center',gap:12,
+                      opacity:0.55
+                    }}>
+                      <span style={{fontSize:22,flexShrink:0,filter:'grayscale(1)'}}>{t.icon}</span>
+                      <div>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:C.textMuted,letterSpacing:1}}>{t.label}</span>
+                          {t.raro && <span style={{fontSize:9,color:C.textMuted,border:'1px solid rgba(255,255,255,.1)',borderRadius:4,padding:'1px 5px',letterSpacing:1}}>RARO</span>}
+                        </div>
+                        <div style={{fontSize:11,color:C.textSub,marginTop:1}}>{t.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {s.rodadas===0 && (
+              <div style={{fontSize:12,color:C.textMuted,textAlign:'center',padding:'16px 0'}}>Participe das rodadas para desbloquear troféus! 🏛️</div>
+            )}
           </div>
-        </div>
-      )}
-      {conquistas.length === 0 && rodadas === 0 && (
-        <div style={{fontSize:12,color:C.textMuted,textAlign:'center',padding:'10px 0'}}>Participe das rodadas para desbloquear conquistas! 🏅</div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -1993,7 +2184,7 @@ export default function Home() {
             {!isAdmin && currentUser && (
               <div className="card">
                 <div className="section-title" style={{fontSize:17,marginBottom:12}}>Minhas Estatísticas</div>
-                <EstatisticasPessoais player={currentUser} history={state.roundHistory} C={C}/>
+                <EstatisticasPessoais player={currentUser} history={state.roundHistory} allPlayers={PLAYERS} C={C} dm={dm}/>
               </div>
             )}
           </div>}
