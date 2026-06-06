@@ -594,14 +594,13 @@ function CountdownTimer({ diffMs, C }: { diffMs: number, C: any }) {
   if(diffMs <= 0) return null
 
   return (
-    <div style={{
+    <div className={urgent ? 'timer-urgent' : ''} style={{
       display:'inline-flex',alignItems:'center',gap:6,
       background: urgent ? 'rgba(192,57,43,0.2)' : 'rgba(212,175,55,0.1)',
       border: `1px solid ${urgent ? 'rgba(192,57,43,0.5)' : 'rgba(212,175,55,0.3)'}`,
       borderRadius:6, padding:'4px 10px', fontSize:13,
       color: urgent ? '#e74c3c' : C.gold,
       fontFamily:"'Bebas Neue',sans-serif", letterSpacing:1,
-      animation: urgent ? 'pulse 1s ease infinite' : 'none'
     }}>
       {urgent ? '🔴' : '⏱'}
       {hours > 0 ? `${hours}h ${mins}min` : mins > 0 ? `${mins}min ${secs}s` : `${secs}s`}
@@ -1211,10 +1210,8 @@ export default function Home() {
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         button,input,select,textarea{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:inherit;font-size:16px;}
         html{overflow-x:hidden;}
-        body{font-family:'Barlow',sans-serif;background:${C.bg};color:${C.text};min-height:100vh;overflow-x:hidden;max-width:100%;transition:background .3s,color .3s;background-attachment:fixed;}
-        ${dm?`body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,100,50,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,40,100,.2) 0%,transparent 50%);pointer-events:none;z-index:0;background-attachment:fixed;}
-        body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 15 L60 37 L30 52 L0 37 L0 15Z' fill='none' stroke='rgba(212,175,55,0.04)' stroke-width='1'/%3E%3C/svg%3E");background-size:60px 52px;pointer-events:none;z-index:0;}`:''}
-        .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
+        body{font-family:'Barlow',sans-serif;color:${C.text};min-height:100vh;overflow-x:hidden;max-width:100%;transition:background .3s,color .3s;}
+                .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 16px 60px;}
         header{text-align:center;padding:20px 16px 16px;border-bottom:var(--border-gold);max-width:1200px;margin:0 auto;box-sizing:border-box;background:${C.headerBg};}
         .header-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-dark);padding:3px 12px;border-radius:20px;margin-bottom:8px;}
         header h1{font-family:'Bebas Neue',sans-serif;letter-spacing:4px;line-height:1;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:2px;}
@@ -1353,25 +1350,114 @@ export default function Home() {
         .reset-desc{font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;}
         .date-warn{background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.3);border-radius:5px;padding:6px 10px;font-size:11px;color:#e07060;margin-top:4px;display:flex;align-items:center;gap:6px;}
         .simulated-pts{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${C.textMuted};background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.2);borderRadius:4px;padding:2px 8px;border-radius:4px;}
+        /* ── Keyframes ─────────────────────────────────────────── */
         @keyframes podiumRise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+        @keyframes fadeSlideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+        @keyframes rankEnter{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes countPulse{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+        @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+        @keyframes hexFloat{0%,100%{background-position:0 0}50%{background-position:30px 26px}}
+        @keyframes timerPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(.97)}}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes notifIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+
+        /* ── Background infinito ────────────────────────────────── */
+        html,body{min-height:100%;height:100%;}
+        body{background-color:${C.bg};background-attachment:fixed;}
+        ${dm?`
+        body::before{
+          content:'';position:fixed;inset:0;
+          background:
+            radial-gradient(ellipse at 15% 15%,rgba(0,110,55,.28) 0%,transparent 48%),
+            radial-gradient(ellipse at 85% 85%,rgba(0,40,110,.22) 0%,transparent 48%),
+            radial-gradient(ellipse at 50% 50%,rgba(0,20,10,1) 0%,rgba(0,10,5,1) 100%);
+          pointer-events:none;z-index:0;
+        }
+        body::after{
+          content:'';position:fixed;inset:-100px;
+          background-image:url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 15 L60 37 L30 52 L0 37 L0 15Z' fill='none' stroke='rgba(212,175,55,0.045)' stroke-width='1'/%3E%3C/svg%3E");
+          background-size:60px 52px;
+          background-repeat:repeat;
+          pointer-events:none;z-index:0;
+          animation:hexFloat 12s ease-in-out infinite;
+        }`:``}
+
+        /* ── Tab fade+slide ─────────────────────────────────────── */
+        .tab-content{animation:fadeSlideIn .22s cubic-bezier(.22,1,.36,1) both;}
+
+        /* ── Micro-interações botões ────────────────────────────── */
+        .btn-sm,.btn-primary,.btn-secondary,.player-btn,.tab-btn,.os-tab,.add-btn,.rm-btn{
+          transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease,background .2s,border-color .2s,color .2s;
+          will-change:transform;
+        }
+        .btn-sm:hover,.btn-primary:hover,.btn-gold:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(212,175,55,.25);}
+        .btn-sm:active,.btn-primary:active,.btn-gold:active{transform:scale(.96);}
+        .btn-danger:hover{box-shadow:0 4px 12px rgba(192,57,43,.3);}
+        .player-btn:hover{transform:translateY(-1px) scale(1.02);border-color:var(--gold);color:var(--gold);}
+        .player-btn:active{transform:scale(.97);}
+        .tab-btn:hover:not(.active){color:${C.gold};background:${dm?'rgba(212,175,55,.08)':'rgba(212,175,55,.12)'};}
+        .tab-btn.active{transform:scale(1);}
+
+        /* ── Cards com entrada suave ────────────────────────────── */
+        .card{animation:scaleIn .2s cubic-bezier(.22,1,.36,1) both;transition:box-shadow .2s;}
+        .card:hover{box-shadow:0 4px 20px rgba(212,175,55,.08);}
+
+        /* ── Ranking: linhas entram escalonadas ─────────────────── */
+        .parcial-table tr{animation:rankEnter .25s ease both;}
+        .parcial-table tr:nth-child(1){animation-delay:.03s}
+        .parcial-table tr:nth-child(2){animation-delay:.06s}
+        .parcial-table tr:nth-child(3){animation-delay:.09s}
+        .parcial-table tr:nth-child(4){animation-delay:.12s}
+        .parcial-table tr:nth-child(5){animation-delay:.15s}
+        .parcial-table tr:nth-child(6){animation-delay:.18s}
+        .parcial-table tr:nth-child(7){animation-delay:.21s}
+        .parcial-table tr:nth-child(8){animation-delay:.24s}
+        .parcial-table tr:nth-child(9){animation-delay:.27s}
+        .parcial-table tr:nth-child(10){animation-delay:.30s}
+        .parcial-table tr:nth-child(11){animation-delay:.33s}
+        .parcial-table tr:nth-child(12){animation-delay:.36s}
+        .parcial-table tr:nth-child(13){animation-delay:.39s}
+        .parcial-table tr:nth-child(14){animation-delay:.42s}
+
+        /* ── Countdown urgente ──────────────────────────────────── */
+        .timer-urgent{animation:timerPulse 1s ease-in-out infinite;color:#e74c3c!important;}
+
+        /* ── Notif desliza da direita ───────────────────────────── */
+        .notif-box{animation:notifIn .25s cubic-bezier(.22,1,.36,1) both;}
+
+        /* ── Score destaque shimmer ─────────────────────────────── */
+        .pts-shimmer{
+          background:linear-gradient(90deg,var(--gold) 0%,#fff8d0 45%,var(--gold) 100%);
+          background-size:200% auto;
+          -webkit-background-clip:text;
+          -webkit-text-fill-color:transparent;
+          animation:shimmer 2s linear infinite;
+        }
+
+        /* ── Guia & misc ────────────────────────────────────────── */
         .guia-hero{background:${dm?'linear-gradient(135deg,rgba(0,60,30,.7),rgba(0,30,60,.5))':'linear-gradient(135deg,rgba(0,80,40,.1),rgba(0,30,80,.05))'};border:var(--border-gold);border-radius:var(--radius);padding:20px;margin-bottom:20px;text-align:center;}
         .os-tab{flex:1;padding:10px;border-radius:6px;border:1px solid ${C.borderFaint};background:transparent;color:${C.textMuted};font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all .2s;}
         .os-tab.active{background:var(--gold);color:#001a0a;border-color:var(--gold);}
-        .compare-row{cursor:pointer;transition:background .15s;}
-        .compare-row:hover td{background:${dm?'rgba(212,175,55,.06)':'rgba(212,175,55,.1)'}!important;}
+        .compare-row{cursor:pointer;transition:background .2s;}
+        .compare-row:hover td{background:${dm?'rgba(212,175,55,.07)':'rgba(212,175,55,.12)'}!important;}
         .reaction-bar{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
-        .reaction-btn{background:${dm?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)'};border:1px solid ${C.borderFaint};borderRadius:20px;padding:2px 8px;fontSize:12px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all .15s;}
+        .reaction-btn{background:${dm?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)'};border:1px solid ${C.borderFaint};border-radius:20px;padding:2px 8px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all .15s;}
         .reaction-btn.mine{background:rgba(212,175,55,.15);border-color:var(--gold);}
-        .live-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.4);borderRadius:4px;padding:2px 8px;fontSize:11px;color:#e74c3c;fontFamily:"'Barlow Condensed',sans-serif";letterSpacing:1;animation:pulse 1.5s ease infinite;}
+        .live-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.4);border-radius:4px;padding:2px 8px;font-size:11px;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;animation:pulse 1.5s ease infinite;}
         .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 280px);min-height:300px;max-height:500px;}
         .chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin;}
-        .chat-bubble{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;}
+        .chat-bubble{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;animation:fadeSlideIn .18s ease both;}
         .chat-bubble.mine{align-self:flex-end;background:var(--gold);color:#001a0a;border-radius:12px 12px 2px 12px;}
         .chat-bubble.other{align-self:flex-start;background:${dm?'rgba(0,50,25,.6)':'rgba(0,80,40,.1)'};color:${C.text};border:1px solid ${C.borderFaint};border-radius:12px 12px 12px 2px;}
         .chat-input-row{display:flex;gap:8px;padding:10px 0 0;border-top:1px solid ${C.borderFaint};}
-        .previsao-bar{height:8px;background:'rgba(255,255,255,.08)';border-radius:4px;overflow:hidden;margin-top:4px;}
-        @media(max-width:600px){.compare-row td{font-size:12px;}}
+        .previsao-bar{height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-top:4px;}
+
+        /* ── Responsivo ─────────────────────────────────────────── */
+        @media(max-width:600px){
+          .compare-row td{font-size:12px;}
           .grid-2{grid-template-columns:1fr;}
           .tab-btn{font-size:11px;padding:8px 10px;}
           .topbar-actions .btn-sm{padding:7px 12px;font-size:11px;}
@@ -1490,8 +1576,9 @@ export default function Home() {
             {isAdmin && <button className={`tab-btn${activeTab==='admin'?' active':''}`} onClick={()=>setActiveTab('admin')}>⚙ Admin</button>}
           </div>
 
+          <div key={activeTab}>
           {/* ── HOME ── */}
-          {activeTab==='home' && <div>
+          {activeTab==='home' && <div className="tab-content">
             {/* Banner novidade */}
             {(()=>{
               const novs: any[] = state.novidades||[]
@@ -1675,7 +1762,7 @@ export default function Home() {
           </div>}
 
           {/* ── PALPITES ── */}
-          {activeTab==='palpites' && <div>
+          {activeTab==='palpites' && <div className="tab-content">
             <div className="section-title">Meus Palpites</div>
             {!state.palpitesOpen&&<div className="a-warn">🔒 Palpites bloqueados. Aguarde a administração abrir.</div>}
 
@@ -1833,7 +1920,7 @@ export default function Home() {
           </div>}
 
           {/* ── RANKING ── */}
-          {activeTab==='ranking'&&<div>
+          {activeTab==='ranking'&&<div className="tab-content">
             <div className="section-title">Ranking Geral</div>
             <div className="section-sub">Pontuação acumulada · desempate por placares exatos e resultados corretos</div>
 
@@ -1939,7 +2026,7 @@ export default function Home() {
           </div>}
 
           {/* ── CHAT ── */}
-          {activeTab==='chat'&&<div>
+          {activeTab==='chat'&&<div className="tab-content">
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginBottom:4}}>
               <div className="section-title" style={{marginBottom:0}}>💬 Chat da Rodada</div>
               {isAdmin&&<button className="btn-sm btn-danger" style={{fontSize:11,padding:'5px 12px'}} onClick={clearChat}>🗑 Limpar</button>}
@@ -2081,7 +2168,7 @@ export default function Home() {
           )}
 
           {/* ── ADMIN ── */}
-          {activeTab==='admin'&&isAdmin&&<div>
+          {activeTab==='admin'&&isAdmin&&<div className="tab-content">
             <div className="a-warn">⚠ Área restrita — alterações afetam todos os participantes.</div>
 
             {/* Compartilhar no WhatsApp */}
@@ -2561,8 +2648,9 @@ export default function Home() {
               </div>
             </div>
           </div>}
+          </div>{/* fecha key={activeTab} */}
         </>}
-      </div>
+      </div>{/* fecha app */}
     </>
   )
 }
