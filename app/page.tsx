@@ -690,10 +690,17 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
   const [showTrofeus, setShowTrofeus] = useState(false)
   const s = calcPlayerStats(player, history)
 
-  const totalEstimado = Math.max(s.rodadas * 2, 1)
-  const pctExato    = Math.round((s.exatos   / totalEstimado) * 100)
-  const pctVencedor = Math.round((s.vencedor / totalEstimado) * 100)
-  const pctSaldo    = Math.round((s.saldo    / totalEstimado) * 100)
+  // Total de jogos em que o jogador palpitou E houve resultado
+  const totalComResultado = history.reduce((acc:number,r:any)=>{
+    return acc + Object.keys(r.results||{}).filter(id=>{
+      const res=r.results[id]; const pal=r.palpites?.[player]?.[id]
+      return res&&res.h!==''&&pal&&pal.h!==''
+    }).length
+  },0)
+  const totalBase = Math.max(totalComResultado, 1)
+  const pctExato    = Math.round((s.exatos   / totalBase) * 100)
+  const pctVencedor = Math.round((s.vencedor / totalBase) * 100)
+  const pctSaldo    = Math.round((s.saldo    / totalBase) * 100)
 
   const trofeus = calcTrofeus(player, history, allPlayers||[player])
   const conquistados = trofeus.filter(t=>t.unlocked)
@@ -724,7 +731,7 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
     4: '👑 ÉPICO',
   }
 
-  function TrofeuCard({ t }: { t: any }) {
+  function TrofeuCard({ t, C, tierColors, tierBorders }: { t: any, C: any, tierColors: any, tierBorders: any, key?: any }) {
     const isEpic = t.tier === 4
     const isExclusive = t.tier === 3
     return (
@@ -825,7 +832,7 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
                   <span>👑</span> ÉPICO
                 </div>
                 <div style={{display:'flex',flexDirection:'column' as const,gap:8}}>
-                  {tier4Conq.map((t,i)=><TrofeuCard key={i} t={t}/>)}
+                  {tier4Conq.map((t,i)=><TrofeuCard key={i} t={t} C={C} tierColors={tierColors} tierBorders={tierBorders}/>)}
                 </div>
               </div>
             )}
@@ -835,7 +842,7 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,color:C.gold,letterSpacing:2,textTransform:'uppercase' as const,marginBottom:8}}>🌟 Levanta que é só seu</div>
                 <div style={{display:'flex',flexDirection:'column' as const,gap:8}}>
-                  {tier3Conq.map((t,i)=><TrofeuCard key={i} t={t}/>)}
+                  {tier3Conq.map((t,i)=><TrofeuCard key={i} t={t} C={C} tierColors={tierColors} tierBorders={tierBorders}/>)}
                 </div>
               </div>
             )}
@@ -845,7 +852,7 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,color:'#7ab0ff',letterSpacing:2,textTransform:'uppercase' as const,marginBottom:8}}>🔵 Nem todo mundo tem</div>
                 <div style={{display:'flex',flexDirection:'column' as const,gap:8}}>
-                  {tier2Conq.map((t,i)=><TrofeuCard key={i} t={t}/>)}
+                  {tier2Conq.map((t,i)=><TrofeuCard key={i} t={t} C={C} tierColors={tierColors} tierBorders={tierBorders}/>)}
                 </div>
               </div>
             )}
@@ -855,7 +862,7 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,color:C.textMuted,letterSpacing:2,textTransform:'uppercase' as const,marginBottom:8}}>🟢 Qualquer um pode ter</div>
                 <div style={{display:'flex',flexDirection:'column' as const,gap:6}}>
-                  {tier1Conq.map((t,i)=><TrofeuCard key={i} t={t}/>)}
+                  {tier1Conq.map((t,i)=><TrofeuCard key={i} t={t} C={C} tierColors={tierColors} tierBorders={tierBorders}/>)}
                 </div>
               </div>
             )}
@@ -965,6 +972,8 @@ export default function Home() {
   const [notifSending, setNotifSending] = useState(false)
   const [pushStatus, setPushStatus] = useState<'unknown'|'granted'|'denied'|'default'>('unknown')
   const [compareTarget, setCompareTarget] = useState<string|null>(null)
+  const [compareHistTarget, setCompareHistTarget] = useState<string|null>(null)
+  const [compareHistWindow, setCompareHistWindow] = useState<number>(0)
   const [projWindow, setProjWindow] = useState<number>(3) // janela de projeção em rodadas
   const [evolucaoWindow, setEvolucaoWindow] = useState<number>(0) // janela do gráfico de evolução (0 = desde o início)
   const [chatMsg, setChatMsg] = useState('')
@@ -1302,6 +1311,7 @@ export default function Home() {
     fresh.adminPass = state.adminPass
     fresh.scoringPhases = state.scoringPhases
     fresh.multipliers = state.multipliers
+    fresh.admins = state.admins || []
     await saveState(fresh, authPassword)
     setShowResetModal(false); setResetConfirm(''); setResetMasterConfirm('')
     showNotif('Dados zerados com sucesso!', 'error')
@@ -2199,7 +2209,7 @@ export default function Home() {
                       {parcial.map((d,i)=>(
                         <tr key={d.name}>
                           <td>{posIcon(i)}</td>
-                          <td style={{fontSize:13}}>{d.name}</td>
+                          <td style={{fontSize:12,whiteSpace:'normal'}}>{d.name}</td>
                           <td className="r">
                             {d.roundPts>0
                               ? <span className="parcial-pts-val">{d.roundPts}</span>
@@ -2417,8 +2427,8 @@ export default function Home() {
                     const pal=state.palpites[p]||{}
                     const time=state.palpiteTimes[p]?new Date(state.palpiteTimes[p]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—'
                     const roundPts=Object.values(state.correctedScores[p]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number
-                    return <tr key={p}>
-                      <td style={{minWidth:100}}>{p}</td>
+                    return <tr key={p} className="compare-row" style={{cursor:'pointer'}} onClick={()=>{ if(p!==currentUser) setCompareTarget(p) }}>
+                      <td style={{minWidth:150}}>{p}</td>
                       {sortedMatches.map((m:any)=>{
                         const myPal=pal[m.id]
                         if(!myPal||myPal.h==='') return <td key={m.id} className="c"><span style={{color:C.textSub}}>—</span></td>
@@ -2437,6 +2447,9 @@ export default function Home() {
             </div>
               )
             })()}
+            {!isAdmin && <div style={{fontSize:11,color:C.textMuted,textAlign:'center',marginTop:10,padding:'6px',background:dm?'rgba(212,175,55,.05)':'rgba(212,175,55,.08)',borderRadius:6,border:`1px solid ${C.borderFaint}`}}>
+              👆 Toque em qualquer participante para ver o frente a frente desta rodada
+            </div>}
           </div>}
 
           {/* ── RANKING ── */}
@@ -2475,9 +2488,9 @@ export default function Home() {
                         const prevTotal = i>0?sorted[i-1].total:null
                         const tied = prevTotal===d.total && d.total > 0
                         const proj = projecoes[d.name]
-                        return <tr key={d.name} style={tied?{background:dm?'rgba(212,175,55,.04)':'rgba(212,175,55,.08)'}:{}} onClick={()=>setCompareTarget(d.name)} className="compare-row">
+                        return <tr key={d.name} style={tied?{background:dm?'rgba(212,175,55,.04)':'rgba(212,175,55,.08)'}:{}} onClick={()=>{ if(d.name!==currentUser) { setCompareHistTarget(d.name); setCompareHistWindow(0) } }} className="compare-row">
                           <td>{posIcon(i)}</td>
-                          <td style={{whiteSpace:'nowrap'}}>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</td>
+                          <td style={{whiteSpace:'normal',minWidth:120}}>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</td>
                           <td className="r" style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold}}>{d.total}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.exact}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.vencedor}</td>
@@ -2501,13 +2514,91 @@ export default function Home() {
               👆 Toque em qualquer participante para ver o comparativo frente a frente
             </div>}
 
-            {/* Gráfico de evolução */}
-            {state.roundHistory.length > 0 && (
-              <div className="card" style={{marginBottom:20}}>
-                <div className="section-title" style={{fontSize:17,marginBottom:12}}>Evolução por Rodada</div>
-                <EvolucaoChart history={state.roundHistory} players={PLAYERS} C={C} windowSize={evolucaoWindow}/>
-              </div>
-            )}
+            {/* Tabela rodada a rodada */}
+            {state.roundHistory.length > 0 && (()=>{
+              const [showTabRodadas, setShowTabRodadas] = useState(false)
+              const SCORE_COLORS = (pts:number, max:number) => {
+                if(pts===0) return {bg:'rgba(192,57,43,.15)',color:'#e74c3c'}
+                const r = pts/max
+                if(r>=0.8) return {bg:'rgba(0,166,81,.25)',color:'#00c060'}
+                if(r>=0.5) return {bg:'rgba(212,175,55,.2)',color:'#D4AF37'}
+                return {bg:'rgba(52,152,219,.15)',color:'#3498db'}
+              }
+              return (
+                <div style={{marginBottom:20}}>
+                  <button onClick={()=>setShowTabRodadas(v=>!v)}
+                    style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',background:'transparent',border:'none',padding:'0 0 8px 0',cursor:'pointer'}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.gold,display:'flex',alignItems:'center',gap:10}}>
+                      📊 Pontos por Rodada
+                      <span style={{flex:1,height:1,background:`linear-gradient(to right,rgba(212,175,55,.4),transparent)`,display:'block',minWidth:40}}/>
+                    </div>
+                    <span style={{color:C.gold,fontSize:16,transition:'transform .2s',transform:showTabRodadas?'rotate(180deg)':'none'}}>▾</span>
+                  </button>
+                  {showTabRodadas && (
+                    <div style={{overflowX:'auto',borderRadius:8,border:`1px solid ${C.border}`,animation:'fadeSlideIn .2s ease both'}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                        <thead>
+                          <tr style={{background:C.bgTableHead}}>
+                            <th style={{padding:'8px 12px',textAlign:'left',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:2,whiteSpace:'nowrap',position:'sticky',left:0,background:C.bgTableHead,zIndex:1}}>PARTICIPANTE</th>
+                            {state.roundHistory.map((r:any,i:number)=>(
+                              <th key={i} style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap',minWidth:60}}>
+                                R{i+1}
+                                <div style={{fontSize:9,color:C.textMuted,fontWeight:400,letterSpacing:0}}>{(r.roundName||'').split(' ').slice(-1)[0]}</div>
+                              </th>
+                            ))}
+                            <th style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap'}}>TOTAL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...PLAYERS].sort((a,b)=>(state.totalPoints[b]||0)-(state.totalPoints[a]||0)).map((p,pi)=>{
+                            const rowPts = state.roundHistory.map((r:any)=>r.scores?.[p]??null)
+                            const maxPts = Math.max(...state.roundHistory.map((r:any)=>Math.max(...Object.values(r.scores||{}).map(Number))),1)
+                            return (
+                              <tr key={p} style={{borderTop:`1px solid ${C.borderFaint}`,background:pi%2===0?'transparent':dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'}}>
+                                <td style={{padding:'8px 12px',color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:pi%2===0?(dm?'#001a0a':'#f0f4f0'):(dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'),zIndex:1}}>{p}</td>
+                                {rowPts.map((pts:number|null,ri:number)=>{
+                                  const sc = pts===null ? {bg:'transparent',color:C.textSub} : SCORE_COLORS(pts,maxPts)
+                                  return (
+                                    <td key={ri} style={{padding:'6px 8px',textAlign:'center'}}>
+                                      {pts===null ? <span style={{color:C.textSub,fontSize:11}}>—</span> : (
+                                        <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:32,height:24,borderRadius:6,background:sc.bg,color:sc.color,fontFamily:"'Bebas Neue'",fontSize:14,fontWeight:700}}>{pts}</span>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                                <td style={{padding:'6px 10px',textAlign:'center',fontFamily:"'Bebas Neue'",fontSize:16,color:C.gold}}>{state.totalPoints[p]||0}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Gráfico de evolução — retrátil */}
+            {state.roundHistory.length > 0 && (()=>{
+              const [showEvolucao, setShowEvolucao] = useState(true)
+              return (
+                <div style={{marginBottom:20}}>
+                  <button onClick={()=>setShowEvolucao(v=>!v)}
+                    style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',background:'transparent',border:'none',padding:'0 0 8px 0',cursor:'pointer'}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.gold,display:'flex',alignItems:'center',gap:10}}>
+                      📈 Evolução por Rodada
+                      <span style={{flex:1,height:1,background:`linear-gradient(to right,rgba(212,175,55,.4),transparent)`,display:'block',minWidth:40}}/>
+                    </div>
+                    <span style={{color:C.gold,fontSize:16,transition:'transform .2s',transform:showEvolucao?'rotate(180deg)':'none'}}>▾</span>
+                  </button>
+                  {showEvolucao && (
+                    <div className="card" style={{animation:'fadeSlideIn .2s ease both'}}>
+                      <EvolucaoChart history={state.roundHistory} players={PLAYERS} C={C} windowSize={evolucaoWindow}/>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Estatísticas pessoais */}
             {!isAdmin && currentUser && (
@@ -2519,13 +2610,56 @@ export default function Home() {
           </div>}
 
           {/* ── HISTÓRICO ── */}
-          {activeTab==='historico'&&<div>
+          {activeTab==='historico'&&<div className="tab-content">
             <div className="section-title">Histórico de Rodadas</div>
-            <div className="section-sub">Pontuação por rodada finalizada</div>
+            <div className="section-sub">Acumulado de todas as rodadas finalizadas — cada entrada é permanente</div>
             {state.roundHistory.length===0&&<div style={{color:C.textMuted,fontSize:13,padding:'20px 0'}}>Nenhuma rodada finalizada ainda.</div>}
-            {[...state.roundHistory].reverse().map((r:any,ri:number)=>(
+            {[...state.roundHistory].reverse().map((r:any,ri:number)=>{
+              const [showJogos, setShowJogos] = useState(false)
+              const totalIdx = state.roundHistory.length - 1 - ri
+              return (
               <div key={ri} className="a-card" style={{marginBottom:14}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold,letterSpacing:2,marginBottom:10}}>{r.roundName||'Rodada'}</div>
+                {/* Cabeçalho da rodada */}
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10,flexWrap:'wrap' as const}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold,letterSpacing:2}}>{r.roundName||'Rodada'}</div>
+                    <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+                      Rodada {totalIdx+1} · {(r.matches||[]).length} jogos
+                      {r.phase && <span style={{marginLeft:6,background:'rgba(212,175,55,.15)',color:C.gold,padding:'1px 6px',borderRadius:4,fontSize:10,letterSpacing:1}}>{r.phase.toUpperCase()}</span>}
+                    </div>
+                  </div>
+                  {(r.matches||[]).length>0 && (
+                    <button onClick={()=>setShowJogos((v:boolean)=>!v)}
+                      style={{background:'transparent',border:`1px solid ${C.borderFaint}`,color:C.textMuted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',gap:4}}>
+                      ⚽ Jogos {showJogos?'▲':'▼'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Jogos da rodada — retrátil */}
+                {showJogos && (r.matches||[]).length>0 && (
+                  <div style={{marginBottom:10,padding:'8px 10px',background:dm?'rgba(0,20,10,.4)':'rgba(0,60,30,.04)',borderRadius:6,border:`1px solid ${C.borderFaint}`}}>
+                    <div style={{fontSize:10,color:C.textMuted,letterSpacing:1,textTransform:'uppercase' as const,marginBottom:6}}>Jogos desta rodada</div>
+                    <div style={{display:'flex',flexDirection:'column' as const,gap:4}}>
+                      {[...r.matches].sort((a:any,b:any)=>((a.date||'99/99')+(a.time||'99:99')).localeCompare((b.date||'99/99')+(b.time||'99:99'))).map((m:any)=>{
+                        const res = r.results?.[m.id]
+                        return (
+                          <div key={m.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:12}}>
+                            <span style={{color:C.textMuted,flex:1}}>{m.home} × {m.away}</span>
+                            {res&&res.h!=='' ? (
+                              <span style={{fontFamily:"'Bebas Neue'",fontSize:15,color:C.gold}}>{res.h}×{res.a}</span>
+                            ) : (
+                              <span style={{color:C.textSub,fontSize:11}}>s/res</span>
+                            )}
+                            {m.date&&<span style={{fontSize:10,color:C.textSub}}>{m.date} {m.time}</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabela de pontuação */}
                 <div style={{background:C.bgRow,border:`1px solid ${C.border}`,borderRadius:'var(--radius)',overflow:'hidden'}}>
                   <table className="parcial-table">
                     <thead><tr><th style={{width:32}}>#</th><th>Participante</th><th className="r">Pts</th></tr></thead>
@@ -2542,7 +2676,7 @@ export default function Home() {
                   </table>
                 </div>
               </div>
-            ))}
+            )})}
           </div>}
 
           {/* ── CHAT ── */}
@@ -2624,68 +2758,124 @@ export default function Home() {
           {/* ── GUIA ── */}
           {activeTab==='guia'&&<GuiaTab C={C} dm={dm} state={state} guideTextStyle={guideTextStyle} guideTipStyle={guideTipStyle} guideHighlight={guideHighlight} requestPushPermission={requestPushPermission} pushStatus={pushStatus}/>}
 
-          {/* ── Modal Comparativo Frente a Frente ── */}
+          {/* ── Modal Comparativo Rodada (aba Rodada) ── */}
           {compareTarget && compareTarget !== currentUser && (
             <div className="modal-overlay open" onClick={()=>setCompareTarget(null)}>
-              <div className="modal" style={{maxWidth:420,width:'95%'}} onClick={e=>e.stopPropagation()}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-                  <h3 style={{fontSize:18}}>⚔️ Frente a Frente</h3>
+              <div className="modal" style={{maxWidth:440,width:'95%',maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexShrink:0}}>
+                  <h3 style={{fontSize:16}}>⚔️ Frente a Frente — Rodada Atual</h3>
                   <button onClick={()=>setCompareTarget(null)} style={{background:'transparent',border:'none',color:C.textMuted,fontSize:20,cursor:'pointer'}}>✕</button>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,marginBottom:14,textAlign:'center'}}>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:15,fontWeight:600,color:C.gold}}>{currentUser}</div>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:C.textMuted}}>VS</div>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:15,fontWeight:600,color:'#3498db'}}>{compareTarget}</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,marginBottom:12,textAlign:'center',flexShrink:0}}>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:600,color:C.gold}}>{currentUser}</div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:13,color:C.textMuted}}>VS</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:600,color:'#3498db'}}>{compareTarget}</div>
                 </div>
-                {state.round.matches.map((m:any)=>{
-                  const myPal  = state.palpites[currentUser!]?.[m.id]
-                  const hisPal = state.palpites[compareTarget]?.[m.id]
-                  const res    = state.results[m.id]
-                  const hasRes = res&&res.h!==''&&res.a!==''
-
+                <div style={{overflowY:'auto',flex:1}}>
+                {[...state.round.matches].sort((a:any,b:any)=>((a.date||'99/99')+(a.time||'99:99')).localeCompare((b.date||'99/99')+(b.time||'99:99'))).map((m:any)=>{
+                  const myPal=state.palpites[currentUser!]?.[m.id]; const hisPal=state.palpites[compareTarget]?.[m.id]
+                  const res=state.results[m.id]; const hasRes=res&&res.h!==''&&res.a!==''
                   function palResult(pal:any) {
-                    if(!pal||pal.h==='') return {label:'—', color:C.textSub}
-                    if(!hasRes) return {label:`${pal.h}×${pal.a}`, color:C.text}
+                    if(!pal||pal.h==='') return {label:'—',color:C.textSub}
+                    if(!hasRes) return {label:`${pal.h}×${pal.a}`,color:C.text}
                     const ph=parseInt(pal.h),pa=parseInt(pal.a),rh=parseInt(res.h),ra=parseInt(res.a)
-                    if(ph===rh&&pa===ra) return {label:`${pal.h}×${pal.a} ✅`, color:'#00c060'}
-                    const pw=ph>pa?1:ph<pa?-1:0, rw=rh>ra?1:rh<ra?-1:0
-                    if((ph-pa)===(rh-ra)) return {label:`${pal.h}×${pal.a} 📐`, color:C.gold}
-                    if(pw===rw) return {label:`${pal.h}×${pal.a} 👍`, color:'#3498db'}
-                    return {label:`${pal.h}×${pal.a} ❌`, color:C.red}
+                    if(ph===rh&&pa===ra) return {label:`${pal.h}×${pal.a} ✅`,color:'#00c060'}
+                    const pw=ph>pa?1:ph<pa?-1:0,rw=rh>ra?1:rh<ra?-1:0
+                    if((ph-pa)===(rh-ra)) return {label:`${pal.h}×${pal.a} 📐`,color:C.gold}
+                    if(pw===rw) return {label:`${pal.h}×${pal.a} 👍`,color:'#3498db'}
+                    return {label:`${pal.h}×${pal.a} ❌`,color:C.red}
                   }
-
-                  const my  = palResult(myPal)
-                  const his = palResult(hisPal)
-
+                  const my=palResult(myPal); const his=palResult(hisPal)
                   return (
-                    <div key={m.id} style={{borderBottom:`1px solid ${C.borderFaint}`,paddingBottom:10,marginBottom:10}}>
-                      <div style={{fontSize:11,color:C.textMuted,textAlign:'center',marginBottom:6}}>
-                        {m.homeFlag} {m.home} × {m.away} {m.awayFlag}
-                        {hasRes&&<span style={{marginLeft:6,color:C.gold,fontFamily:"'Bebas Neue',sans-serif"}}>{res.h}×{res.a}</span>}
+                    <div key={m.id} style={{borderBottom:`1px solid ${C.borderFaint}`,paddingBottom:8,marginBottom:8}}>
+                      <div style={{fontSize:11,color:C.textMuted,textAlign:'center',marginBottom:4}}>
+                        {m.home} × {m.away}{hasRes&&<span style={{marginLeft:6,color:C.gold,fontFamily:"'Bebas Neue'"}}>{res.h}×{res.a}</span>}
                       </div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,textAlign:'center'}}>
-                        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:my.color}}>{my.label}</span>
-                        <span style={{color:C.textSub,fontSize:12}}>×</span>
-                        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:his.color}}>{his.label}</span>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:6,textAlign:'center'}}>
+                        <span style={{fontFamily:"'Bebas Neue'",fontSize:15,color:my.color}}>{my.label}</span>
+                        <span style={{color:C.textSub,fontSize:11}}>×</span>
+                        <span style={{fontFamily:"'Bebas Neue'",fontSize:15,color:his.color}}>{his.label}</span>
                       </div>
                     </div>
                   )
                 })}
                 {state.round.matches.length===0&&<div style={{color:C.textMuted,fontSize:13,textAlign:'center',padding:'10px 0'}}>Nenhum jogo nesta rodada.</div>}
-                <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,textAlign:'center',marginTop:8,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
-                  <div>
-                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:C.gold}}>{Object.values(state.correctedScores[currentUser!]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number}</div>
-                    <div style={{fontSize:10,color:C.textMuted}}>pts rodada</div>
-                  </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,textAlign:'center',paddingTop:10,borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+                  <div><div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:C.gold}}>{Object.values(state.correctedScores[currentUser!]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number}</div><div style={{fontSize:10,color:C.textMuted}}>pts rodada</div></div>
                   <div style={{color:C.textSub}}>VS</div>
-                  <div>
-                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:'#3498db'}}>{Object.values(state.correctedScores[compareTarget]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number}</div>
-                    <div style={{fontSize:10,color:C.textMuted}}>pts rodada</div>
-                  </div>
+                  <div><div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:'#3498db'}}>{Object.values(state.correctedScores[compareTarget]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number}</div><div style={{fontSize:10,color:C.textMuted}}>pts rodada</div></div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* ── Modal Comparativo Histórico (aba Ranking) ── */}
+          {compareHistTarget && compareHistTarget !== currentUser && (()=>{
+            const hist = state.roundHistory
+            const lastN = compareHistWindow===0 ? hist.length : Math.min(compareHistWindow, hist.length)
+            const sliced = hist.slice(-lastN)
+            const myPts = sliced.reduce((a:number,r:any)=>a+(r.scores?.[currentUser!]||0),0)
+            const hisPts = sliced.reduce((a:number,r:any)=>a+(r.scores?.[compareHistTarget]||0),0)
+            const myWins = sliced.filter((r:any)=>(r.scores?.[currentUser!]||0)>(r.scores?.[compareHistTarget]||0)).length
+            const hisWins = sliced.filter((r:any)=>(r.scores?.[compareHistTarget]||0)>(r.scores?.[currentUser!]||0)).length
+            const draws = sliced.length - myWins - hisWins
+            return (
+              <div className="modal-overlay open" onClick={()=>setCompareHistTarget(null)}>
+                <div className="modal" style={{maxWidth:460,width:'95%',maxHeight:'88vh',display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,flexShrink:0}}>
+                    <h3 style={{fontSize:16}}>📊 Frente a Frente — Histórico</h3>
+                    <button onClick={()=>setCompareHistTarget(null)} style={{background:'transparent',border:'none',color:C.textMuted,fontSize:20,cursor:'pointer'}}>✕</button>
+                  </div>
+                  {/* Filtro de janela */}
+                  <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap' as const,flexShrink:0}}>
+                    {[{v:1,l:'Última'},{v:3,l:'Últ. 3'},{v:5,l:'Últ. 5'},{v:10,l:'Últ. 10'},{v:0,l:'Total'}].map(({v,l})=>(
+                      <button key={v} onClick={()=>setCompareHistWindow(v)}
+                        style={{padding:'5px 12px',borderRadius:6,border:`1px solid ${compareHistWindow===v?C.gold:C.borderFaint}`,background:compareHistWindow===v?'rgba(212,175,55,.15)':'transparent',color:compareHistWindow===v?C.gold:C.textMuted,fontSize:12,cursor:'pointer',fontFamily:"'Barlow Condensed'",letterSpacing:1}}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Placar do confronto */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,textAlign:'center',marginBottom:12,padding:'10px',background:dm?'rgba(0,30,15,.5)':'rgba(0,60,30,.05)',borderRadius:8,flexShrink:0}}>
+                    <div>
+                      <div style={{fontFamily:"'Barlow Condensed'",fontSize:13,color:C.gold,fontWeight:600,marginBottom:4}}>{currentUser}</div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:32,color:C.gold,lineHeight:1}}>{myPts}</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{myWins} rodadas vencidas</div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',justifyContent:'center',gap:4}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:C.textMuted}}>VS</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{draws} empates</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{sliced.length} rodadas</div>
+                    </div>
+                    <div>
+                      <div style={{fontFamily:"'Barlow Condensed'",fontSize:13,color:'#3498db',fontWeight:600,marginBottom:4}}>{compareHistTarget}</div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:32,color:'#3498db',lineHeight:1}}>{hisPts}</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{hisWins} rodadas vencidas</div>
+                    </div>
+                  </div>
+                  {/* Rodada a rodada */}
+                  <div style={{overflowY:'auto',flex:1}}>
+                    {sliced.length===0 && <div style={{color:C.textMuted,fontSize:13,textAlign:'center',padding:'16px'}}>Nenhuma rodada finalizada ainda.</div>}
+                    {sliced.map((r:any,i:number)=>{
+                      const myR=r.scores?.[currentUser!]||0; const hisR=r.scores?.[compareHistTarget]||0
+                      const myWon=myR>hisR; const hisWon=hisR>myR
+                      return (
+                        <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:`1px solid ${C.borderFaint}`}}>
+                          <div style={{fontSize:11,color:C.textMuted,width:24,textAlign:'center',flexShrink:0}}>R{hist.length-lastN+i+1}</div>
+                          <div style={{fontSize:11,color:C.textMuted,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.roundName||'—'}</div>
+                          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:myWon?C.gold:myR===hisR?C.textMuted:C.red,minWidth:28,textAlign:'right'}}>{myR}</div>
+                          <div style={{fontSize:11,color:C.textSub,width:16,textAlign:'center'}}>×</div>
+                          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:hisWon?'#3498db':myR===hisR?C.textMuted:C.red,minWidth:28,textAlign:'left'}}>{hisR}</div>
+                          <div style={{fontSize:14,width:20,textAlign:'center'}}>{myWon?'🏆':hisWon?'💔':'🤝'}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ── ADMIN ── */}
           {activeTab==='admin'&&isAdmin&&<div className="tab-content">
@@ -2884,7 +3074,7 @@ export default function Home() {
             </AdminSection>
 
             {/* Resultado & Correção */}
-            <AdminSection title="Resultado & Correção" defaultOpen={true}>
+            <AdminSection title="⚽ Resultado & Correção" defaultOpen={true}>
               <div className="a-card">
                 {state.round.matches.map((m:any)=>(
                   <div key={m.id} style={{marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.borderFaint}`}}>
