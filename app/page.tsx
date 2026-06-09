@@ -157,6 +157,7 @@ function defaultState(): any {
     admins:[] as any[],
     adminLog:[] as any[],
     playerPins:{} as Record<string,string>,
+    playerAvatars:{} as Record<string,string>,
   }
 }
 
@@ -686,6 +687,30 @@ function calcTrofeus(player: string, history: any[], allPlayers: string[]) {
   return [...tier1, ...tier2, ...tier3, ...tier4]
 }
 
+function calcSequencia(player: string, history: any[], allPlayers: string[]): string | null {
+  if(history.length < 2) return null
+  const positions = history.map((r:any) => {
+    const sorted = [...allPlayers].sort((a,b)=>(r.scores?.[b]||0)-(r.scores?.[a]||0))
+    return sorted.indexOf(player) + 1
+  })
+  const last = positions[positions.length-1]
+  const prev = positions[positions.length-2]
+  let topStreak=0; for(let i=positions.length-1;i>=0;i--){ if(positions[i]<=3) topStreak++; else break }
+  let firstStreak=0; for(let i=positions.length-1;i>=0;i--){ if(positions[i]===1) firstStreak++; else break }
+  let fallStreak=0; for(let i=positions.length-1;i>=1;i--){ if(positions[i]>positions[i-1]) fallStreak++; else break }
+  const pick = (arr:string[]) => arr[Math.floor(Math.abs(Math.sin(player.length*history.length))*arr.length)]
+  const FTOP1=['invicto no topo 🔥','dominando sem dó 💪','sem concorrência 👑','é o rei da rodada 🏆','tá na beira do abismo 👑']
+  const FTOP3=['grudado no top 3 🔥','não sai do pódio 🏅','vício em top 3 😤','dando trabalho pro líder 👀','colado no pódio 🤝']
+  const FQUEDA=['em queda livre 📉','escorregando na tabela 😬','descendo mais rápido do que apostou 💀','saindo do top 📣','alguém chama ele 🤦']
+  const FSUBIDA=['recuperando o fôlego 📈','voltando com força 💪','subindo na tabela 🚀','parece que acordou 👀','resolveu jogar sério 😏']
+  if(firstStreak>=2) return `${firstStreak} rodadas liderando — ${pick(FTOP1)}`
+  if(topStreak>=3) return `${topStreak} rodadas no top 3 — ${pick(FTOP3)}`
+  if(fallStreak>=2&&last>8) return `${fallStreak} rodadas caindo — ${pick(FQUEDA)}`
+  if(prev>5&&last<=3) return `subiu ${prev-last} posições — ${pick(FSUBIDA)}`
+  if(last===allPlayers.length) return pick(['lanterna... alguém acorda esse cara 😴','digno do troféu de último 💩','nem palpitou direito 🤡'])
+  return null
+}
+
 function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu }: any) {
   const [showTrofeus, setShowTrofeus] = useState(false)
   const s = calcPlayerStats(player, history)
@@ -927,151 +952,6 @@ function CountdownTimer({ diffMs, C }: { diffMs: number, C: any }) {
   )
 }
 
-// ── Componentes extraídos para evitar hooks em IIFE/render ─────────────────
-
-function TabRodadasSection({ state, C, dm }: any) {
-  const [showTabRodadas, setShowTabRodadas] = useState(false)
-  const SCORE_COLORS = (pts: number, max: number) => {
-    if(pts===0) return {bg:'rgba(192,57,43,.15)',color:'#e74c3c'}
-    const r = pts/max
-    if(r>=0.8) return {bg:'rgba(0,166,81,.25)',color:'#00c060'}
-    if(r>=0.5) return {bg:'rgba(212,175,55,.2)',color:'#D4AF37'}
-    return {bg:'rgba(52,152,219,.15)',color:'#3498db'}
-  }
-  return (
-    <div style={{marginBottom:20}}>
-      <button onClick={()=>setShowTabRodadas(v=>!v)}
-        style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',background:'transparent',border:'none',padding:'0 0 8px 0',cursor:'pointer'}}>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.gold,display:'flex',alignItems:'center',gap:10}}>
-          📊 Pontos por Rodada
-          <span style={{flex:1,height:1,background:`linear-gradient(to right,rgba(212,175,55,.4),transparent)`,display:'block',minWidth:40}}/>
-        </div>
-        <span style={{color:C.gold,fontSize:16,transition:'transform .2s',transform:showTabRodadas?'rotate(180deg)':'none'}}>▾</span>
-      </button>
-      {showTabRodadas && (
-        <div style={{overflowX:'auto',borderRadius:8,border:`1px solid ${C.border}`,animation:'fadeSlideIn .2s ease both'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-            <thead>
-              <tr style={{background:C.bgTableHead}}>
-                <th style={{padding:'8px 12px',textAlign:'left',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:2,whiteSpace:'nowrap',position:'sticky',left:0,background:C.bgTableHead,zIndex:1}}>PARTICIPANTE</th>
-                {state.roundHistory.map((r:any,i:number)=>(
-                  <th key={i} style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap',minWidth:60}}>
-                    R{i+1}
-                    <div style={{fontSize:9,color:C.textMuted,fontWeight:400,letterSpacing:0}}>{(r.roundName||'').split(' ').slice(-1)[0]}</div>
-                  </th>
-                ))}
-                <th style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap'}}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...PLAYERS].sort((a,b)=>(state.totalPoints[b]||0)-(state.totalPoints[a]||0)).map((p,pi)=>{
-                const rowPts = state.roundHistory.map((r:any)=>r.scores?.[p]??null)
-                const maxPts = Math.max(...state.roundHistory.map((r:any)=>Math.max(...Object.values(r.scores||{}).map(Number))),1)
-                return (
-                  <tr key={p} style={{borderTop:`1px solid ${C.borderFaint}`,background:pi%2===0?'transparent':dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'}}>
-                    <td style={{padding:'8px 12px',color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:pi%2===0?(dm?'#001a0a':'#f0f4f0'):(dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'),zIndex:1}}>{p}</td>
-                    {rowPts.map((pts:number|null,ri:number)=>{
-                      const sc = pts===null ? {bg:'transparent',color:C.textSub} : SCORE_COLORS(pts,maxPts)
-                      return (
-                        <td key={ri} style={{padding:'6px 8px',textAlign:'center'}}>
-                          {pts===null ? <span style={{color:C.textSub,fontSize:11}}>—</span> : (
-                            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:32,height:24,borderRadius:6,background:sc.bg,color:sc.color,fontFamily:"'Bebas Neue'",fontSize:14,fontWeight:700}}>{pts}</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td style={{padding:'6px 10px',textAlign:'center',fontFamily:"'Bebas Neue'",fontSize:16,color:C.gold}}>{state.totalPoints[p]||0}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function EvolucaoSection({ state, C, evolucaoWindow }: any) {
-  const [showEvolucao, setShowEvolucao] = useState(true)
-  return (
-    <div style={{marginBottom:20}}>
-      <button onClick={()=>setShowEvolucao(v=>!v)}
-        style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',background:'transparent',border:'none',padding:'0 0 8px 0',cursor:'pointer'}}>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.gold,display:'flex',alignItems:'center',gap:10}}>
-          📈 Evolução por Rodada
-          <span style={{flex:1,height:1,background:`linear-gradient(to right,rgba(212,175,55,.4),transparent)`,display:'block',minWidth:40}}/>
-        </div>
-        <span style={{color:C.gold,fontSize:16,transition:'transform .2s',transform:showEvolucao?'rotate(180deg)':'none'}}>▾</span>
-      </button>
-      {showEvolucao && (
-        <div className="card" style={{animation:'fadeSlideIn .2s ease both'}}>
-          <EvolucaoChart history={state.roundHistory} players={PLAYERS} C={C} windowSize={evolucaoWindow}/>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function HistoricoItem({ r, ri, totalIdx, C, dm }: any) {
-  const [showJogos, setShowJogos] = useState(false)
-  return (
-    <div className="a-card" style={{marginBottom:14}}>
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10,flexWrap:'wrap' as const}}>
-        <div style={{flex:1}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold,letterSpacing:2}}>{r.roundName||'Rodada'}</div>
-          <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
-            Rodada {totalIdx+1} · {(r.matches||[]).length} jogos
-            {r.phase && <span style={{marginLeft:6,background:'rgba(212,175,55,.15)',color:C.gold,padding:'1px 6px',borderRadius:4,fontSize:10,letterSpacing:1}}>{r.phase.toUpperCase()}</span>}
-          </div>
-        </div>
-        {(r.matches||[]).length>0 && (
-          <button onClick={()=>setShowJogos((v:boolean)=>!v)}
-            style={{background:'transparent',border:`1px solid ${C.borderFaint}`,color:C.textMuted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',gap:4}}>
-            ⚽ Jogos {showJogos?'▲':'▼'}
-          </button>
-        )}
-      </div>
-      {showJogos && (r.matches||[]).length>0 && (
-        <div style={{marginBottom:10,padding:'8px 10px',background:dm?'rgba(0,20,10,.4)':'rgba(0,60,30,.04)',borderRadius:6,border:`1px solid ${C.borderFaint}`}}>
-          <div style={{fontSize:10,color:C.textMuted,letterSpacing:1,textTransform:'uppercase' as const,marginBottom:6}}>Jogos desta rodada</div>
-          <div style={{display:'flex',flexDirection:'column' as const,gap:4}}>
-            {[...r.matches].sort((a:any,b:any)=>((a.date||'99/99')+(a.time||'99:99')).localeCompare((b.date||'99/99')+(b.time||'99:99'))).map((m:any)=>{
-              const res = r.results?.[m.id]
-              return (
-                <div key={m.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:12}}>
-                  <span style={{color:C.textMuted,flex:1}}>{m.home} × {m.away}</span>
-                  {res&&res.h!=='' ? (
-                    <span style={{fontFamily:"'Bebas Neue'",fontSize:15,color:C.gold}}>{res.h}×{res.a}</span>
-                  ) : (
-                    <span style={{color:C.textSub,fontSize:11}}>s/res</span>
-                  )}
-                  {m.date&&<span style={{fontSize:10,color:C.textSub}}>{m.date} {m.time}</span>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-      <div style={{background:C.bgRow,border:`1px solid ${C.border}`,borderRadius:'var(--radius)',overflow:'hidden'}}>
-        <table className="parcial-table">
-          <thead><tr><th style={{width:32}}>#</th><th>Participante</th><th className="r">Pts</th></tr></thead>
-          <tbody>
-            {[...PLAYERS].sort((a,b)=>(r.scores?.[b]||0)-(r.scores?.[a]||0)).map((p,i)=>{
-              const pts=r.scores?.[p]??0
-              return <tr key={p}>
-                <td>{posIcon(i)}</td>
-                <td style={{fontSize:13}}>{p}</td>
-                <td className="r">{pts>0?<span className="parcial-pts-val">{pts}</span>:<span style={{color:C.textSub,fontSize:12}}>—</span>}</td>
-              </tr>
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
 export default function Home() {
   const [state, setState] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1161,6 +1041,7 @@ export default function Home() {
       if(!s.admins) s.admins=[]
       if(!s.adminLog) s.adminLog=[]
       if(!s.playerPins) s.playerPins={}
+      if(!s.playerAvatars) s.playerAvatars={}
       if(s.round?.matches) {
         s.round.matches = s.round.matches.map((m:any)=>({
           date: m.date ?? '',
@@ -1276,6 +1157,16 @@ export default function Home() {
       setShowPinModal(false); setPinTarget(null); setPinInput(''); setPinError('')
       doLoginAsPlayer(pinTarget)
     } else { setPinError('PIN incorreto. Tente novamente.') }
+  }
+
+  async function savePlayerAvatar(avatar: string) {
+    if(!state||!currentUser) return
+    const newState = JSON.parse(JSON.stringify(state))
+    if(!newState.playerAvatars) newState.playerAvatars={}
+    if(avatar.trim()==='') delete newState.playerAvatars[currentUser]
+    else newState.playerAvatars[currentUser] = avatar.trim()
+    await saveState(newState, authPassword||MASTER_PASS)
+    showNotif('Avatar salvo! ' + avatar)
   }
 
   async function savePlayerPin(player: string, pin: string) {
@@ -2169,7 +2060,36 @@ export default function Home() {
           <div className="topbar">
             <div className="topbar-user">
               <div className="user-avatar">{currentUser.split(' ').map((w:string)=>w[0]).join('').substring(0,2).toUpperCase()}</div>
-              <div><div className="user-name">{currentUser}</div><div className="user-role">{isAdmin?'⚙ ADMINISTRAÇÃO':'PARTICIPANTE'}</div></div>
+              <div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div className="user-name">{currentUser}</div>
+                {!isAdmin && (()=>{
+                  const [avatarOpen, setAvatarOpen] = useState(false)
+                  const EMOJIS = ['⚽','🏆','🔥','💎','🦁','🐯','🦊','🦅','💪','🎯','👑','🤡','😈','🧠','🎪','🌪️']
+                  const cur = state.playerAvatars?.[currentUser!]
+                  return (
+                    <div style={{position:'relative'}}>
+                      <button onClick={()=>setAvatarOpen(v=>!v)}
+                        style={{background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:'2px 7px',cursor:'pointer',fontSize:17,lineHeight:1}}>
+                        {cur||'😶'}
+                      </button>
+                      {avatarOpen && (
+                        <div style={{position:'absolute',top:'110%',left:0,background:dm?'rgba(0,20,10,.98)':C.bgPanel,border:`1px solid ${C.border}`,borderRadius:10,padding:10,zIndex:200,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,minWidth:160,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}>
+                          {EMOJIS.map(em=>(
+                            <button key={em} onClick={()=>{savePlayerAvatar(em);setAvatarOpen(false)}}
+                              style={{background:cur===em?'rgba(212,175,55,.2)':'transparent',border:`1px solid ${cur===em?C.gold:C.borderFaint}`,borderRadius:6,padding:6,cursor:'pointer',fontSize:20,textAlign:'center' as const}}>
+                              {em}
+                            </button>
+                          ))}
+                          {cur&&<button onClick={()=>{savePlayerAvatar('');setAvatarOpen(false)}} style={{gridColumn:'1/-1',background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:4,cursor:'pointer',fontSize:11,color:C.textMuted}}>Remover avatar</button>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="user-role">{isAdmin?'⚙ ADMINISTRAÇÃO':'PARTICIPANTE'}</div>
+            </div>
             </div>
             <div className="topbar-actions">
               <button className="btn-sm btn-gold" onClick={()=>{fetchState();showNotif('Atualizado!')}}>↻ Atualizar</button>
@@ -2398,6 +2318,35 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Melhor palpite da última rodada */}
+            {(()=>{
+              if(!state.roundHistory.length) return null
+              const mp = state.roundHistory[state.roundHistory.length-1]?.melhorPalpite
+              const roundName = state.roundHistory[state.roundHistory.length-1]?.roundName
+              if(!mp) return null
+              return (
+                <div className="card" style={{marginBottom:16,background:dm?'linear-gradient(135deg,rgba(212,175,55,.15),rgba(0,30,15,.8))':'linear-gradient(135deg,rgba(212,175,55,.12),rgba(255,255,255,.9))'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                    <span style={{fontSize:22}}>🎯</span>
+                    <div>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:C.gold,letterSpacing:2}}>Melhor Palpite — {roundName}</div>
+                      <div style={{fontSize:11,color:C.textMuted}}>{mp.jogo}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap' as const}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:36,color:C.gold,letterSpacing:3,lineHeight:1}}>{mp.placar}</div>
+                    <div>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        {state.playerAvatars?.[mp.player]&&<span style={{fontSize:20}}>{state.playerAvatars[mp.player]}</span>}
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:C.text}}>{mp.player}</div>
+                      </div>
+                      <div style={{fontSize:11,color:C.textMuted}}>placar mais improvável acertado 🏆</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Pizza de distribuição de palpites */}
             {state.round.matches.length > 0 && Object.keys(state.palpites).length > 0 && (
@@ -2635,7 +2584,13 @@ export default function Home() {
                         const proj = projecoes[d.name]
                         return <tr key={d.name} style={tied?{background:dm?'rgba(212,175,55,.04)':'rgba(212,175,55,.08)'}:{}} onClick={()=>{ if(d.name!==currentUser) { setCompareHistTarget(d.name); setCompareHistWindow(0) } }} className="compare-row">
                           <td>{posIcon(i)}</td>
-                          <td style={{whiteSpace:'normal',minWidth:120}}>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</td>
+                          <td style={{whiteSpace:'normal',minWidth:120}}>
+                            <div style={{display:'flex',alignItems:'center',gap:5}}>
+                              {state.playerAvatars?.[d.name]&&<span style={{fontSize:16}}>{state.playerAvatars[d.name]}</span>}
+                              <span>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</span>
+                            </div>
+                            {(()=>{ const sq=calcSequencia(d.name,state.roundHistory,PLAYERS); return sq?<div style={{fontSize:10,color:C.textMuted,marginTop:1,lineHeight:1.3}}>{sq}</div>:null })()}
+                          </td>
                           <td className="r" style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold}}>{d.total}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.exact}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.vencedor}</td>
@@ -2660,7 +2615,68 @@ export default function Home() {
             </div>}
 
             {/* Tabela rodada a rodada */}
-            {state.roundHistory.length > 0 && <TabRodadasSection state={state} C={C} dm={dm}/>}
+            {state.roundHistory.length > 0 && (()=>{
+              const [showTabRodadas, setShowTabRodadas] = useState(false)
+              const SCORE_COLORS = (pts:number, max:number) => {
+                if(pts===0) return {bg:'rgba(192,57,43,.15)',color:'#e74c3c'}
+                const r = pts/max
+                if(r>=0.8) return {bg:'rgba(0,166,81,.25)',color:'#00c060'}
+                if(r>=0.5) return {bg:'rgba(212,175,55,.2)',color:'#D4AF37'}
+                return {bg:'rgba(52,152,219,.15)',color:'#3498db'}
+              }
+              return (
+                <div style={{marginBottom:20}}>
+                  <button onClick={()=>setShowTabRodadas(v=>!v)}
+                    style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',background:'transparent',border:'none',padding:'0 0 8px 0',cursor:'pointer'}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.gold,display:'flex',alignItems:'center',gap:10}}>
+                      📊 Pontos por Rodada
+                      <span style={{flex:1,height:1,background:`linear-gradient(to right,rgba(212,175,55,.4),transparent)`,display:'block',minWidth:40}}/>
+                    </div>
+                    <span style={{color:C.gold,fontSize:16,transition:'transform .2s',transform:showTabRodadas?'rotate(180deg)':'none'}}>▾</span>
+                  </button>
+                  {showTabRodadas && (
+                    <div style={{overflowX:'auto',borderRadius:8,border:`1px solid ${C.border}`,animation:'fadeSlideIn .2s ease both'}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                        <thead>
+                          <tr style={{background:C.bgTableHead}}>
+                            <th style={{padding:'8px 12px',textAlign:'left',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:2,whiteSpace:'nowrap',position:'sticky',left:0,background:C.bgTableHead,zIndex:1}}>PARTICIPANTE</th>
+                            {state.roundHistory.map((r:any,i:number)=>(
+                              <th key={i} style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap',minWidth:60}}>
+                                R{i+1}
+                                <div style={{fontSize:9,color:C.textMuted,fontWeight:400,letterSpacing:0}}>{(r.roundName||'').split(' ').slice(-1)[0]}</div>
+                              </th>
+                            ))}
+                            <th style={{padding:'8px 10px',textAlign:'center',color:C.gold,fontFamily:"'Barlow Condensed'",fontSize:11,letterSpacing:1,whiteSpace:'nowrap'}}>TOTAL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...PLAYERS].sort((a,b)=>(state.totalPoints[b]||0)-(state.totalPoints[a]||0)).map((p,pi)=>{
+                            const rowPts = state.roundHistory.map((r:any)=>r.scores?.[p]??null)
+                            const maxPts = Math.max(...state.roundHistory.map((r:any)=>Math.max(...Object.values(r.scores||{}).map(Number))),1)
+                            return (
+                              <tr key={p} style={{borderTop:`1px solid ${C.borderFaint}`,background:pi%2===0?'transparent':dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'}}>
+                                <td style={{padding:'8px 12px',color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:pi%2===0?(dm?'#001a0a':'#f0f4f0'):(dm?'rgba(255,255,255,.02)':'rgba(0,0,0,.015)'),zIndex:1}}>{p}</td>
+                                {rowPts.map((pts:number|null,ri:number)=>{
+                                  const sc = pts===null ? {bg:'transparent',color:C.textSub} : SCORE_COLORS(pts,maxPts)
+                                  return (
+                                    <td key={ri} style={{padding:'6px 8px',textAlign:'center'}}>
+                                      {pts===null ? <span style={{color:C.textSub,fontSize:11}}>—</span> : (
+                                        <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:32,height:24,borderRadius:6,background:sc.bg,color:sc.color,fontFamily:"'Bebas Neue'",fontSize:14,fontWeight:700}}>{pts}</span>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                                <td style={{padding:'6px 10px',textAlign:'center',fontFamily:"'Bebas Neue'",fontSize:16,color:C.gold}}>{state.totalPoints[p]||0}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Gráfico de evolução — retrátil */}
             {state.roundHistory.length > 0 && (()=>{
