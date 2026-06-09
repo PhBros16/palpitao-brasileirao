@@ -157,6 +157,7 @@ function defaultState(): any {
     admins:[] as any[],
     adminLog:[] as any[],
     playerPins:{} as Record<string,string>,
+    playerAvatars:{} as Record<string,string>,
   }
 }
 
@@ -686,6 +687,30 @@ function calcTrofeus(player: string, history: any[], allPlayers: string[]) {
   return [...tier1, ...tier2, ...tier3, ...tier4]
 }
 
+function calcSequencia(player: string, history: any[], allPlayers: string[]): string | null {
+  if(history.length < 2) return null
+  const positions = history.map((r:any) => {
+    const sorted = [...allPlayers].sort((a,b)=>(r.scores?.[b]||0)-(r.scores?.[a]||0))
+    return sorted.indexOf(player) + 1
+  })
+  const last = positions[positions.length-1]
+  const prev = positions[positions.length-2]
+  let topStreak=0; for(let i=positions.length-1;i>=0;i--){ if(positions[i]<=3) topStreak++; else break }
+  let firstStreak=0; for(let i=positions.length-1;i>=0;i--){ if(positions[i]===1) firstStreak++; else break }
+  let fallStreak=0; for(let i=positions.length-1;i>=1;i--){ if(positions[i]>positions[i-1]) fallStreak++; else break }
+  const pick = (arr:string[]) => arr[Math.floor(Math.abs(Math.sin(player.length*history.length))*arr.length)]
+  const FTOP1=['invicto no topo 🔥','dominando sem dó 💪','sem concorrência 👑','é o rei da rodada 🏆','tá na beira do abismo 👑']
+  const FTOP3=['grudado no top 3 🔥','não sai do pódio 🏅','vício em top 3 😤','dando trabalho pro líder 👀','colado no pódio 🤝']
+  const FQUEDA=['em queda livre 📉','escorregando na tabela 😬','descendo mais rápido do que apostou 💀','saindo do top 📣','alguém chama ele 🤦']
+  const FSUBIDA=['recuperando o fôlego 📈','voltando com força 💪','subindo na tabela 🚀','parece que acordou 👀','resolveu jogar sério 😏']
+  if(firstStreak>=2) return `${firstStreak} rodadas liderando — ${pick(FTOP1)}`
+  if(topStreak>=3) return `${topStreak} rodadas no top 3 — ${pick(FTOP3)}`
+  if(fallStreak>=2&&last>8) return `${fallStreak} rodadas caindo — ${pick(FQUEDA)}`
+  if(prev>5&&last<=3) return `subiu ${prev-last} posições — ${pick(FSUBIDA)}`
+  if(last===allPlayers.length) return pick(['lanterna... alguém acorda esse cara 😴','digno do troféu de último 💩','nem palpitou direito 🤡'])
+  return null
+}
+
 function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu }: any) {
   const [showTrofeus, setShowTrofeus] = useState(false)
   const s = calcPlayerStats(player, history)
@@ -1016,6 +1041,7 @@ export default function Home() {
       if(!s.admins) s.admins=[]
       if(!s.adminLog) s.adminLog=[]
       if(!s.playerPins) s.playerPins={}
+      if(!s.playerAvatars) s.playerAvatars={}
       if(s.round?.matches) {
         s.round.matches = s.round.matches.map((m:any)=>({
           date: m.date ?? '',
@@ -1131,6 +1157,16 @@ export default function Home() {
       setShowPinModal(false); setPinTarget(null); setPinInput(''); setPinError('')
       doLoginAsPlayer(pinTarget)
     } else { setPinError('PIN incorreto. Tente novamente.') }
+  }
+
+  async function savePlayerAvatar(avatar: string) {
+    if(!state||!currentUser) return
+    const newState = JSON.parse(JSON.stringify(state))
+    if(!newState.playerAvatars) newState.playerAvatars={}
+    if(avatar.trim()==='') delete newState.playerAvatars[currentUser]
+    else newState.playerAvatars[currentUser] = avatar.trim()
+    await saveState(newState, authPassword||MASTER_PASS)
+    showNotif('Avatar salvo! ' + avatar)
   }
 
   async function savePlayerPin(player: string, pin: string) {
@@ -2024,7 +2060,36 @@ export default function Home() {
           <div className="topbar">
             <div className="topbar-user">
               <div className="user-avatar">{currentUser.split(' ').map((w:string)=>w[0]).join('').substring(0,2).toUpperCase()}</div>
-              <div><div className="user-name">{currentUser}</div><div className="user-role">{isAdmin?'⚙ ADMINISTRAÇÃO':'PARTICIPANTE'}</div></div>
+              <div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div className="user-name">{currentUser}</div>
+                {!isAdmin && (()=>{
+                  const [avatarOpen, setAvatarOpen] = useState(false)
+                  const EMOJIS = ['⚽','🏆','🔥','💎','🦁','🐯','🦊','🦅','💪','🎯','👑','🤡','😈','🧠','🎪','🌪️']
+                  const cur = state.playerAvatars?.[currentUser!]
+                  return (
+                    <div style={{position:'relative'}}>
+                      <button onClick={()=>setAvatarOpen(v=>!v)}
+                        style={{background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:'2px 7px',cursor:'pointer',fontSize:17,lineHeight:1}}>
+                        {cur||'😶'}
+                      </button>
+                      {avatarOpen && (
+                        <div style={{position:'absolute',top:'110%',left:0,background:dm?'rgba(0,20,10,.98)':C.bgPanel,border:`1px solid ${C.border}`,borderRadius:10,padding:10,zIndex:200,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,minWidth:160,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}>
+                          {EMOJIS.map(em=>(
+                            <button key={em} onClick={()=>{savePlayerAvatar(em);setAvatarOpen(false)}}
+                              style={{background:cur===em?'rgba(212,175,55,.2)':'transparent',border:`1px solid ${cur===em?C.gold:C.borderFaint}`,borderRadius:6,padding:6,cursor:'pointer',fontSize:20,textAlign:'center' as const}}>
+                              {em}
+                            </button>
+                          ))}
+                          {cur&&<button onClick={()=>{savePlayerAvatar('');setAvatarOpen(false)}} style={{gridColumn:'1/-1',background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:4,cursor:'pointer',fontSize:11,color:C.textMuted}}>Remover avatar</button>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="user-role">{isAdmin?'⚙ ADMINISTRAÇÃO':'PARTICIPANTE'}</div>
+            </div>
             </div>
             <div className="topbar-actions">
               <button className="btn-sm btn-gold" onClick={()=>{fetchState();showNotif('Atualizado!')}}>↻ Atualizar</button>
@@ -2253,6 +2318,35 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Melhor palpite da última rodada */}
+            {(()=>{
+              if(!state.roundHistory.length) return null
+              const mp = state.roundHistory[state.roundHistory.length-1]?.melhorPalpite
+              const roundName = state.roundHistory[state.roundHistory.length-1]?.roundName
+              if(!mp) return null
+              return (
+                <div className="card" style={{marginBottom:16,background:dm?'linear-gradient(135deg,rgba(212,175,55,.15),rgba(0,30,15,.8))':'linear-gradient(135deg,rgba(212,175,55,.12),rgba(255,255,255,.9))'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                    <span style={{fontSize:22}}>🎯</span>
+                    <div>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:C.gold,letterSpacing:2}}>Melhor Palpite — {roundName}</div>
+                      <div style={{fontSize:11,color:C.textMuted}}>{mp.jogo}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap' as const}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:36,color:C.gold,letterSpacing:3,lineHeight:1}}>{mp.placar}</div>
+                    <div>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        {state.playerAvatars?.[mp.player]&&<span style={{fontSize:20}}>{state.playerAvatars[mp.player]}</span>}
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:C.text}}>{mp.player}</div>
+                      </div>
+                      <div style={{fontSize:11,color:C.textMuted}}>placar mais improvável acertado 🏆</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Pizza de distribuição de palpites */}
             {state.round.matches.length > 0 && Object.keys(state.palpites).length > 0 && (
@@ -2490,7 +2584,13 @@ export default function Home() {
                         const proj = projecoes[d.name]
                         return <tr key={d.name} style={tied?{background:dm?'rgba(212,175,55,.04)':'rgba(212,175,55,.08)'}:{}} onClick={()=>{ if(d.name!==currentUser) { setCompareHistTarget(d.name); setCompareHistWindow(0) } }} className="compare-row">
                           <td>{posIcon(i)}</td>
-                          <td style={{whiteSpace:'normal',minWidth:120}}>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</td>
+                          <td style={{whiteSpace:'normal',minWidth:120}}>
+                            <div style={{display:'flex',alignItems:'center',gap:5}}>
+                              {state.playerAvatars?.[d.name]&&<span style={{fontSize:16}}>{state.playerAvatars[d.name]}</span>}
+                              <span>{d.name}{tied&&<span style={{fontSize:10,color:C.gold,marginLeft:4}}>≈</span>}</span>
+                            </div>
+                            {(()=>{ const sq=calcSequencia(d.name,state.roundHistory,PLAYERS); return sq?<div style={{fontSize:10,color:C.textMuted,marginTop:1,lineHeight:1.3}}>{sq}</div>:null })()}
+                          </td>
                           <td className="r" style={{fontFamily:"'Bebas Neue'",fontSize:18,color:C.gold}}>{d.total}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.exact}</td>
                           <td className="r" style={{color:C.textMuted}}>{d.vencedor}</td>
