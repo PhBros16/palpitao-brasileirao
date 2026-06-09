@@ -277,7 +277,7 @@ function PodiumDisplay({ players, scores }: { players: string[], scores: Record<
   const avatarSizes = [44, 54, 40]
 
   return (
-    <div style={{display:'flex',alignItems:'flex-end',justifyContent:'center',gap:10,padding:'24px 8px 0',height:230,overflow:'visible'}}>
+    <div style={{display:'flex',alignItems:'flex-end',justifyContent:'center',gap:10,padding:'48px 8px 0',minHeight:260,overflow:'visible'}}>
       {order.map((name,i)=>{
         if(!name) return null
         const pts = scores[name]||0
@@ -445,12 +445,13 @@ function PizzaDistribuicao({ matches, palpites, C, dm }: any) {
 }
 
 // ── Heatmap de performance ───────────────────────────────────────────────────
-function HeatmapPerformance({ player, history, C }: any) {
+function HeatmapPerformance({ player, history, C, dm }: any) {
   if(!history||history.length===0) return (
     <div style={{fontSize:12,color:C.textMuted,padding:'8px 0'}}>Nenhuma rodada finalizada ainda.</div>
   )
 
   const maxPts = Math.max(...history.map((r:any)=>r.scores?.[player]||0), 1)
+  const [selectedRound, setSelectedRound] = useState<number|null>(null)
 
   function heatColor(pts: number): string {
     if(pts===0) return 'rgba(255,255,255,0.06)'
@@ -461,7 +462,30 @@ function HeatmapPerformance({ player, history, C }: any) {
     return '#00c060'
   }
 
-  const [tooltip, setTooltip] = useState<string|null>(null)
+  // Calcula stats de uma rodada isolada
+  function calcRoundStats(r: any) {
+    const jogos = Object.keys(r.results||{}).filter(id => {
+      const res = r.results[id]; const pal = r.palpites?.[player]?.[id]
+      return res && res.h !== '' && pal && pal.h !== ''
+    })
+    const total = Math.max(jogos.length, 1)
+    let exact=0, correct=0, saldo=0
+    jogos.forEach(id => {
+      const pal = r.palpites[player][id]; const res = r.results[id]
+      const ph=parseInt(pal.h), pa=parseInt(pal.a), rh=parseInt(res.h), ra=parseInt(res.a)
+      if(isNaN(ph)||isNaN(pa)||isNaN(rh)||isNaN(ra)) return
+      if(ph===rh&&pa===ra) { exact++; correct++ }
+      else if((ph-pa)===(rh-ra)) { saldo++; correct++ }
+      else { const pw=ph>pa?1:ph<pa?-1:0, rw=rh>ra?1:rh<ra?-1:0; if(pw===rw) correct++ }
+    })
+    const pctExato    = Math.min(Math.round((exact / total) * 100), 100)
+    const pctVencedor = Math.min(Math.round((correct / total) * 100), 100)
+    const pctSaldo    = Math.min(Math.round((saldo / total) * 100), 100)
+    return { exact, correct, saldo, total: jogos.length, pctExato, pctVencedor, pctSaldo }
+  }
+
+  const sel = selectedRound !== null ? history[selectedRound] : null
+  const selStats = sel ? calcRoundStats(sel) : null
 
   return (
     <div style={{marginBottom:14}}>
@@ -470,28 +494,28 @@ function HeatmapPerformance({ player, history, C }: any) {
         {history.map((r:any,i:number)=>{
           const pts = r.scores?.[player]||0
           const color = heatColor(pts)
-          const label = `${r.roundName||`R${i+1}`} · ${pts} pts`
+          const active = selectedRound === i
           return (
-            <div key={i} title={label}
-              onMouseEnter={()=>setTooltip(label)}
-              onMouseLeave={()=>setTooltip(null)}
-              onTouchStart={()=>setTooltip(label)}
-              onTouchEnd={()=>setTimeout(()=>setTooltip(null),1500)}
+            <div key={i}
+              onClick={()=>setSelectedRound(active ? null : i)}
               style={{
                 width:28,height:28,borderRadius:4,background:color,
                 display:'flex',alignItems:'center',justifyContent:'center',
-                cursor:'default',transition:'transform .1s',
+                cursor:'pointer',transition:'transform .1s, box-shadow .1s',
                 fontSize:9,fontWeight:700,color:'rgba(0,0,0,.6)',
-                fontFamily:"'Bebas Neue'"
+                fontFamily:"'Bebas Neue'",
+                outline: active ? '2px solid #fff' : 'none',
+                outlineOffset: 1,
+                boxShadow: active ? '0 0 8px rgba(255,255,255,.4)' : 'none',
+                transform: active ? 'scale(1.15)' : 'scale(1)',
               }}>
               R{i+1}
             </div>
           )
         })}
       </div>
-      {tooltip && (
-        <div style={{fontSize:11,color:C.gold,marginTop:6,fontFamily:"'Barlow Condensed'",letterSpacing:1}}>{tooltip}</div>
-      )}
+
+      {/* Legenda */}
       <div style={{display:'flex',gap:8,marginTop:6,alignItems:'center'}}>
         {[{c:'#c0392b',l:'Ruim'},{c:'#e67e22',l:'OK'},{c:'#f1c40f',l:'Bom'},{c:'#00c060',l:'Ótimo'}].map(({c,l})=>(
           <div key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.textMuted}}>
@@ -499,7 +523,100 @@ function HeatmapPerformance({ player, history, C }: any) {
             {l}
           </div>
         ))}
+        <span style={{fontSize:10,color:C.textMuted,marginLeft:'auto'}}>toque para detalhar</span>
       </div>
+
+      {/* Painel de detalhes da rodada selecionada */}
+      {sel && selStats && (
+        <div style={{
+          marginTop:10,padding:'14px 16px',
+          background:dm?'rgba(0,30,15,.7)':'rgba(240,250,240,.9)',
+          border:`1px solid ${C.border}`,borderRadius:8,
+          animation:'fadeSlideIn .18s ease both',
+        }}>
+          {/* Cabeçalho */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:C.gold,letterSpacing:2,lineHeight:1}}>
+                {sel.roundName||`Rodada ${selectedRound!+1}`}
+              </div>
+              <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+                {selStats.total} jogo{selStats.total!==1?'s':''} com resultado
+                {sel.phase && <span style={{marginLeft:6,background:'rgba(212,175,55,.15)',color:C.gold,padding:'1px 6px',borderRadius:4,fontSize:10,letterSpacing:1}}>{sel.phase.toUpperCase()}</span>}
+              </div>
+            </div>
+            <div style={{textAlign:'center' as const}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:C.gold,lineHeight:1}}>{sel.scores?.[player]||0}</div>
+              <div style={{fontSize:9,color:C.textMuted,letterSpacing:1}}>PTS</div>
+            </div>
+          </div>
+
+          {/* Mini cards */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
+            {[
+              {val:selStats.exact,   label:'Cravadas', color:'#00c060'},
+              {val:selStats.correct - selStats.exact, label:'Vencedor',  color:'#3498db'},
+              {val:selStats.saldo,   label:'Saldo',    color:'#e67e22'},
+            ].map(({val,label,color})=>(
+              <div key={label} style={{background:'rgba(0,50,25,0.4)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:6,padding:'8px 6px',textAlign:'center' as const}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color,lineHeight:1}}>{val}</div>
+                <div style={{fontSize:9,color:C.textMuted,letterSpacing:1,textTransform:'uppercase' as const,marginTop:1}}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Barras % */}
+          {[
+            {label:'% Placar exato',               pct:selStats.pctExato,    color:'#D4AF37,#F0D060'},
+            {label:'% Acertei o resultado',         pct:selStats.pctVencedor, color:'#3498db,#5dade2'},
+            {label:'% Acertei só o saldo de gols',  pct:selStats.pctSaldo,    color:'#e67e22,#f39c12'},
+          ].map(({label,pct,color})=>(
+            <div key={label} style={{marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:C.textMuted,marginBottom:3}}>
+                <span>{label}</span><span style={{color:color.split(',')[0]}}>{pct}%</span>
+              </div>
+              <div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:3,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(to right,${color})`,borderRadius:3,transition:'width .8s ease'}}/>
+              </div>
+            </div>
+          ))}
+
+          {/* Jogos desta rodada */}
+          {sel.matches && sel.matches.length > 0 && (
+            <div style={{marginTop:10,borderTop:`1px solid ${C.borderFaint}`,paddingTop:10}}>
+              <div style={{fontSize:10,color:C.textMuted,letterSpacing:1,textTransform:'uppercase' as const,marginBottom:6}}>Seus palpites</div>
+              <div style={{display:'flex',flexDirection:'column' as const,gap:4}}>
+                {sel.matches.map((m:any)=>{
+                  const pal = sel.palpites?.[player]?.[m.id]
+                  const res = sel.results?.[m.id]
+                  if(!pal||pal.h==='') return (
+                    <div key={m.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:11,opacity:.4}}>
+                      <span style={{color:C.textMuted,flex:1}}>{m.home} × {m.away}</span>
+                      <span style={{color:C.textSub}}>NP</span>
+                    </div>
+                  )
+                  const ph=parseInt(pal.h),pa=parseInt(pal.a)
+                  const rh=res?parseInt(res.h):null, ra=res?parseInt(res.a):null
+                  const isExact = rh!==null&&ra!==null&&ph===rh&&pa===ra
+                  const isSaldo = !isExact&&rh!==null&&ra!==null&&(ph-pa)===(rh-ra)
+                  const pw=ph>pa?1:ph<pa?-1:0
+                  const rw=rh!==null&&ra!==null?(rh>ra?1:rh<ra?-1:0):null
+                  const isCorrect = !isExact&&!isSaldo&&rw!==null&&pw===rw
+                  const badge = isExact?{label:'✦ CRAVADA',color:'#00c060'}:isSaldo?{label:'≈ SALDO',color:'#e67e22'}:isCorrect?{label:'✓ VENCEDOR',color:'#3498db'}:rh!==null?{label:'✗ ERROU',color:'rgba(192,57,43,.7)'}:null
+                  return (
+                    <div key={m.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
+                      <span style={{color:C.textMuted,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.home} × {m.away}</span>
+                      <span style={{fontFamily:"'Bebas Neue'",fontSize:13,color:isExact?'#00c060':C.textMuted}}>{pal.h}×{pal.a}</span>
+                      {res&&res.h!==''&&<span style={{fontFamily:"'Bebas Neue'",fontSize:13,color:C.gold}}>{res.h}×{res.a}</span>}
+                      {badge&&<span style={{fontSize:9,color:badge.color,fontFamily:"'Barlow Condensed'",letterSpacing:1,flexShrink:0}}>{badge.label}</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -522,7 +639,8 @@ function calcPlayerStats(player: string, history: any[]) {
     if(r.tiebreak?.[player]) {
       const t = r.tiebreak[player]
       exatos   += t.exact   || 0
-      vencedor += t.correct || 0
+      // correct inclui exatos; subtrair para contar só quem acertou vencedor sem ter cravado
+      vencedor += Math.max((t.correct||0) - (t.exact||0), 0)
       saldo    += t.saldo   || 0
     }
 
@@ -723,9 +841,13 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
     }).length
   },0)
   const totalBase = Math.max(totalComResultado, 1)
-  const pctExato    = Math.round((s.exatos   / totalBase) * 100)
-  const pctVencedor = Math.round((s.vencedor / totalBase) * 100)
-  const pctSaldo    = Math.round((s.saldo    / totalBase) * 100)
+  // Exato: % de jogos com placar exato
+  const pctExato    = Math.min(Math.round((s.exatos   / totalBase) * 100), 100)
+  // Vencedor: acertou o resultado (vencedor OU exato), cap 100%
+  const totalVencedor = s.exatos + s.vencedor // vencedor já é exclusivo (sem exatos)
+  const pctVencedor = Math.min(Math.round((totalVencedor / totalBase) * 100), 100)
+  // Saldo: acertou saldo de gols (sem ter cravado), cap 100%
+  const pctSaldo    = Math.min(Math.round((s.saldo    / totalBase) * 100), 100)
 
   const trofeus = calcTrofeus(player, history, allPlayers||[player])
   const conquistados = trofeus.filter(t=>t.unlocked)
@@ -810,13 +932,13 @@ function EstatisticasPessoais({ player, history, allPlayers, C, dm, onNewTrofeu 
       </div>
 
       {/* Heatmap */}
-      <HeatmapPerformance player={player} history={history} C={C}/>
+      <HeatmapPerformance player={player} history={history} C={C} dm={dm}/>
 
       {/* Barras % */}
       {[
-        {label:'% Placar exato',       pct:pctExato,    color:'#D4AF37,#F0D060'},
-        {label:'% Acertei o vencedor', pct:pctVencedor, color:'#3498db,#5dade2'},
-        {label:'% Ganhei por saldo',   pct:pctSaldo,    color:'#e67e22,#f39c12'},
+        {label:'% Placar exato',              pct:pctExato,    color:'#D4AF37,#F0D060'},
+        {label:'% Acertei o resultado',        pct:pctVencedor, color:'#3498db,#5dade2'},
+        {label:'% Acertei só o saldo de gols', pct:pctSaldo,    color:'#e67e22,#f39c12'},
       ].map(({label,pct,color})=>(
         <div key={label} style={{marginBottom:10}}>
           <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:C.textMuted,marginBottom:4}}>
@@ -948,6 +1070,42 @@ function CountdownTimer({ diffMs, C }: { diffMs: number, C: any }) {
     }}>
       {urgent ? '🔴' : '⏱'}
       {hours > 0 ? `${hours}h ${mins}min` : mins > 0 ? `${mins}min ${secs}s` : `${secs}s`}
+    </div>
+  )
+}
+
+// ── Avatar Picker (campo livre) ─────────────────────────────────────────────
+function AvatarPicker({ cur, open, onToggle, onSave, C, dm }: any) {
+  const [input, setInput] = useState(cur||'')
+  // Sincroniza quando abre
+  useEffect(()=>{ if(open) setInput(cur||'') },[open, cur])
+  return (
+    <div style={{position:'relative'}}>
+      <button onClick={onToggle}
+        style={{background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:'2px 7px',cursor:'pointer',fontSize:17,lineHeight:1}}>
+        {cur||'😶'}
+      </button>
+      {open && (
+        <div style={{position:'absolute',top:'110%',left:0,background:dm?'rgba(0,20,10,.98)':C.bgPanel,border:`1px solid ${C.border}`,borderRadius:10,padding:12,zIndex:200,minWidth:210,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}>
+          <div style={{fontSize:11,color:C.textMuted,marginBottom:8,letterSpacing:1}}>Digite qualquer emoji ou texto:</div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <input
+              autoFocus
+              value={input}
+              onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter'&&input.trim()) onSave(input.trim())}}
+              placeholder="ex: 🦅 ou 💀"
+              maxLength={4}
+              style={{flex:1,background:C.bgInput,border:`1px solid ${C.border}`,color:C.text,borderRadius:6,padding:'6px 10px',fontSize:18,textAlign:'center',outline:'none',minWidth:0}}
+            />
+            <button onClick={()=>{ if(input.trim()) onSave(input.trim()) }}
+              style={{background:C.gold,border:'none',color:'#001a0a',borderRadius:6,padding:'6px 12px',cursor:'pointer',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:1,flexShrink:0}}>
+              OK
+            </button>
+          </div>
+          {cur && <button onClick={()=>onSave('')} style={{marginTop:8,width:'100%',background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:'4px 0',cursor:'pointer',fontSize:11,color:C.textMuted}}>Remover avatar</button>}
+        </div>
+      )}
     </div>
   )
 }
@@ -1227,7 +1385,8 @@ export default function Home() {
       name:p, total:s.totalPoints[p]||0,
       rodadas:s.roundHistory.filter((r:any)=>r.scores&&r.scores[p]!==undefined).length,
       exact:   s.roundHistory.reduce((acc:number,r:any)=>acc+(r.tiebreak?.[p]?.exact||0),0),
-      vencedor:s.roundHistory.reduce((acc:number,r:any)=>acc+(r.tiebreak?.[p]?.correct||0),0),
+      // correct inclui exatos; mostrar só os que acertaram vencedor sem ter cravado
+      vencedor:s.roundHistory.reduce((acc:number,r:any)=>acc+Math.max((r.tiebreak?.[p]?.correct||0)-(r.tiebreak?.[p]?.exact||0),0),0),
       saldo:   s.roundHistory.reduce((acc:number,r:any)=>acc+(r.tiebreak?.[p]?.saldo||0),0),
     })).sort((a:any,b:any)=>{
       if(b.total!==a.total) return b.total-a.total
@@ -1308,19 +1467,19 @@ export default function Home() {
     PLAYERS.forEach(p=>{
       scores[p]=Object.values(newState.correctedScores[p]||{}).reduce((a:number,b:unknown)=>a+(b as number),0) as number
       newState.totalPoints[p]=(newState.totalPoints[p]||0)+scores[p]
-      let exact=0, correct=0
+      let exact=0, correct=0, saldo=0
       newState.round.matches.forEach((m:any)=>{
         const pal=newState.palpites[p]?.[m.id]; const res=newState.results[m.id]
         if(pal&&res&&res.h!==''&&res.a!==''){
           const ph=parseInt(pal.h),pa=parseInt(pal.a),rh=parseInt(res.h),ra=parseInt(res.a)
           if(!isNaN(ph)&&!isNaN(pa)&&!isNaN(rh)&&!isNaN(ra)){
             if(ph===rh&&pa===ra) { exact++; correct++ }
-            else if((ph-pa)===(rh-ra)) correct++
+            else if((ph-pa)===(rh-ra)) { saldo++; correct++ }
             else { const pw=ph>pa?1:ph<pa?-1:0,rw=rh>ra?1:rh<ra?-1:0; if(pw===rw) correct++ }
           }
         }
       })
-      tiebreak[p]={exact,correct}
+      tiebreak[p]={exact,correct,saldo}
     })
     newState.roundHistory.push({
       roundName:newState.round.name,
@@ -2068,26 +2227,15 @@ export default function Home() {
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <div className="user-name">{currentUser}</div>
                 {!isAdmin && (()=>{
-                  const EMOJIS = ['⚽','🏆','🔥','💎','🦁','🐯','🦊','🦅','💪','🎯','👑','🤡','😈','🧠','🎪','🌪️']
                   const cur = state.playerAvatars?.[currentUser!]
                   return (
-                    <div style={{position:'relative'}}>
-                      <button onClick={()=>setAvatarOpen(v=>!v)}
-                        style={{background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:'2px 7px',cursor:'pointer',fontSize:17,lineHeight:1}}>
-                        {cur||'😶'}
-                      </button>
-                      {avatarOpen && (
-                        <div style={{position:'absolute',top:'110%',left:0,background:dm?'rgba(0,20,10,.98)':C.bgPanel,border:`1px solid ${C.border}`,borderRadius:10,padding:10,zIndex:200,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,minWidth:160,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}>
-                          {EMOJIS.map(em=>(
-                            <button key={em} onClick={()=>{savePlayerAvatar(em);setAvatarOpen(false)}}
-                              style={{background:cur===em?'rgba(212,175,55,.2)':'transparent',border:`1px solid ${cur===em?C.gold:C.borderFaint}`,borderRadius:6,padding:6,cursor:'pointer',fontSize:20,textAlign:'center' as const}}>
-                              {em}
-                            </button>
-                          ))}
-                          {cur&&<button onClick={()=>{savePlayerAvatar('');setAvatarOpen(false)}} style={{gridColumn:'1/-1',background:'transparent',border:`1px solid ${C.borderFaint}`,borderRadius:6,padding:4,cursor:'pointer',fontSize:11,color:C.textMuted}}>Remover avatar</button>}
-                        </div>
-                      )}
-                    </div>
+                    <AvatarPicker
+                      cur={cur||''}
+                      open={avatarOpen}
+                      onToggle={()=>setAvatarOpen(v=>!v)}
+                      onSave={(val:string)=>{savePlayerAvatar(val);setAvatarOpen(false)}}
+                      C={C} dm={dm}
+                    />
                   )
                 })()}
               </div>
@@ -3494,7 +3642,7 @@ export default function Home() {
             <AdminSection title="🔒 Dados & Segurança" defaultOpen={false}>
               <div className="reset-box">
                 <div className="reset-title">🗑 Zerar Todos os Dados</div>
-                <div className="reset-desc">Apaga palpites, pontuações, resultados e histórico.<br/>Mantém: pontuação, senha admin e jogadores.</div>
+                <div className="reset-desc">Apaga palpites, resultados, pontuações acumuladas, histórico de rodadas, troféus, avatares, PINs, novidades e log de ações.<br/>Mantém: senha admin, regras de pontuação, multiplicadores e perfis dos admins.</div>
                 <button className="btn-sm btn-danger" onClick={()=>setShowResetModal(true)}>⚠ Zerar Tudo</button>
               </div>
               <div className="a-card">
@@ -3640,9 +3788,9 @@ function GuiaTab({ C, dm, state, guideTextStyle, guideTipStyle, guideHighlight, 
       <GuiaItem title="Como funciona o desempate?" icon="⚖️">
         <div style={guideTextStyle}>
           <p style={{marginBottom:10}}>Quando dois ou mais participantes têm a mesma pontuação total, o desempate segue esta ordem:</p>
-          <GuiaStep n={1} text="Maior número de cravadas (placar exato acertado) (ex: acertou 2x1 quando o resultado foi 2x1)"/>
-          <GuiaStep n={2} text="Maior número de resultados corretos (vencedor ou empate, independente do placar)"/>
-          <GuiaStep n={3} text="Pedra, papel e tesoura ✂️ — pode o melhor vencer!"/>
+          <GuiaStep n={1} text="Maior número de cravadas — placar exato acertado (ex: apostou 2×1 e o resultado foi 2×1)."/>
+          <GuiaStep n={2} text="Maior número de resultados corretos — acertou quem venceu ou que empatou, mesmo sem acertar o placar."/>
+          <GuiaStep n={3} text="Maior número de saldos — acertou a diferença de gols sem acertar o placar exato (ex: apostou 1×0 e o resultado foi 2×1)."/>
         </div>
       </GuiaItem>
 
@@ -3678,25 +3826,49 @@ function GuiaTab({ C, dm, state, guideTextStyle, guideTipStyle, guideHighlight, 
         </div>
       </GuiaItem>
 
+      <GuiaItem title="Como ver as estatísticas de uma rodada específica?" icon="🔥">
+        <div style={guideTextStyle}>
+          <p style={{marginBottom:10}}>No final da aba <b style={guideHighlight}>Ranking</b>, em <b style={guideHighlight}>Minhas Estatísticas</b>, existe o painel de Performance por Rodada com os blocos coloridos R1, R2, R3...</p>
+          <GuiaStep n={1} text="Toque em qualquer bloco (R1, R2...) para expandir os detalhes daquela rodada."/>
+          <GuiaStep n={2} text="Aparece um painel com os pontos da rodada, mini cards de Cravadas / Vencedor / Saldo e as barras de % — calculadas só com os jogos daquela rodada."/>
+          <GuiaStep n={3} text="Também mostra jogo a jogo: seu palpite, o resultado real e o badge (✦ CRAVADA, ✓ VENCEDOR, ≈ SALDO ou ✗ ERROU)."/>
+          <GuiaStep n={4} text="Toque no mesmo bloco novamente para fechar. As estatísticas gerais acima sempre mostram o acumulado de todas as rodadas."/>
+        </div>
+        <div style={guideTipStyle}>
+          💡 A cor do bloco indica sua performance: 🔴 Ruim · 🟠 OK · 🟡 Bom · 🟢 Ótimo — relativo ao seu melhor resultado.
+        </div>
+      </GuiaItem>
+
+      <GuiaItem title="Como personalizar meu avatar?" icon="😶">
+        <div style={guideTextStyle}>
+          <p style={{marginBottom:10}}>O avatar aparece ao lado do seu nome na topbar e na tabela de ranking.</p>
+          <GuiaStep n={1} text="Após entrar com seu nome, toque no botão de emoji (😶) ao lado do seu nome na barra superior."/>
+          <GuiaStep n={2} text="Digite qualquer emoji ou texto curto no campo que aparecer — ex: 🦅, 💀, 🐍."/>
+          <GuiaStep n={3} text='Toque em "OK" ou pressione Enter. O avatar é salvo automaticamente para todos verem.'/>
+        </div>
+        <div style={guideTipStyle}>
+          💡 Para remover o avatar, abra o picker e toque em "Remover avatar".
+        </div>
+      </GuiaItem>
+
       <GuiaItem title="O que são as Conquistas?" icon="🏅">
         <div style={guideTextStyle}>
-          <p style={{marginBottom:10}}>Conquistas aparecem nas suas Estatísticas Pessoais (final da aba Ranking) conforme você evolui:</p>
-          <div style={{display:'flex',flexDirection:'column' as const,gap:6}}>
+          <p style={{marginBottom:12}}>A Sala de Troféus fica no final das suas Estatísticas Pessoais (aba Ranking). Há mais de 30 conquistas divididas em 4 tiers:</p>
+          <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
             {[
-              {icon:'🎯', label:'Sniper',      desc:'1+ placar exato acertado'},
-              {icon:'🔥', label:'Em Chamas',   desc:'5+ placares exatos acertados'},
-              {icon:'💪', label:'Veterano',    desc:'Participou de 3+ rodadas'},
-              {icon:'⚡', label:'Consistente', desc:'10+ vencedores acertados'},
-              {icon:'📐', label:'Calculista',  desc:'5+ saldos de gols acertados'},
-            ].map(({icon,label,desc})=>(
-              <div key={label} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0'}}>
-                <span style={{fontSize:20}}>{icon}</span>
-                <div>
-                  <span style={{fontSize:12,fontWeight:600,color:C.gold}}>{label}</span>
-                  <span style={{fontSize:12,color:C.textMuted,marginLeft:6}}>{desc}</span>
-                </div>
+              {tier:'🟢 Qualquer um pode ter', color:'rgba(255,255,255,.15)', border:'rgba(255,255,255,.2)',  ex:'Veterano, Galinha, Dormiu no Ponto...'},
+              {tier:'🔵 Nem todo mundo tem',   color:'rgba(100,180,255,.15)', border:'rgba(100,180,255,.35)', ex:'Hat-trick, O Analista, Sangue Frio...'},
+              {tier:'🌟 Levanta que é só seu', color:'rgba(212,175,55,.18)',  border:'rgba(212,175,55,.5)',   ex:'Perfeição, Relâmpago, O Predador...'},
+              {tier:'👑 ÉPICO',                color:'rgba(255,100,200,.18)', border:'rgba(255,100,200,.5)',   ex:'CAMPEÃO! — o maior pontuador da competição.'},
+            ].map(({tier,color,border,ex})=>(
+              <div key={tier} style={{background:color,border:`1px solid ${border}`,borderRadius:8,padding:'10px 12px'}}>
+                <div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:3}}>{tier}</div>
+                <div style={{fontSize:12,color:C.textMuted}}>{ex}</div>
               </div>
             ))}
+          </div>
+          <div style={{...guideTipStyle,marginTop:10}}>
+            💡 Conquistas desbloqueadas ficam coloridas; bloqueadas ficam em cinza. Ao entrar no app após uma rodada, você recebe uma notificação se ganhou uma nova conquista!
           </div>
         </div>
       </GuiaItem>
@@ -3774,25 +3946,22 @@ function GuiaTab({ C, dm, state, guideTextStyle, guideTipStyle, guideHighlight, 
 
       <GuiaItem title="Como ativar notificações?" icon="🔔">
         <div style={guideTextStyle}>
-          <p style={{marginBottom:12}}>As notificações avisam quando uma nova rodada abre, para você não perder o prazo!</p>
+          <p style={{marginBottom:12}}>As notificações avisam quando uma nova rodada abre, para você não perder o prazo. <b style={guideHighlight}>O app precisa estar instalado na tela inicial</b> (veja o guia acima).</p>
           <div style={{marginBottom:12}}>
             <div style={{...guideHighlight,marginBottom:6}}>🤖 Android (Chrome)</div>
-            <GuiaStep n={1} text="Adicione o app à tela inicial conforme o guia acima."/>
-            <GuiaStep n={2} text='Quando o app pedir permissão de notificação, toque em "Permitir".'/>
-            <GuiaStep n={3} text="Pronto! Você receberá alertas mesmo com o app fechado."/>
+            <GuiaStep n={1} text='Com o app instalado, ao abri-lo ele pedirá permissão de notificação — toque em "Permitir".'/>
+            <GuiaStep n={2} text="Pronto! Você receberá alertas mesmo com o app fechado."/>
           </div>
           <div>
             <div style={{...guideHighlight,marginBottom:6}}>🍎 iPhone (Safari)</div>
-            <GuiaStep n={1} text="Adicione o app à tela inicial pelo Safari (obrigatório)."/>
-            <GuiaStep n={2} text="Abra o app pela tela inicial (não pelo Safari)."/>
-            <GuiaStep n={3} text='Quando aparecer o pedido de permissão, toque em "Permitir".'/>
+            <GuiaStep n={1} text="Abra o app pela tela inicial (não pelo Safari diretamente)."/>
+            <GuiaStep n={2} text='Quando aparecer o pedido de permissão, toque em "Permitir".'/>
           </div>
           <div style={guideTipStyle}>
             ⚠️ Se você recusou a permissão antes, vá em Configurações do celular → Notificações → Palpitão e ative manualmente.
           </div>
         </div>
 
-        {/* CORREÇÃO #3 — Status de notificação com loading */}
         <div style={{marginTop:14,padding:'14px 16px',background:dm?'rgba(0,40,20,.5)':'rgba(0,80,40,.06)',border:`1px solid ${C.border}`,borderRadius:8,textAlign:'center' as const}}>
           {pushStatus==='unknown'
             ? <div style={{color:C.textMuted,fontSize:13}}>Verificando status das notificações...</div>
