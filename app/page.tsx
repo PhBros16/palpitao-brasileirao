@@ -1995,17 +1995,16 @@ export default function Home() {
         .st-closed{color:${C.red};font-size:11px;letter-spacing:2px;text-transform:uppercase;}
         .match-card{background:${C.bgMatchCard};border:1px solid ${C.borderFaint};border-radius:var(--radius);padding:20px 18px;margin-bottom:10px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;box-shadow:${C.shadow};}
         .match-card.locked{opacity:.65;border-color:${dm?'rgba(192,57,43,.3)':'rgba(192,57,43,.4)'};}
-        .match-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;width:100%;gap:0;}
-        .match-col{display:flex;flex-direction:column;align-items:center;gap:6px;}
-        .match-col.home{align-items:flex-end;}
-        .match-col.away{align-items:flex-start;}
-        .team-flag{font-size:28px;}.team-name{font-size:15px;font-weight:700;color:${C.text};text-align:center;word-break:break-word;}
-        .vs-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 10px;}
-        .vs-txt{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);line-height:1;}
-        .score-grp{display:none;}
-        .score-in{width:56px;height:56px;background:${C.bgInput};border:1px solid ${dm?'rgba(212,175,55,.3)':C.border};color:${C.text};font-family:'Bebas Neue',sans-serif;font-size:26px;text-align:center;border-radius:6px;outline:none;}
+        .match-teams{display:flex;flex-direction:column;align-items:center;width:100%;gap:8px;}
+        .match-row{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;}
+        .match-side{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:70px;}
+        .team-flag{font-size:40px;line-height:1;}.team-name{font-size:13px;font-weight:700;color:${C.text};text-align:center;word-break:break-word;max-width:80px;}
+        .vs-txt{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);line-height:1;padding:0 4px;}
+        .score-grp{display:flex;align-items:center;justify-content:center;gap:8px;}
+        .score-in{width:60px;height:60px;background:${C.bgInput};border:1px solid ${dm?'rgba(212,175,55,.3)':C.border};color:${C.text};font-family:'Bebas Neue',sans-serif;font-size:28px;text-align:center;border-radius:8px;outline:none;}
         .score-in:focus{border-color:var(--gold);}
         .score-in:disabled{opacity:.4;cursor:not-allowed;}
+        .score-sep{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-muted);}
         .classify-sel{background:${C.bgInput};border:1px solid ${dm?'rgba(212,175,55,.3)':C.border};color:${C.text};font-size:13px;padding:8px 12px;border-radius:6px;outline:none;cursor:pointer;width:100%;max-width:240px;}
         .classify-sel:disabled{opacity:.4;cursor:not-allowed;}
         .match-time{font-size:12px;color:var(--text-muted);letter-spacing:1px;width:100%;text-align:center;}
@@ -2705,32 +2704,33 @@ export default function Home() {
 
               return <div key={m.id} className={`match-card${locked?' locked':''}`}>
                 <div className="match-teams">
-                  {/* Coluna esquerda: flag + nome + input home */}
-                  <div className="match-col home">
-                    {m.homeLogo
-                      ? <img src={m.homeLogo} alt={m.home} style={{width:40,height:40,objectFit:'contain'}}/>
-                      : <span className="team-flag">{m.homeFlag||'🏳'}</span>}
-                    <span className="team-name">{m.home}</span>
-                    <input className="score-in" type="number" inputMode="numeric" min={0} max={20} value={pal.h} disabled={locked}
-                      onChange={e=>setLocalPalpites((prev:any)=>({...prev,[m.id]:{...prev[m.id],h:e.target.value}}))}/>
-                  </div>
+                  <div className="match-row">
+                    {/* Escudo home */}
+                    <div className="match-side">
+                      {m.homeLogo
+                        ? <img src={m.homeLogo} alt={m.home} style={{width:48,height:48,objectFit:'contain'}}/>
+                        : <span className="team-flag">{m.homeFlag||'🏳'}</span>}
+                      <span className="team-name">{m.home}</span>
+                    </div>
 
-                  {/* Coluna central: X único e estático */}
-                  <div className="vs-col">
-                    <span className="vs-txt">×</span>
-                  </div>
+                    {/* Inputs + × */}
+                    <div className="score-grp">
+                      <input className="score-in" type="number" inputMode="numeric" min={0} max={20} value={pal.h} disabled={locked}
+                        onChange={e=>setLocalPalpites((prev:any)=>({...prev,[m.id]:{...prev[m.id],h:e.target.value}}))}/>
+                      <span className="score-sep">×</span>
+                      <input className="score-in" type="number" inputMode="numeric" min={0} max={20} value={pal.a} disabled={locked}
+                        onChange={e=>setLocalPalpites((prev:any)=>({...prev,[m.id]:{...prev[m.id],a:e.target.value}}))}/>
+                    </div>
 
-                  {/* Coluna direita: flag + nome + input away */}
-                  <div className="match-col away">
-                    {m.awayLogo
-                      ? <img src={m.awayLogo} alt={m.away} style={{width:40,height:40,objectFit:'contain'}}/>
-                      : <span className="team-flag">{m.awayFlag||'🏳'}</span>}
-                    <span className="team-name">{m.away}</span>
-                    <input className="score-in" type="number" inputMode="numeric" min={0} max={20} value={pal.a} disabled={locked}
-                      onChange={e=>setLocalPalpites((prev:any)=>({...prev,[m.id]:{...prev[m.id],a:e.target.value}}))}/>
+                    {/* Escudo away */}
+                    <div className="match-side">
+                      {m.awayLogo
+                        ? <img src={m.awayLogo} alt={m.away} style={{width:48,height:48,objectFit:'contain'}}/>
+                        : <span className="team-flag">{m.awayFlag||'🏳'}</span>}
+                      <span className="team-name">{m.away}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="score-grp"/>{/* mantido para não quebrar referências CSS */}
 
                 {/* Pontuação simulada */}
                 {simPts !== null && !locked && (
