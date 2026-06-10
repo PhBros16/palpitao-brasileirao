@@ -1506,6 +1506,13 @@ export default function Home() {
     return ()=>{ audioRef.current?.pause() }
   },[currentUser])
 
+  function logout() {
+    setCurrentUser(null)
+    setIsAdmin(false)
+    setAuthPassword('')
+    setActiveTab('home')
+  }
+
   function toggleMusic(){
     const audio = audioRef.current
     if(!audio) return
