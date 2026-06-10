@@ -8,7 +8,7 @@
 
 ## O que é
 
-O Palpitão Copa 2026 é um app web de bolão para a Copa do Mundo 2026, feito para grupos de amigos. Cada participante palpita no placar de cada jogo, acumula pontos, sobe no ranking e desbloqueia conquistas ao longo do campeonato.
+O Palpitão Copa 2026 é um app web de bolão para a Copa do Mundo 2026, feito para grupos de amigos que querem dar um "tchan" a mais no entretenimento. Cada participante palpita no placar de cada jogo, acumula pontos, sobe no ranking e desbloqueia conquistas ao longo do campeonato, etc.
 
 Tudo roda em tempo real, sem precisar criar conta — basta entrar com seu nome e começar a palpitar.
 
