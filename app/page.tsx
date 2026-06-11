@@ -4,6 +4,16 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 const PLAYERS = ['Ramon','Matheus Couto','Pedro Frozza','Pedro Gaúcho','Victor Bahia','Victor Simões','PH','André','Matheus Brito','Costa','Diniz','Samuel','Giovanni','Damus']
 const MASTER_PASS = 'Mestre#26Pal'
 
+// ── Playlist ────────────────────────────────────────────────────────────────
+const PLAYLIST = [
+  { id: 'tunnel_vision',    title: 'Tunnel Vision',       artist: 'Justin Timberlake', file: '/tunnel_vision.mp3' },
+  { id: 'waka_waka',        title: 'Waka Waka',           artist: 'Shakira',           file: '/waka_waka.mp3' },
+  { id: 'live_it_up',       title: 'Live It Up',          artist: 'Nicky Jam',         file: '/live_it_up.mp3' },
+  { id: 'wavin_flag',       title: "Wavin' Flag",         artist: "K'Naan",            file: '/wavin_flag.mp3' },
+  { id: 'la_la_la',         title: 'La La La',            artist: 'Shakira',           file: '/la_la_la.mp3' },
+  { id: 'colors',           title: 'Colors',              artist: 'Jason Derulo',      file: '/colors.mp3' },
+]
+
 // Mapeamento de nome da seleção → logo local
 const SELECOES_LOGOS: Record<string, string> = {
   'brasil': '/logos/brasil.png',
@@ -1497,9 +1507,14 @@ export default function Home() {
   const [introPhase, setIntroPhase] = useState<'splash'|'countdown'|'reveal'|'fadeout'>('splash')
   const [introCount, setIntroCount] = useState(3)
   const [musicPlaying, setMusicPlaying] = useState(false)
+  const [currentTrackId, setCurrentTrackId] = useState(()=>{
+    // Será atualizado quando o state carregar via useEffect abaixo
+    return PLAYLIST[0].id
+  })
+  const [showPlaylist, setShowPlaylist] = useState(false)
   const audioRef = useRef<HTMLAudioElement|null>(null)
   if(typeof window !== 'undefined' && !audioRef.current) {
-    try { const a=new Audio('/tunnel_vision.mp3'); a.loop=true; a.volume=0.35; audioRef.current=a } catch(e){}
+    try { const a=new Audio(PLAYLIST[0].file); a.loop=true; a.volume=0.35; audioRef.current=a } catch(e){}
   }
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState<string|null>(null)
@@ -1626,6 +1641,20 @@ export default function Home() {
 
   useEffect(()=>{ fetchState() },[fetchState])
   useEffect(()=>{ const t=setInterval(fetchState,30000); return()=>clearInterval(t) },[fetchState])
+
+  // Sincroniza faixa padrão quando state carrega pela primeira vez
+  useEffect(()=>{
+    if(!state?.defaultTrackId) return
+    const track = PLAYLIST.find(t=>t.id===state.defaultTrackId)
+    if(!track) return
+    setCurrentTrackId(track.id)
+    // Atualiza o src do audio se não estiver tocando
+    if(audioRef.current && !musicPlaying) {
+      audioRef.current.src = track.file
+      audioRef.current.load()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[state?.defaultTrackId])
 
   function addAdminLog(newState: any, action: string) {
     if(!newState.adminLog) newState.adminLog=[]
@@ -1758,20 +1787,6 @@ export default function Home() {
     document.body.style.height = '100%'
   },[])
 
-  // Música tema — cria o objeto Audio na montagem para estar pronto quando a intro precisar
-  useEffect(()=>{
-    if(typeof window === 'undefined') return
-    if(!audioRef.current){
-      try {
-        const audio = new Audio('/tunnel_vision.mp3')
-        audio.loop = true
-        audio.volume = 0.35
-        audioRef.current = audio
-      } catch(e) {}
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[])
-
   function logout() {
     setCurrentUser(null)
     setIsAdmin(false)
@@ -1779,11 +1794,40 @@ export default function Home() {
     setActiveTab('home')
   }
 
+  function getTrack(id: string) { return PLAYLIST.find(t=>t.id===id)||PLAYLIST[0] }
+
+  function loadTrack(id: string, autoplay=false) {
+    const track = getTrack(id)
+    setCurrentTrackId(id)
+    if(audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = track.file
+      audioRef.current.load()
+      if(autoplay || musicPlaying) {
+        audioRef.current.play().then(()=>setMusicPlaying(true)).catch(()=>setMusicPlaying(false))
+      } else {
+        setMusicPlaying(false)
+      }
+    }
+  }
+
   function toggleMusic(){
     const audio = audioRef.current
     if(!audio) return
     if(musicPlaying){ audio.pause(); setMusicPlaying(false) }
     else { audio.play().then(()=>setMusicPlaying(true)).catch(()=>{}) }
+  }
+
+  function nextTrack() {
+    const idx = PLAYLIST.findIndex(t=>t.id===currentTrackId)
+    const next = PLAYLIST[(idx+1)%PLAYLIST.length]
+    loadTrack(next.id, true)
+  }
+
+  function prevTrack() {
+    const idx = PLAYLIST.findIndex(t=>t.id===currentTrackId)
+    const prev = PLAYLIST[(idx-1+PLAYLIST.length)%PLAYLIST.length]
+    loadTrack(prev.id, true)
   }
 
   function getCurrentPhase(s: any) {
@@ -2715,41 +2759,88 @@ export default function Home() {
           {/* ── HOME ── */}
           {activeTab==='home' && <div className="tab-content">
 
-            {/* ── Música Tema ── */}
-            <div onClick={toggleMusic} style={{
-              display:'flex',alignItems:'center',gap:12,
-              background:musicPlaying
-                ? (dm?'rgba(212,175,55,.12)':'rgba(212,175,55,.1)')
-                : (dm?'rgba(0,40,20,.5)':'rgba(0,60,30,.05)'),
-              border:`1px solid ${musicPlaying?'rgba(212,175,55,.4)':'rgba(212,175,55,.15)'}`,
-              borderRadius:'var(--radius)',padding:'10px 14px',marginBottom:14,cursor:'pointer',
-              transition:'all .25s',
-            }}>
-              <div style={{
-                width:36,height:36,borderRadius:'50%',flexShrink:0,
-                background:musicPlaying?'rgba(212,175,55,.2)':'rgba(212,175,55,.08)',
-                border:`1px solid ${musicPlaying?C.gold:'rgba(212,175,55,.2)'}`,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,
-                animation:musicPlaying?'spin 3s linear infinite':'none',
-              }}>
-                {musicPlaying?'🎵':'🎶'}
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,fontWeight:700,color:C.gold,letterSpacing:1,lineHeight:1}}>
-                  {musicPlaying?'TOCANDO — Tunnel Vision':'MÚSICA TEMA'}
+            {/* ── Mini Player ── */}
+            {(()=>{
+              const track = getTrack(currentTrackId)
+              return (
+                <div style={{
+                  background:dm?'rgba(0,40,20,.5)':'rgba(0,60,30,.05)',
+                  border:`1px solid ${musicPlaying?'rgba(212,175,55,.4)':'rgba(212,175,55,.15)'}`,
+                  borderRadius:'var(--radius)',marginBottom:14,overflow:'hidden',
+                  transition:'all .25s',
+                }}>
+                  {/* Linha principal */}
+                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
+                    {/* Disco girando */}
+                    <div onClick={toggleMusic} style={{
+                      width:38,height:38,borderRadius:'50%',flexShrink:0,
+                      background:musicPlaying?'rgba(212,175,55,.2)':'rgba(212,175,55,.08)',
+                      border:`1px solid ${musicPlaying?C.gold:'rgba(212,175,55,.2)'}`,
+                      display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,
+                      animation:musicPlaying?'spin 3s linear infinite':'none',
+                      cursor:'pointer',
+                    }}>
+                      {musicPlaying?'🎵':'🎶'}
+                    </div>
+
+                    {/* Info da faixa */}
+                    <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowPlaylist(v=>!v)}>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,fontWeight:700,color:C.gold,letterSpacing:1,lineHeight:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {musicPlaying ? track.title.toUpperCase() : 'MÚSICA TEMA'}
+                      </div>
+                      <div style={{fontSize:11,color:C.textMuted,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {musicPlaying ? track.artist : 'Toque para tocar · ' + PLAYLIST.length + ' músicas'}
+                      </div>
+                    </div>
+
+                    {/* Controles */}
+                    <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+                      <button onClick={prevTrack} style={{background:'transparent',border:'none',color:C.textMuted,fontSize:16,cursor:'pointer',padding:'4px 6px',lineHeight:1}}>⏮</button>
+                      <button onClick={toggleMusic} style={{
+                        background:musicPlaying?C.gold:'transparent',
+                        border:`1px solid ${musicPlaying?C.gold:'rgba(212,175,55,.35)'}`,
+                        color:musicPlaying?'#001a0a':C.gold,
+                        borderRadius:'50%',width:32,height:32,fontSize:14,cursor:'pointer',
+                        display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+                      }}>
+                        {musicPlaying?'⏸':'▶'}
+                      </button>
+                      <button onClick={nextTrack} style={{background:'transparent',border:'none',color:C.textMuted,fontSize:16,cursor:'pointer',padding:'4px 6px',lineHeight:1}}>⏭</button>
+                      <button onClick={()=>setShowPlaylist(v=>!v)} style={{background:'transparent',border:'none',color:showPlaylist?C.gold:C.textMuted,fontSize:14,cursor:'pointer',padding:'4px 6px',lineHeight:1,transition:'color .2s'}}>
+                        {showPlaylist?'▲':'≡'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Lista de músicas expandida */}
+                  {showPlaylist && (
+                    <div style={{borderTop:`1px solid ${C.borderFaint}`}}>
+                      {PLAYLIST.map((t,i)=>{
+                        const isActive = t.id===currentTrackId
+                        return (
+                          <div key={t.id} onClick={()=>loadTrack(t.id, true)}
+                            style={{
+                              display:'flex',alignItems:'center',gap:10,padding:'9px 14px',
+                              borderBottom: i<PLAYLIST.length-1?`1px solid ${C.borderFaint}`:'none',
+                              background:isActive?(dm?'rgba(212,175,55,.1)':'rgba(212,175,55,.08)'):'transparent',
+                              cursor:'pointer',transition:'background .15s',
+                            }}>
+                            <span style={{fontSize:14,width:20,textAlign:'center',flexShrink:0}}>
+                              {isActive&&musicPlaying?'🎵':isActive?'▶':'♪'}
+                            </span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:isActive?700:400,color:isActive?C.gold:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
+                              <div style={{fontSize:11,color:C.textMuted}}>{t.artist}</div>
+                            </div>
+                            {isActive&&musicPlaying&&<span style={{fontSize:10,color:C.gold,fontFamily:"'Barlow Condensed'",letterSpacing:1}}>TOCANDO</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
-                  {musicPlaying?'Toque para pausar':'Deixar tudo mais épico 🏆'}
-                </div>
-              </div>
-              <div style={{
-                fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
-                color:musicPlaying?C.gold:'rgba(212,175,55,.35)',
-                transition:'color .2s',
-              }}>
-                {musicPlaying?'⏸':'▶'}
-              </div>
-            </div>
+              )
+            })()}
             {(()=>{
               const novs: any[] = state.novidades||[]
               if(!novs.length) return null
@@ -2938,12 +3029,18 @@ export default function Home() {
                     PLAYERS.forEach(p=>{const pal=state.palpites[p]?.[m.id];if(pal&&pal.h!==''){const k=`${pal.h}x${pal.a}`;counts[k]=(counts[k]||0)+1}})
                     const entries=Object.entries(counts).sort((a:any,b:any)=>b[1]-a[1])
                     if(!entries.length) return null
-                    return <div key={m.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:`1px solid ${C.borderFaint}`,flexWrap:'wrap',gap:6}}>
-                      <span style={{color:C.textMuted,fontSize:12}}>{m.home} x {m.away}</span>
-                      <span style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                        {entries.map(([k,v]:any)=><span key={k} style={{background:dm?'rgba(0,60,30,.5)':'rgba(0,80,40,.08)',border:`1px solid ${C.borderFaint}`,padding:'2px 8px',borderRadius:4,fontSize:12}}><b style={{color:C.gold}}>{k}</b> <span style={{color:C.textMuted}}>{v}x</span></span>)}
-                      </span>
-                    </div>
+                    return (
+                      <div key={m.id} style={{padding:'8px 0',borderBottom:`1px solid ${C.borderFaint}`}}>
+                        <div style={{color:C.textMuted,fontSize:12,marginBottom:6}}>{m.home} x {m.away}</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                          {entries.map(([k,v]:any)=>(
+                            <span key={k} style={{background:dm?'rgba(0,60,30,.5)':'rgba(0,80,40,.08)',border:`1px solid ${C.borderFaint}`,padding:'3px 10px',borderRadius:4,fontSize:12,whiteSpace:'nowrap'}}>
+                              <b style={{color:C.gold}}>{k}</b> <span style={{color:C.textMuted}}>{v}x</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
                   })}
                 </div>
               </div>
@@ -4042,6 +4139,40 @@ export default function Home() {
                     {notifSending?'Enviando...':'🔔 Enviar para Todos'}
                   </button>
                   <span style={{fontSize:11,color:C.textMuted}}>Só recebem quem ativou as notificações</span>
+                </div>
+              </div>
+            </AdminSection>
+
+            {/* Música Padrão da Intro */}
+            <AdminSection title="🎵 Música Padrão da Intro" defaultOpen={false}>
+              <div className="a-card">
+                <div style={{fontSize:12,color:C.textMuted,marginBottom:12,lineHeight:1.5}}>
+                  Define qual música começa tocando automaticamente quando o participante passa pela intro.
+                </div>
+                <div style={{display:'flex',flexDirection:'column' as const,gap:6}}>
+                  {PLAYLIST.map(t=>{
+                    const isDefault = (state.defaultTrackId||PLAYLIST[0].id) === t.id
+                    return (
+                      <div key={t.id} onClick={async ()=>{
+                        const newState=JSON.parse(JSON.stringify(state))
+                        newState.defaultTrackId = t.id
+                        await saveState(newState, authPassword, `Música padrão alterada para: ${t.title}`)
+                        showNotif(`Música padrão: ${t.title}`)
+                      }} style={{
+                        display:'flex',alignItems:'center',gap:10,padding:'10px 12px',
+                        background:isDefault?'rgba(212,175,55,.12)':'transparent',
+                        border:`1px solid ${isDefault?C.gold:C.borderFaint}`,
+                        borderRadius:8,cursor:'pointer',transition:'all .15s',
+                      }}>
+                        <span style={{fontSize:16,width:24,textAlign:'center',flexShrink:0}}>{isDefault?'🎵':'♪'}</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:isDefault?700:400,color:isDefault?C.gold:C.text}}>{t.title}</div>
+                          <div style={{fontSize:11,color:C.textMuted}}>{t.artist}</div>
+                        </div>
+                        {isDefault&&<span style={{fontSize:10,color:C.gold,fontFamily:"'Barlow Condensed'",letterSpacing:1,border:`1px solid ${C.gold}`,borderRadius:4,padding:'2px 6px'}}>PADRÃO</span>}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </AdminSection>
