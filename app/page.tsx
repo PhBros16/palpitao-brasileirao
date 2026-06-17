@@ -1502,6 +1502,362 @@ function IntroScreen({ loading, introPhase, introCount, setIntroCount, setIntroP
   )
 }
 
+
+// ── Tela de Login Tático ──────────────────────────────────────────────────
+const FORMATION: Array<{name:string; x:number; y:number; role:string; initials:string}> = [
+  {name:'André',          x:50, y:88, role:'GK',  initials:'AN'},
+  {name:'Giovanni',       x:82, y:72, role:'LD',  initials:'GI'},
+  {name:'Ramon',          x:62, y:72, role:'ZAG', initials:'RA'},
+  {name:'Pedro Gaúcho',   x:38, y:72, role:'ZAG', initials:'PG'},
+  {name:'Damus',          x:18, y:72, role:'LE',  initials:'DA'},
+  {name:'Pedro Frozza',   x:62, y:55, role:'VOL', initials:'PF'},
+  {name:'Matheus Couto',  x:38, y:55, role:'VOL', initials:'MC'},
+  {name:'Victor Simões',  x:50, y:40, role:'MEI', initials:'VS'},
+  {name:'PH',             x:80, y:25, role:'PD',  initials:'PH'},
+  {name:'Matheus Diniz',  x:50, y:18, role:'ATA', initials:'MD'},
+  {name:'Matheus Brito',  x:20, y:25, role:'PE',  initials:'MB'},
+]
+
+const BENCH_PLAYERS = ['Costa', 'Samuel']
+const COACH = 'Victor Bahia'
+
+function TacticalLoginScreen({ onLogin, onAdmin, C, dm }: any) {
+  const [pressed, setPressed] = useState<string|null>(null)
+  const [ripple, setRipple] = useState<{name:string; x:number; y:number}|null>(null)
+
+  function handlePlayer(name: string, x: number, y: number) {
+    setPressed(name)
+    setRipple({name, x, y})
+    setTimeout(()=>setRipple(null), 600)
+    setTimeout(()=>{ setPressed(null); onLogin(name) }, 180)
+  }
+
+  return (
+    <div style={{
+      position:'fixed', inset:0,
+      display:'flex', flexDirection:'column',
+      background:'#050a06',
+      minHeight:'100dvh', overflow:'hidden',
+      fontFamily:"'Barlow Condensed',sans-serif",
+    }}>
+      <style>{`
+        @keyframes grassWave {
+          0%   { background-position: 0 0 }
+          50%  { background-position: 4px 0 }
+          100% { background-position: 0 0 }
+        }
+        @keyframes grassBreeze {
+          0%,100% { transform: skewX(0deg) scaleX(1) }
+          30%     { transform: skewX(.4deg) scaleX(1.003) }
+          60%     { transform: skewX(-.3deg) scaleX(.998) }
+        }
+        @keyframes playerPop {
+          0%   { transform:scale(0.6); opacity:0 }
+          60%  { transform:scale(1.12) }
+          100% { transform:scale(1); opacity:1 }
+        }
+        @keyframes rippleGrass {
+          0%   { transform:scale(0); opacity:.7 }
+          100% { transform:scale(3.5); opacity:0 }
+        }
+        @keyframes floatIn {
+          0%   { opacity:0; transform:translateY(12px) }
+          100% { opacity:1; transform:translateY(0) }
+        }
+        @keyframes lineGlow {
+          0%,100% { opacity:.55 }
+          50%     { opacity:.85 }
+        }
+        @keyframes shimmerName {
+          0%   { background-position: -100% center }
+          100% { background-position: 200% center }
+        }
+        .tactical-player {
+          position:absolute;
+          transform:translate(-50%,-50%);
+          display:flex; flex-direction:column; align-items:center; gap:3px;
+          cursor:pointer; z-index:3;
+          animation: playerPop .4s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        .tactical-player:active .player-circle {
+          transform: scale(.88);
+        }
+        .player-circle {
+          width:38px; height:38px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-weight:800; font-size:11px; letter-spacing:.5px;
+          transition: transform .12s ease, box-shadow .2s;
+          position:relative; overflow:hidden;
+        }
+        .player-circle::after {
+          content:'';
+          position:absolute; inset:0; border-radius:50%;
+          background:linear-gradient(135deg,rgba(255,255,255,.25) 0%,transparent 60%);
+          pointer-events:none;
+        }
+        .player-label {
+          font-size:8.5px; font-weight:700; letter-spacing:.5px;
+          text-transform:uppercase; text-align:center;
+          text-shadow:0 1px 4px rgba(0,0,0,.9);
+          white-space:nowrap; max-width:52px;
+          overflow:hidden; text-overflow:ellipsis;
+        }
+        .role-badge {
+          font-size:7px; font-weight:600; letter-spacing:1px;
+          text-transform:uppercase; opacity:.7;
+        }
+      `}</style>
+
+      {/* ── GRAMADO ANIMADO ── */}
+      <div style={{
+        position:'absolute', inset:0, zIndex:0,
+        animation:'grassBreeze 6s ease-in-out infinite',
+      }}>
+        {/* Listras do gramado */}
+        <div style={{
+          position:'absolute', inset:0,
+          backgroundImage:`repeating-linear-gradient(
+            180deg,
+            rgba(0,90,25,.95) 0px, rgba(0,90,25,.95) 28px,
+            rgba(0,110,30,.95) 28px, rgba(0,110,30,.95) 56px
+          )`,
+          animation:'grassWave 8s ease-in-out infinite',
+        }}/>
+        {/* Textura de grama — ruído sutil */}
+        <div style={{
+          position:'absolute', inset:0,
+          backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+          backgroundSize:'200px',
+          opacity:.6,
+          pointerEvents:'none',
+        }}/>
+        {/* Vinheta nas bordas */}
+        <div style={{
+          position:'absolute', inset:0,
+          background:'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,.65) 100%)',
+          pointerEvents:'none',
+        }}/>
+      </div>
+
+      {/* ── LINHAS DO CAMPO ── */}
+      <svg
+        viewBox="0 0 100 160"
+        preserveAspectRatio="xMidYMid meet"
+        style={{
+          position:'absolute', inset:0,
+          width:'100%', height:'100%',
+          zIndex:1, pointerEvents:'none',
+          animation:'lineGlow 4s ease-in-out infinite',
+        }}
+      >
+        {/* Borda do campo */}
+        <rect x="5" y="8" width="90" height="144" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7"/>
+        {/* Linha do meio */}
+        <line x1="5" y1="80" x2="95" y2="80" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
+        {/* Círculo central */}
+        <ellipse cx="50" cy="80" rx="14" ry="10" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth=".6"/>
+        <circle cx="50" cy="80" r="1.2" fill="rgba(255,255,255,.6)"/>
+        {/* Área grande ataque (topo) */}
+        <rect x="22" y="8" width="56" height="22" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".55"/>
+        {/* Área pequena ataque */}
+        <rect x="35" y="8" width="30" height="10" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth=".5"/>
+        {/* Ponto pênalti ataque */}
+        <circle cx="50" cy="23" r=".9" fill="rgba(255,255,255,.5)"/>
+        {/* Arco ataque */}
+        <path d="M32 30 Q50 42 68 30" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".5"/>
+        {/* Área grande defesa (baixo) */}
+        <rect x="22" y="130" width="56" height="22" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".55"/>
+        {/* Área pequena defesa */}
+        <rect x="35" y="142" width="30" height="10" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth=".5"/>
+        {/* Ponto pênalti defesa */}
+        <circle cx="50" cy="137" r=".9" fill="rgba(255,255,255,.5)"/>
+        {/* Arco defesa */}
+        <path d="M32 130 Q50 118 68 130" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".5"/>
+        {/* Cantos */}
+        <path d="M5 8 Q7 8 7 10" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
+        <path d="M95 8 Q93 8 93 10" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
+        <path d="M5 152 Q7 152 7 150" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
+        <path d="M95 152 Q93 152 93 150" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
+        {/* Gols */}
+        <rect x="41" y="5.5" width="18" height="3" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
+        <rect x="41" y="151.5" width="18" height="3" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
+      </svg>
+
+      {/* ── TÍTULO ── */}
+      <div style={{
+        position:'relative', zIndex:4,
+        textAlign:'center', paddingTop:16, paddingBottom:4,
+        animation:'floatIn .5s ease both',
+      }}>
+        <div style={{
+          fontFamily:"'Bebas Neue',sans-serif",
+          fontSize:'clamp(11px,3vw,13px)',
+          color:'rgba(0,230,100,.7)',
+          letterSpacing:6, textTransform:'uppercase',
+          marginBottom:2,
+        }}>
+          Escale seu time
+        </div>
+        <div style={{
+          fontFamily:"'Bebas Neue',sans-serif",
+          fontSize:'clamp(28px,7vw,38px)',
+          color:'#fff',
+          letterSpacing:4, lineHeight:.9,
+          textShadow:'0 2px 20px rgba(0,0,0,.8)',
+        }}>
+          Palpitão Brasileirão
+        </div>
+      </div>
+
+      {/* ── CAMPO COM JOGADORES ── */}
+      <div style={{
+        position:'relative', zIndex:2,
+        flex:1, margin:'0 8px',
+        minHeight:0,
+      }}>
+        {FORMATION.map((p, i) => {
+          const isPressed = pressed === p.name
+          // Color by position
+          const colors: Record<string,{bg:string;border:string;text:string}> = {
+            GK:  {bg:'linear-gradient(135deg,#e67e22,#d35400)', border:'#f39c12', text:'#fff'},
+            LD:  {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
+            ZAG: {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
+            LE:  {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
+            VOL: {bg:'linear-gradient(135deg,#27ae60,#1e8449)', border:'#00DC64', text:'#fff'},
+            MEI: {bg:'linear-gradient(135deg,#8e44ad,#6c3483)', border:'#9b59b6', text:'#fff'},
+            PD:  {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
+            PE:  {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
+            ATA: {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
+          }
+          const c = colors[p.role] || colors.MEI
+
+          return (
+            <div
+              key={p.name}
+              className="tactical-player"
+              style={{
+                left:`${p.x}%`,
+                top:`${p.y}%`,
+                animationDelay:`${i*0.04}s`,
+              }}
+              onClick={()=>handlePlayer(p.name, p.x, p.y)}
+            >
+              {/* Ripple no gramado ao clicar */}
+              {ripple?.name === p.name && (
+                <div style={{
+                  position:'absolute',
+                  width:38, height:38,
+                  borderRadius:'50%',
+                  border:'2px solid rgba(0,220,100,.8)',
+                  animation:'rippleGrass .6s ease both',
+                  pointerEvents:'none',
+                  zIndex:5,
+                }}/>
+              )}
+
+              <div
+                className="player-circle"
+                style={{
+                  background: c.bg,
+                  border: `2px solid ${c.border}`,
+                  color: c.text,
+                  transform: isPressed ? 'scale(.88)' : 'scale(1)',
+                  boxShadow: isPressed
+                    ? `0 0 0 4px rgba(0,220,100,.3), 0 2px 12px rgba(0,0,0,.6)`
+                    : `0 2px 10px rgba(0,0,0,.5), 0 0 0 0 rgba(0,220,100,0)`,
+                }}
+              >
+                {p.initials}
+              </div>
+              <div className="player-label" style={{color:'#fff'}}>{p.name.split(' ')[0]}</div>
+              <div className="role-badge" style={{color:c.border}}>{p.role}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── BANCO + TÉCNICO + ADMIN ── */}
+      <div style={{
+        position:'relative', zIndex:4,
+        padding:'6px 12px 12px',
+        background:'linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 100%)',
+        animation:'floatIn .6s ease .2s both', opacity:0,
+      }}>
+        {/* Label banco */}
+        <div style={{
+          fontSize:9, fontWeight:700, letterSpacing:2,
+          textTransform:'uppercase', color:'rgba(255,255,255,.4)',
+          textAlign:'center', marginBottom:6,
+        }}>
+          🪑 Banco de Reservas
+        </div>
+
+        <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:10, flexWrap:'wrap' as const, marginBottom:8}}>
+          {/* Banco */}
+          {BENCH_PLAYERS.map((name,i)=>(
+            <div key={name} onClick={()=>handlePlayer(name,50,50)}
+              style={{
+                display:'flex', flexDirection:'column' as const, alignItems:'center', gap:2,
+                cursor:'pointer', animation:`playerPop .4s ease ${.44+i*.06}s both`, opacity:0,
+              }}>
+              <div style={{
+                width:34, height:34, borderRadius:'50%',
+                background:'linear-gradient(135deg,rgba(80,80,80,.9),rgba(50,50,50,.9))',
+                border:'2px solid rgba(255,255,255,.3)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:10, fontWeight:800, color:'rgba(255,255,255,.8)',
+                boxShadow:'0 2px 8px rgba(0,0,0,.5)',
+              }}>
+                {name.substring(0,2).toUpperCase()}
+              </div>
+              <div style={{fontSize:8, color:'rgba(255,255,255,.6)', fontWeight:600}}>{name.split(' ')[0]}</div>
+            </div>
+          ))}
+
+          {/* Separador */}
+          <div style={{width:1, height:36, background:'rgba(255,255,255,.15)'}}/>
+
+          {/* Técnico */}
+          <div onClick={()=>handlePlayer(COACH,50,50)}
+            style={{
+              display:'flex', flexDirection:'column' as const, alignItems:'center', gap:2,
+              cursor:'pointer', animation:`playerPop .4s ease .56s both`, opacity:0,
+            }}>
+            <div style={{
+              width:34, height:34, borderRadius:'50%',
+              background:'linear-gradient(135deg,#D4AF37,#a07820)',
+              border:'2px solid #D4AF37',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize:16,
+              boxShadow:'0 0 12px rgba(212,175,55,.4)',
+            }}>
+              📋
+            </div>
+            <div style={{fontSize:8, color:'#D4AF37', fontWeight:700}}>TÉCNICO</div>
+            <div style={{fontSize:7, color:'rgba(212,175,55,.7)'}}>{COACH.split(' ')[0]}</div>
+          </div>
+        </div>
+
+        {/* Admin */}
+        <button
+          onClick={onAdmin}
+          style={{
+            width:'100%', background:'transparent',
+            border:'1px solid rgba(255,255,255,.12)',
+            color:'rgba(255,255,255,.35)',
+            fontFamily:"'Barlow Condensed',sans-serif",
+            fontSize:11, letterSpacing:2,
+            padding:'7px', borderRadius:6, cursor:'pointer',
+            marginTop:2,
+          }}
+        >
+          ⚙ Acesso Administração
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const [state, setState] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -2714,16 +3070,7 @@ export default function Home() {
 
       <div className="app">
         {/* LOGIN */}
-        {!currentUser && <div id="login-screen">
-          <div className="login-box">
-            <h2>Entrar no Palpitão</h2>
-            <p>Selecione seu nome para acessar</p>
-            <div className="player-grid">
-              {PLAYERS.map(p=><button key={p} className="player-btn" onClick={()=>loginAsPlayer(p)}>{p}</button>)}
-            </div>
-            <button className="admin-login-btn" onClick={()=>setShowModal(true)}>⚙ Acesso Administração</button>
-          </div>
-        </div>}
+        {!currentUser && <TacticalLoginScreen onLogin={loginAsPlayer} onAdmin={()=>setShowModal(true)} C={C} dm={dm}/>}
 
         {currentUser && <>
           <div className="topbar">
