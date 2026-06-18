@@ -1504,351 +1504,375 @@ function IntroScreen({ loading, introPhase, introCount, setIntroCount, setIntroP
 
 
 // ── Tela de Login Tático ──────────────────────────────────────────────────
-const FORMATION: Array<{name:string; x:number; y:number; role:string; initials:string}> = [
-  {name:'André',          x:50, y:88, role:'GK',  initials:'AN'},
-  {name:'Giovanni',       x:82, y:72, role:'LD',  initials:'GI'},
-  {name:'Ramon',          x:62, y:72, role:'ZAG', initials:'RA'},
-  {name:'Pedro Gaúcho',   x:38, y:72, role:'ZAG', initials:'PG'},
-  {name:'Damus',          x:18, y:72, role:'LE',  initials:'DA'},
-  {name:'Pedro Frozza',   x:62, y:55, role:'VOL', initials:'PF'},
-  {name:'Matheus Couto',  x:38, y:55, role:'VOL', initials:'MC'},
-  {name:'Victor Simões',  x:50, y:40, role:'MEI', initials:'VS'},
-  {name:'PH',             x:80, y:25, role:'PD',  initials:'PH'},
-  {name:'Matheus Diniz',  x:50, y:18, role:'ATA', initials:'MD'},
-  {name:'Matheus Brito',  x:20, y:25, role:'PE',  initials:'MB'},
+const FORMATION: Array<{name:string; x:number; y:number; initials:string; color:string; border:string}> = [
+  // Goleiro
+  {name:'André',         x:50,  y:90, initials:'AN', color:'linear-gradient(135deg,#e67e22,#d35400)', border:'#f39c12'},
+  // Defensores
+  {name:'Giovanni',      x:84,  y:74, initials:'GI', color:'linear-gradient(135deg,#1a6fa8,#0d4f7a)', border:'#3498db'},
+  {name:'Ramon',         x:63,  y:74, initials:'RA', color:'linear-gradient(135deg,#1a6fa8,#0d4f7a)', border:'#3498db'},
+  {name:'Pedro Gaúcho',  x:37,  y:74, initials:'PG', color:'linear-gradient(135deg,#1a6fa8,#0d4f7a)', border:'#3498db'},
+  {name:'Damus',         x:16,  y:74, initials:'DA', color:'linear-gradient(135deg,#1a6fa8,#0d4f7a)', border:'#3498db'},
+  // Volantes
+  {name:'Pedro Frozza',  x:63,  y:57, initials:'PF', color:'linear-gradient(135deg,#1e8449,#145a32)', border:'#00DC64'},
+  {name:'Matheus Couto', x:37,  y:57, initials:'MC', color:'linear-gradient(135deg,#1e8449,#145a32)', border:'#00DC64'},
+  // Meia
+  {name:'Victor Simões', x:50,  y:42, initials:'VS', color:'linear-gradient(135deg,#7d3c98,#5b2c6f)', border:'#9b59b6'},
+  // Pontas e atacante
+  {name:'PH',            x:84,  y:26, initials:'PH', color:'linear-gradient(135deg,#a93226,#7b241c)', border:'#e74c3c'},
+  {name:'Matheus Diniz', x:50,  y:16, initials:'MD', color:'linear-gradient(135deg,#a93226,#7b241c)', border:'#e74c3c'},
+  {name:'Matheus Brito', x:16,  y:26, initials:'MB', color:'linear-gradient(135deg,#a93226,#7b241c)', border:'#e74c3c'},
 ]
 
-const BENCH_PLAYERS = ['Costa', 'Samuel']
-const COACH = 'Victor Bahia'
+const BENCH_PLAYERS = [
+  {name:'Costa',        initials:'CO'},
+  {name:'Samuel',       initials:'SA'},
+]
+const COACH_NAME = 'Victor Bahia'
 
 function TacticalLoginScreen({ onLogin, onAdmin, C, dm }: any) {
   const [pressed, setPressed] = useState<string|null>(null)
-  const [ripple, setRipple] = useState<{name:string; x:number; y:number}|null>(null)
+  const [ripples, setRipples] = useState<Array<{id:number; x:number; y:number}>>([])
+  const rippleId = useRef(0)
 
-  function handlePlayer(name: string, x: number, y: number) {
+  function handlePlayer(name: string, xPct: number, yPct: number) {
+    if(pressed) return
+    // Ripple
+    const id = ++rippleId.current
+    setRipples(r=>[...r, {id, x:xPct, y:yPct}])
+    setTimeout(()=>setRipples(r=>r.filter(x=>x.id!==id)), 700)
     setPressed(name)
-    setRipple({name, x, y})
-    setTimeout(()=>setRipple(null), 600)
-    setTimeout(()=>{ setPressed(null); onLogin(name) }, 180)
+    setTimeout(()=>{ setPressed(null); onLogin(name) }, 220)
   }
 
   return (
     <div style={{
       position:'fixed', inset:0,
-      display:'flex', flexDirection:'column',
-      background:'#050a06',
-      minHeight:'100dvh', overflow:'hidden',
+      overflow:'hidden',
       fontFamily:"'Barlow Condensed',sans-serif",
+      userSelect:'none',
     }}>
       <style>{`
-        @keyframes grassWave {
-          0%   { background-position: 0 0 }
-          50%  { background-position: 4px 0 }
-          100% { background-position: 0 0 }
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&display=swap');
+
+        /* Grama — respiração suave */
+        @keyframes grassSway {
+          0%,100% { transform: skewX(0deg) }
+          33%     { transform: skewX(.25deg) }
+          66%     { transform: skewX(-.2deg) }
         }
-        @keyframes grassBreeze {
-          0%,100% { transform: skewX(0deg) scaleX(1) }
-          30%     { transform: skewX(.4deg) scaleX(1.003) }
-          60%     { transform: skewX(-.3deg) scaleX(.998) }
+        /* Ripple no gramado */
+        @keyframes rippleOut {
+          0%   { transform:translate(-50%,-50%) scale(0); opacity:.8 }
+          100% { transform:translate(-50%,-50%) scale(4); opacity:0 }
         }
-        @keyframes playerPop {
-          0%   { transform:scale(0.6); opacity:0 }
-          60%  { transform:scale(1.12) }
-          100% { transform:scale(1); opacity:1 }
+        /* Entrada dos jogadores */
+        @keyframes popIn {
+          0%   { transform:translate(-50%,-50%) scale(0); opacity:0 }
+          65%  { transform:translate(-50%,-50%) scale(1.15) }
+          100% { transform:translate(-50%,-50%) scale(1); opacity:1 }
         }
-        @keyframes rippleGrass {
-          0%   { transform:scale(0); opacity:.7 }
-          100% { transform:scale(3.5); opacity:0 }
+        /* Banco lateral */
+        @keyframes slideRight {
+          0%   { opacity:0; transform:translateX(20px) }
+          100% { opacity:1; transform:translateX(0) }
         }
-        @keyframes floatIn {
-          0%   { opacity:0; transform:translateY(12px) }
+        /* Título */
+        @keyframes titleIn {
+          0%   { opacity:0; transform:translateY(-10px) }
           100% { opacity:1; transform:translateY(0) }
         }
-        @keyframes lineGlow {
-          0%,100% { opacity:.55 }
-          50%     { opacity:.85 }
-        }
-        @keyframes shimmerName {
-          0%   { background-position: -100% center }
-          100% { background-position: 200% center }
-        }
-        .tactical-player {
+        .tac-player {
           position:absolute;
-          transform:translate(-50%,-50%);
+          transform:translate(-50%,-50%) scale(1);
+          cursor:pointer;
           display:flex; flex-direction:column; align-items:center; gap:3px;
-          cursor:pointer; z-index:3;
-          animation: playerPop .4s cubic-bezier(.34,1.56,.64,1) both;
+          animation: popIn .45s cubic-bezier(.34,1.56,.64,1) both;
+          -webkit-tap-highlight-color:transparent;
         }
-        .tactical-player:active .player-circle {
-          transform: scale(.88);
+        .tac-player:active .tac-circle {
+          transform: scale(.85) !important;
+          filter: brightness(1.3);
         }
-        .player-circle {
-          width:38px; height:38px; border-radius:50%;
+        .tac-circle {
+          width:40px; height:40px; border-radius:50%;
           display:flex; align-items:center; justify-content:center;
-          font-weight:800; font-size:11px; letter-spacing:.5px;
-          transition: transform .12s ease, box-shadow .2s;
+          font-size:12px; font-weight:800; letter-spacing:.5px; color:#fff;
+          transition:transform .1s, box-shadow .15s;
           position:relative; overflow:hidden;
+          box-shadow: 0 3px 12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25);
         }
-        .player-circle::after {
+        .tac-circle::after {
           content:'';
-          position:absolute; inset:0; border-radius:50%;
-          background:linear-gradient(135deg,rgba(255,255,255,.25) 0%,transparent 60%);
+          position:absolute; top:0; left:0; right:0; height:50%;
+          background:linear-gradient(to bottom,rgba(255,255,255,.22),transparent);
+          border-radius:50% 50% 0 0;
           pointer-events:none;
         }
-        .player-label {
-          font-size:8.5px; font-weight:700; letter-spacing:.5px;
-          text-transform:uppercase; text-align:center;
-          text-shadow:0 1px 4px rgba(0,0,0,.9);
-          white-space:nowrap; max-width:52px;
-          overflow:hidden; text-overflow:ellipsis;
+        .tac-name {
+          font-size:8px; font-weight:700; letter-spacing:.8px;
+          text-transform:uppercase; color:#fff;
+          text-shadow:0 1px 5px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.8);
+          white-space:nowrap; text-align:center;
+          max-width:58px; overflow:hidden; text-overflow:ellipsis;
         }
-        .role-badge {
-          font-size:7px; font-weight:600; letter-spacing:1px;
-          text-transform:uppercase; opacity:.7;
+        .bench-player {
+          display:flex; flex-direction:column; align-items:center; gap:2px;
+          cursor:pointer; animation: slideRight .4s ease both;
+          -webkit-tap-highlight-color:transparent;
+        }
+        .bench-circle {
+          width:34px; height:34px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-size:10px; font-weight:800; color:rgba(255,255,255,.85);
+          background:linear-gradient(135deg,rgba(60,60,60,.9),rgba(30,30,30,.9));
+          border:1.5px solid rgba(255,255,255,.25);
+          box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+          transition:transform .1s;
+        }
+        .bench-player:active .bench-circle { transform:scale(.88) }
+        .coach-circle {
+          width:34px; height:34px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-size:16px;
+          background:linear-gradient(135deg,#c9a227,#8a6800);
+          border:2px solid #D4AF37;
+          box-shadow:0 0 14px rgba(212,175,55,.5), 0 2px 8px rgba(0,0,0,.5);
         }
       `}</style>
 
-      {/* ── GRAMADO ANIMADO ── */}
+      {/* ══ GRAMADO ══ */}
       <div style={{
-        position:'absolute', inset:0, zIndex:0,
-        animation:'grassBreeze 6s ease-in-out infinite',
+        position:'absolute', inset:0,
+        animation:'grassSway 8s ease-in-out infinite',
+        transformOrigin:'center center',
       }}>
-        {/* Listras do gramado */}
+        {/* Base verde escuro */}
+        <div style={{position:'absolute', inset:0, background:'#0a3d15'}}/>
+
+        {/* Listras — 12 faixas com gradiente de perspectiva */}
+        {Array.from({length:12}).map((_,i)=>{
+          const pct = i/12
+          // Listras ficam mais largas perto do "fundo" da perspectiva (topo da tela)
+          const lightness = i%2===0 ? 22 : 28
+          const alpha = 0.85 + pct*0.12
+          return (
+            <div key={i} style={{
+              position:'absolute',
+              top:`${(i/12)*100}%`,
+              left:0, right:0,
+              height:`${100/12}%`,
+              background:`rgba(0,${lightness*3+40},${lightness},${alpha})`,
+            }}/>
+          )
+        })}
+
+        {/* Gradiente de perspectiva — mais claro embaixo (perto da câmera) */}
         <div style={{
           position:'absolute', inset:0,
-          backgroundImage:`repeating-linear-gradient(
-            180deg,
-            rgba(0,90,25,.95) 0px, rgba(0,90,25,.95) 28px,
-            rgba(0,110,30,.95) 28px, rgba(0,110,30,.95) 56px
-          )`,
-          animation:'grassWave 8s ease-in-out infinite',
-        }}/>
-        {/* Textura de grama — ruído sutil */}
-        <div style={{
-          position:'absolute', inset:0,
-          backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
-          backgroundSize:'200px',
-          opacity:.6,
+          background:'linear-gradient(to bottom, rgba(0,0,0,.35) 0%, rgba(0,0,0,.05) 40%, rgba(255,255,255,.04) 100%)',
           pointerEvents:'none',
         }}/>
-        {/* Vinheta nas bordas */}
+
+        {/* Brilho dos holofotes — vem do topo */}
         <div style={{
           position:'absolute', inset:0,
-          background:'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,.65) 100%)',
+          background:'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(220,255,200,.14) 0%, transparent 70%)',
+          pointerEvents:'none',
+        }}/>
+
+        {/* Textura de ruído sutil */}
+        <div style={{
+          position:'absolute', inset:0,
+          backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`,
+          backgroundSize:'256px',
+          pointerEvents:'none', opacity:.8,
+        }}/>
+
+        {/* Vinheta lateral — escurece nas bordas */}
+        <div style={{
+          position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,.6) 100%)',
           pointerEvents:'none',
         }}/>
       </div>
 
-      {/* ── LINHAS DO CAMPO ── */}
+      {/* ══ LINHAS DO CAMPO ══ */}
       <svg
-        viewBox="0 0 100 160"
-        preserveAspectRatio="xMidYMid meet"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
         style={{
-          position:'absolute', inset:0,
-          width:'100%', height:'100%',
+          position:'absolute',
+          top:'8%', left:'5%',
+          width:'72%', height:'88%',
           zIndex:1, pointerEvents:'none',
-          animation:'lineGlow 4s ease-in-out infinite',
+          filter:'drop-shadow(0 0 3px rgba(255,255,255,.15))',
         }}
       >
-        {/* Borda do campo */}
-        <rect x="5" y="8" width="90" height="144" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7"/>
+        {/* Borda */}
+        <rect x="1" y="1" width="98" height="98" fill="none" stroke="rgba(255,255,255,.6)" strokeWidth="1.2"/>
         {/* Linha do meio */}
-        <line x1="5" y1="80" x2="95" y2="80" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
+        <line x1="1" y1="50" x2="99" y2="50" stroke="rgba(255,255,255,.5)" strokeWidth="1"/>
         {/* Círculo central */}
-        <ellipse cx="50" cy="80" rx="14" ry="10" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth=".6"/>
-        <circle cx="50" cy="80" r="1.2" fill="rgba(255,255,255,.6)"/>
-        {/* Área grande ataque (topo) */}
-        <rect x="22" y="8" width="56" height="22" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".55"/>
+        <ellipse cx="50" cy="50" rx="18" ry="18" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1"/>
+        <circle cx="50" cy="50" r="1.5" fill="rgba(255,255,255,.7)"/>
+        {/* Área grande ataque */}
+        <rect x="20" y="1" width="60" height="20" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1"/>
         {/* Área pequena ataque */}
-        <rect x="35" y="8" width="30" height="10" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth=".5"/>
-        {/* Ponto pênalti ataque */}
-        <circle cx="50" cy="23" r=".9" fill="rgba(255,255,255,.5)"/>
-        {/* Arco ataque */}
-        <path d="M32 30 Q50 42 68 30" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".5"/>
-        {/* Área grande defesa (baixo) */}
-        <rect x="22" y="130" width="56" height="22" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".55"/>
+        <rect x="33" y="1" width="34" height="8" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth=".9"/>
+        {/* Gol ataque */}
+        <rect x="40" y="0" width="20" height="2.5" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".9"/>
+        {/* Ponto e arco ataque */}
+        <circle cx="50" cy="14" r="1.2" fill="rgba(255,255,255,.6)"/>
+        <path d="M29 21 Q50 35 71 21" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".9"/>
+        {/* Área grande defesa */}
+        <rect x="20" y="79" width="60" height="20" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1"/>
         {/* Área pequena defesa */}
-        <rect x="35" y="142" width="30" height="10" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth=".5"/>
-        {/* Ponto pênalti defesa */}
-        <circle cx="50" cy="137" r=".9" fill="rgba(255,255,255,.5)"/>
-        {/* Arco defesa */}
-        <path d="M32 130 Q50 118 68 130" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".5"/>
+        <rect x="33" y="91" width="34" height="8" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth=".9"/>
+        {/* Gol defesa */}
+        <rect x="40" y="97.5" width="20" height="2.5" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".9"/>
+        {/* Ponto e arco defesa */}
+        <circle cx="50" cy="86" r="1.2" fill="rgba(255,255,255,.6)"/>
+        <path d="M29 79 Q50 65 71 79" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".9"/>
         {/* Cantos */}
-        <path d="M5 8 Q7 8 7 10" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
-        <path d="M95 8 Q93 8 93 10" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
-        <path d="M5 152 Q7 152 7 150" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
-        <path d="M95 152 Q93 152 93 150" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth=".5"/>
-        {/* Gols */}
-        <rect x="41" y="5.5" width="18" height="3" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
-        <rect x="41" y="151.5" width="18" height="3" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth=".6"/>
+        {[[1,1,5,1,1,5],[99,1,95,1,99,5],[1,99,5,99,1,95],[99,99,95,99,99,95]].map(([x1,y1,x2,y2,x3,y3],i)=>(
+          <path key={i} d={`M${x1} ${y1} L${x2} ${y2} M${x1} ${y1} L${x3} ${y3}`}
+            stroke="rgba(255,255,255,.4)" strokeWidth=".8" fill="none"/>
+        ))}
       </svg>
 
-      {/* ── TÍTULO ── */}
+      {/* ══ RIPPLES ══ */}
+      {ripples.map(r=>(
+        <div key={r.id} style={{
+          position:'absolute',
+          left:`${r.x * 0.72 + 5}%`,
+          top:`${r.y * 0.88 + 8}%`,
+          width:44, height:44,
+          borderRadius:'50%',
+          border:'2px solid rgba(0,230,100,.9)',
+          animation:'rippleOut .7s ease both',
+          pointerEvents:'none', zIndex:10,
+        }}/>
+      ))}
+
+      {/* ══ JOGADORES ══ */}
+      {FORMATION.map((p,i)=>(
+        <div
+          key={p.name}
+          className="tac-player"
+          style={{
+            left:`${p.x * 0.72 + 5}%`,
+            top:`${p.y * 0.88 + 8}%`,
+            animationDelay:`${i*0.05}s`,
+            zIndex:3,
+          }}
+          onClick={()=>handlePlayer(p.name, p.x, p.y)}
+        >
+          <div
+            className="tac-circle"
+            style={{
+              background: p.color,
+              border:`2px solid ${p.border}`,
+              transform: pressed===p.name ? 'scale(.85)' : 'scale(1)',
+              boxShadow: pressed===p.name
+                ? `0 0 0 5px rgba(0,220,100,.35), 0 3px 14px rgba(0,0,0,.6)`
+                : `0 3px 12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25)`,
+            }}
+          >
+            {p.initials}
+          </div>
+          <div className="tac-name">{p.name.split(' ')[0]}</div>
+        </div>
+      ))}
+
+      {/* ══ TÍTULO (topo) ══ */}
       <div style={{
-        position:'relative', zIndex:4,
-        textAlign:'center', paddingTop:16, paddingBottom:4,
-        animation:'floatIn .5s ease both',
+        position:'absolute', top:0, left:0, right:0,
+        zIndex:5, padding:'14px 16px 0',
+        animation:'titleIn .5s ease both',
+        pointerEvents:'none',
       }}>
         <div style={{
           fontFamily:"'Bebas Neue',sans-serif",
-          fontSize:'clamp(11px,3vw,13px)',
-          color:'rgba(0,230,100,.7)',
-          letterSpacing:6, textTransform:'uppercase',
-          marginBottom:2,
+          fontSize:'clamp(9px,2.5vw,11px)',
+          color:'rgba(0,230,100,.8)',
+          letterSpacing:5, textTransform:'uppercase',
+          textShadow:'0 1px 8px rgba(0,0,0,.9)',
         }}>
           Escale seu time
         </div>
         <div style={{
           fontFamily:"'Bebas Neue',sans-serif",
-          fontSize:'clamp(28px,7vw,38px)',
+          fontSize:'clamp(24px,6vw,34px)',
           color:'#fff',
-          letterSpacing:4, lineHeight:.9,
-          textShadow:'0 2px 20px rgba(0,0,0,.8)',
+          letterSpacing:3, lineHeight:.9,
+          textShadow:'0 2px 16px rgba(0,0,0,.9)',
         }}>
           Palpitão Brasileirão
         </div>
       </div>
 
-      {/* ── CAMPO COM JOGADORES ── */}
+      {/* ══ BANCO + TÉCNICO (lateral direita) ══ */}
       <div style={{
-        position:'relative', zIndex:2,
-        flex:1, margin:'0 8px',
-        minHeight:0,
+        position:'absolute',
+        right:0, top:'18%',
+        width:'22%',
+        zIndex:5,
+        display:'flex', flexDirection:'column', alignItems:'center', gap:8,
+        padding:'10px 6px',
+        background:'linear-gradient(to left, rgba(0,0,0,.7) 0%, rgba(0,0,0,.3) 100%)',
+        borderLeft:'1px solid rgba(255,255,255,.08)',
+        borderRadius:'8px 0 0 8px',
+        animation:'slideRight .5s ease .3s both', opacity:0,
       }}>
-        {FORMATION.map((p, i) => {
-          const isPressed = pressed === p.name
-          // Color by position
-          const colors: Record<string,{bg:string;border:string;text:string}> = {
-            GK:  {bg:'linear-gradient(135deg,#e67e22,#d35400)', border:'#f39c12', text:'#fff'},
-            LD:  {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
-            ZAG: {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
-            LE:  {bg:'linear-gradient(135deg,#2980b9,#1a5276)', border:'#3498db', text:'#fff'},
-            VOL: {bg:'linear-gradient(135deg,#27ae60,#1e8449)', border:'#00DC64', text:'#fff'},
-            MEI: {bg:'linear-gradient(135deg,#8e44ad,#6c3483)', border:'#9b59b6', text:'#fff'},
-            PD:  {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
-            PE:  {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
-            ATA: {bg:'linear-gradient(135deg,#c0392b,#922b21)', border:'#e74c3c', text:'#fff'},
-          }
-          const c = colors[p.role] || colors.MEI
-
-          return (
-            <div
-              key={p.name}
-              className="tactical-player"
-              style={{
-                left:`${p.x}%`,
-                top:`${p.y}%`,
-                animationDelay:`${i*0.04}s`,
-              }}
-              onClick={()=>handlePlayer(p.name, p.x, p.y)}
-            >
-              {/* Ripple no gramado ao clicar */}
-              {ripple?.name === p.name && (
-                <div style={{
-                  position:'absolute',
-                  width:38, height:38,
-                  borderRadius:'50%',
-                  border:'2px solid rgba(0,220,100,.8)',
-                  animation:'rippleGrass .6s ease both',
-                  pointerEvents:'none',
-                  zIndex:5,
-                }}/>
-              )}
-
-              <div
-                className="player-circle"
-                style={{
-                  background: c.bg,
-                  border: `2px solid ${c.border}`,
-                  color: c.text,
-                  transform: isPressed ? 'scale(.88)' : 'scale(1)',
-                  boxShadow: isPressed
-                    ? `0 0 0 4px rgba(0,220,100,.3), 0 2px 12px rgba(0,0,0,.6)`
-                    : `0 2px 10px rgba(0,0,0,.5), 0 0 0 0 rgba(0,220,100,0)`,
-                }}
-              >
-                {p.initials}
-              </div>
-              <div className="player-label" style={{color:'#fff'}}>{p.name.split(' ')[0]}</div>
-              <div className="role-badge" style={{color:c.border}}>{p.role}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* ── BANCO + TÉCNICO + ADMIN ── */}
-      <div style={{
-        position:'relative', zIndex:4,
-        padding:'6px 12px 12px',
-        background:'linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 100%)',
-        animation:'floatIn .6s ease .2s both', opacity:0,
-      }}>
-        {/* Label banco */}
         <div style={{
-          fontSize:9, fontWeight:700, letterSpacing:2,
-          textTransform:'uppercase', color:'rgba(255,255,255,.4)',
-          textAlign:'center', marginBottom:6,
+          fontSize:7, fontWeight:700, letterSpacing:1.5,
+          textTransform:'uppercase', color:'rgba(255,255,255,.35)',
+          textAlign:'center', lineHeight:1.3,
         }}>
-          🪑 Banco de Reservas
+          Banco
         </div>
 
-        <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:10, flexWrap:'wrap' as const, marginBottom:8}}>
-          {/* Banco */}
-          {BENCH_PLAYERS.map((name,i)=>(
-            <div key={name} onClick={()=>handlePlayer(name,50,50)}
-              style={{
-                display:'flex', flexDirection:'column' as const, alignItems:'center', gap:2,
-                cursor:'pointer', animation:`playerPop .4s ease ${.44+i*.06}s both`, opacity:0,
-              }}>
-              <div style={{
-                width:34, height:34, borderRadius:'50%',
-                background:'linear-gradient(135deg,rgba(80,80,80,.9),rgba(50,50,50,.9))',
-                border:'2px solid rgba(255,255,255,.3)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:10, fontWeight:800, color:'rgba(255,255,255,.8)',
-                boxShadow:'0 2px 8px rgba(0,0,0,.5)',
-              }}>
-                {name.substring(0,2).toUpperCase()}
-              </div>
-              <div style={{fontSize:8, color:'rgba(255,255,255,.6)', fontWeight:600}}>{name.split(' ')[0]}</div>
+        {BENCH_PLAYERS.map((p,i)=>(
+          <div key={p.name} className="bench-player"
+            style={{animationDelay:`${.4+i*.08}s`}}
+            onClick={()=>handlePlayer(p.name, 95, 30+i*20)}>
+            <div className="bench-circle">{p.initials}</div>
+            <div style={{fontSize:7,color:'rgba(255,255,255,.55)',fontWeight:600,textAlign:'center'}}>
+              {p.name.split(' ')[0]}
             </div>
-          ))}
+          </div>
+        ))}
 
-          {/* Separador */}
-          <div style={{width:1, height:36, background:'rgba(255,255,255,.15)'}}/>
+        <div style={{width:'60%',height:'1px',background:'rgba(255,255,255,.1)',margin:'2px 0'}}/>
 
-          {/* Técnico */}
-          <div onClick={()=>handlePlayer(COACH,50,50)}
-            style={{
-              display:'flex', flexDirection:'column' as const, alignItems:'center', gap:2,
-              cursor:'pointer', animation:`playerPop .4s ease .56s both`, opacity:0,
-            }}>
-            <div style={{
-              width:34, height:34, borderRadius:'50%',
-              background:'linear-gradient(135deg,#D4AF37,#a07820)',
-              border:'2px solid #D4AF37',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:16,
-              boxShadow:'0 0 12px rgba(212,175,55,.4)',
-            }}>
-              📋
-            </div>
-            <div style={{fontSize:8, color:'#D4AF37', fontWeight:700}}>TÉCNICO</div>
-            <div style={{fontSize:7, color:'rgba(212,175,55,.7)'}}>{COACH.split(' ')[0]}</div>
+        {/* Técnico */}
+        <div className="bench-player"
+          style={{animationDelay:'.56s'}}
+          onClick={()=>handlePlayer(COACH_NAME, 95, 70)}>
+          <div className="coach-circle">📋</div>
+          <div style={{fontSize:7,color:'#D4AF37',fontWeight:700,textAlign:'center'}}>TÉC.</div>
+          <div style={{fontSize:7,color:'rgba(212,175,55,.6)',textAlign:'center'}}>
+            {COACH_NAME.split(' ')[0]}
           </div>
         </div>
+      </div>
 
-        {/* Admin */}
+      {/* ══ ADMIN (rodapé) ══ */}
+      <div style={{
+        position:'absolute', bottom:0, left:0, right:0,
+        zIndex:5, padding:'8px 16px 20px',
+        background:'linear-gradient(to top, rgba(0,0,0,.75) 0%, transparent 100%)',
+      }}>
         <button
           onClick={onAdmin}
           style={{
-            width:'100%', background:'transparent',
+            width:'100%',
+            background:'transparent',
             border:'1px solid rgba(255,255,255,.12)',
-            color:'rgba(255,255,255,.35)',
+            color:'rgba(255,255,255,.3)',
             fontFamily:"'Barlow Condensed',sans-serif",
-            fontSize:11, letterSpacing:2,
-            padding:'7px', borderRadius:6, cursor:'pointer',
-            marginTop:2,
+            fontSize:11, letterSpacing:2, textTransform:'uppercase' as const,
+            padding:'8px', borderRadius:6, cursor:'pointer',
           }}
         >
           ⚙ Acesso Administração
@@ -1857,6 +1881,7 @@ function TacticalLoginScreen({ onLogin, onAdmin, C, dm }: any) {
     </div>
   )
 }
+
 
 export default function Home() {
   const [state, setState] = useState<any>(null)
