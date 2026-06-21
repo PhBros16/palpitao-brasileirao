@@ -7,7 +7,23 @@
 
 ---
 
+## Material de cada tier (visual)
+
+Cada tier tem um metal fixo, usado no corpo do troféu desenhado (base, peanha) na sala de
+troféus — ver CLAUDE.md Seção 4, item 6. Os tokens correspondentes estão em `tokens.css`
+como `--trofeu-tier{1-4}-*`, nunca `--bronze-*`/`--prata-*`/`--ouro-*` direto nos componentes.
+
+| Tier | Marcador | Metal |
+|---|---|---|
+| Tier 1 | 🟢 | Bronze |
+| Tier 2 | 🔵 | Prata |
+| Tier 3 | 🌟 | Ouro |
+| Tier 4 | 👑 | Ouro |
+
+---
+
 ## Resolução dos pontos antes em aberto
+
 
 Os sete itens abaixo estavam marcados como pendentes (números/condições sem decisão final).
 Foram fechados aplicando a mesma lógica que já vinha sendo usada nas decisões anteriores:

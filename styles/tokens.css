@@ -1,0 +1,156 @@
+/**
+ * tokens.css — Palpitão Brasileirão
+ *
+ * Paleta consolidada a partir do concept art aprovado:
+ * capa de couro, figurinhas de papel envelhecido, login no gramado,
+ * sala de troféus com prateleiras de madeira e plaquinhas de latão.
+ *
+ * Direção: Álbum de Figurinhas (mix atemporal, tom equilibrado).
+ * Ver CLAUDE.md Seção 4 para o racional de cada peça.
+ */
+
+:root {
+  /* ============================================================
+     COURO — capa do álbum, molduras, elementos de couro
+     ============================================================ */
+  --couro-50: #c8966a;
+  --couro-100: #a86a3e;
+  --couro-200: #8a4a26;
+  --couro-300: #6e3b1f;
+  --couro-400: #552c16;
+  --couro-500: #4a2614;
+  --couro-600: #3d1f0f;
+
+  --lombada-100: #5a2f18;
+  --lombada-200: #4a2614;
+  --lombada-300: #3d1f0f;
+
+  /* ============================================================
+     PAPEL — figurinhas, fundos de conteúdo, páginas do álbum
+     ============================================================ */
+  --papel-50: #fdfaf0;
+  --papel-100: #faf5e8;
+  --papel-200: #f4ecd8;
+  --papel-300: #efe9d8;
+  --papel-400: #e8e2d0;
+
+  --papel-borda-100: #d8c9a8;
+  --papel-borda-200: #c4b89a;
+  --papel-borda-300: #b9a77f;
+  --papel-borda-400: #a89668;
+
+  --tinta-100: #8a6d3b;
+  --tinta-200: #5a4a2e;
+  --tinta-300: #3a2e18;
+
+  /* ============================================================
+     DOURADO — emblema, raridade lendária, selos, acentos nobres
+     ============================================================ */
+  --dourado-50: #f4dca0;
+  --dourado-100: #f0d896;
+  --dourado-200: #e6c87e;
+  --dourado-300: #d4af37;
+  --dourado-400: #c89b54;
+  --dourado-500: #b8893f;
+  --dourado-600: #a8841f;
+  --dourado-700: #9a7d1b;
+  --dourado-800: #7a5a00;
+
+  /* ============================================================
+     CAMPO — gramado de login/abertura, badge comum
+     ============================================================ */
+  --campo-noturno: #06180f;
+  --campo-50: #0d5a30;
+  --campo-100: #0f5a30;
+  --campo-200: #0d4f2a;
+  --campo-300: #0a3f22;
+
+  --verde-badge: #2f6b3a;
+  --verde-badge-bg: #e3f0d8;
+
+  /* ============================================================
+     MADEIRA — prateleiras da sala de troféus
+     ============================================================ */
+  --madeira-50: #9a6638;
+  --madeira-100: #8a5a30;
+  --madeira-200: #6e4423;
+  --madeira-300: #4a2c14;
+  --madeira-400: #3a2410;
+
+  --parede-100: #2a1d12;
+  --parede-200: #1a120a;
+
+  /* ============================================================
+     LATÃO — plaquinhas dos troféus
+     ============================================================ */
+  --latao-50: #e8cf8a;
+  --latao-100: #c4a24a;
+  --latao-200: #9a7d2b;
+
+  /* ============================================================
+     METAIS DE TROFÉU — paleta bruta (ouro/prata/bronze).
+     Não usar direto nos componentes de troféu — ver mapeamento
+     tier→metal logo abaixo.
+     ============================================================ */
+  --ouro-50: #f4dca0;
+  --ouro-100: #d4af37;
+  --ouro-200: #a8841f;
+
+  --prata-50: #e8e8ec;
+  --prata-100: #b4b8c0;
+  --prata-200: #888c94;
+
+  --bronze-50: #e0a878;
+  --bronze-100: #b5763f;
+  --bronze-200: #8a5224;
+
+  /* ============================================================
+     TIER DE TROFÉU → METAL — mapeamento semântico.
+     Tier 1 (🟢) = bronze · Tier 2 (🔵) = prata · Tier 3 (🌟) e
+     Tier 4 (👑) = ouro. Ver TROFEUS.md para a lista de troféus
+     por tier. Usar estas variáveis nos componentes de troféu,
+     nunca os tokens bronze, prata ou ouro diretamente, para que o
+     mapeamento tier↔metal mude num lugar só se precisar.
+     ============================================================ */
+  --trofeu-tier1-50: var(--bronze-50);
+  --trofeu-tier1-100: var(--bronze-100);
+  --trofeu-tier1-200: var(--bronze-200);
+
+  --trofeu-tier2-50: var(--prata-50);
+  --trofeu-tier2-100: var(--prata-100);
+  --trofeu-tier2-200: var(--prata-200);
+
+  --trofeu-tier3-50: var(--ouro-50);
+  --trofeu-tier3-100: var(--ouro-100);
+  --trofeu-tier3-200: var(--ouro-200);
+
+  --trofeu-tier4-50: var(--ouro-50);
+  --trofeu-tier4-100: var(--ouro-100);
+  --trofeu-tier4-200: var(--ouro-200);
+
+  /* ============================================================
+     RARIDADE DE FIGURINHA — semântico, aplicado apenas
+     DENTRO do álbum (nunca na tela de login). Ver CLAUDE.md §4.
+     ============================================================ */
+  --raridade-lendaria: var(--dourado-300);
+  --raridade-lendaria-bg: var(--papel-50);
+  --raridade-rara-borda: var(--dourado-400);
+  --raridade-comum-borda: var(--papel-borda-300);
+  --raridade-frango: #7a6a48;
+  --raridade-frango-selo: #a3402a;
+
+  /* ============================================================
+     TIPOGRAFIA
+     ============================================================ */
+  --font-display: Georgia, 'Times New Roman', serif;       /* emblema, headers de seção */
+  --font-sans: 'Inter', system-ui, sans-serif;              /* UI, nomes, corpo */
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;   /* stats, plaquinhas, selos */
+
+  /* ============================================================
+     RAIO DE BORDA — figurinha serrilhada usa border-image/clip
+     à parte; estes valores são para os demais componentes.
+     ============================================================ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}

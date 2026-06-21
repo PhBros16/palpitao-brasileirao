@@ -1,0 +1,17 @@
+/**
+ * globals.css — Palpitão Brasileirão
+ *
+ * CSS global da aplicação. Importa os design tokens (paleta, tipografia,
+ * raios) de styles/tokens.css e habilita as camadas do Tailwind.
+ *
+ * O @import dos tokens precisa vir ANTES das diretivas @tailwind para que as
+ * custom properties (--couro-*, --papel-*, etc.) estejam disponíveis quando
+ * as utilitárias do Tailwind (que apontam para essas vars via tailwind.config.ts)
+ * forem resolvidas. Ver CLAUDE.md Seção 4 e 8.
+ */
+
+@import '../styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
