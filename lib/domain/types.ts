@@ -79,4 +79,6 @@ export interface RodadaHistorico {
   palpites?: Record<string, Record<string, Placar>>
   /** Resultados lançados na rodada: por id de jogo. */
   results?: Record<string, Placar>
+  /** Partidas da rodada — necessário para calcTrofeus identificar clássicos. */
+  matches?: Array<{ id: string; home: string; away: string }>
 }
