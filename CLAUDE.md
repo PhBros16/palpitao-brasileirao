@@ -174,8 +174,9 @@ testado em produção:
 
 - `calcPoints` — cálculo de pontos de um palpite vs resultado. **Adaptar:** remover lógica de
   multiplicador de fase e extras de mata-mata.
-- `calcTrofeus` — desbloqueio de conquistas (4 tiers). **Adaptar:** re-tematizar troféus de mata-mata
-  (que citam "oitavas", "semi", etc.) para contexto de liga; manter a mecânica.
+- `calcTrofeus` — desbloqueio de conquistas (4 tiers). **Adaptar:** a re-tematização completa
+  (mata-mata → liga, recalibração de números, exclusões e o que muda) está fechada e documentada
+  em `TROFEUS.md` — esse é o documento de referência, não o código do Copa, para esta função.
 - `calcPlayerStats` — estatísticas pessoais (cravadas, vencedor, saldo, sequências, etc.).
 - `rankingData` / `parcialData` — ranking geral e parcial da rodada, com desempate
   (cravadas → vencedor → saldo).
