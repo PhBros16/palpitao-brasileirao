@@ -64,8 +64,19 @@ export interface TiebreakStats {
  * palpites, resultados), mas o ranking só precisa dos pontos e do desempate.
  * O campo `phase` do Copa (rótulo de mata-mata) não entra aqui de propósito:
  * o ranking nunca dependeu dele.
+ *
+ * `palpites` e `results` são OPCIONAIS: o ranking não os usa, mas as
+ * estatísticas pessoais (`calcPlayerStats`) sim. Mantê-los opcionais preserva
+ * o contrato mínimo do ranking e deixa cada consumidor ler só o que precisa
+ * (de forma defensiva, como o Copa fazia com `r.palpites?.[player]`). Os campos
+ * de mata-mata que viviam dentro de palpite/resultado no Copa (`quemAvanca`,
+ * `penaltis`, `extra`) não são tipados nem lidos — somem naturalmente.
  */
 export interface RodadaHistorico {
   scores: Record<string, number>
   tiebreak: Record<string, TiebreakStats>
+  /** Palpites de cada jogador na rodada: por nome → por id de jogo. */
+  palpites?: Record<string, Record<string, Placar>>
+  /** Resultados lançados na rodada: por id de jogo. */
+  results?: Record<string, Placar>
 }
