@@ -86,7 +86,7 @@ function MarcadorJogador({
           </span>
         )}
       </span>
-      <span className="max-w-full truncate rounded bg-campo-noturno/70 px-1 py-0.5 font-sans text-[9px] font-semibold leading-none text-papel-50">
+      <span className="max-w-full truncate rounded bg-campo-noturno px-1 py-0.5 font-sans text-[9px] font-medium leading-none text-papel-100">
         {player.vulgo || player.nome}
       </span>
     </button>

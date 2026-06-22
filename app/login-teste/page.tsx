@@ -11,12 +11,12 @@ import { LoginGramado, type LoginPlayer } from '@/components/login'
 // Formação 4-3-3 (11 titulares) + 3 reservas no banco.
 const JOGADORES: LoginPlayer[] = [
   // Goleiro
-  { id: 'p1', nome: 'Rafael Mota', vulgo: 'Paredão', pin: '1234', titular: true, pos: 'left-[50%] top-[80%]', stats: { pts: 210, cravou: 14, pos: 5 } },
+  { id: 'p1', nome: 'Rafael Mota', vulgo: 'Paredão', pin: '1234', titular: true, pos: 'left-[50%] top-[76%]', stats: { pts: 210, cravou: 14, pos: 5 } },
   // Defesa (4)
-  { id: 'p2', nome: 'Bruno Dias', vulgo: 'Xerife', pin: '1111', titular: true, pos: 'left-[18%] top-[63%]', stats: { pts: 198, cravou: 12, pos: 7 } },
+  { id: 'p2', nome: 'Bruno Dias', vulgo: 'Xerife', pin: '1111', titular: true, pos: 'left-[21%] top-[63%]', stats: { pts: 198, cravou: 12, pos: 7 } },
   { id: 'p3', nome: 'Léo Castro', vulgo: 'Muralha', pin: '2222', titular: true, pos: 'left-[39%] top-[66%]', stats: { pts: 205, cravou: 13, pos: 6 } },
   { id: 'p4', nome: 'Igor Pena', vulgo: 'Zagueirão', pin: '3333', titular: true, pos: 'left-[61%] top-[66%]', stats: { pts: 188, cravou: 10, pos: 9 } },
-  { id: 'p5', nome: 'Caio Reis', vulgo: 'Lateral', pin: '4444', titular: true, pos: 'left-[82%] top-[63%]', stats: { pts: 176, cravou: 9, pos: 10 } },
+  { id: 'p5', nome: 'Caio Reis', vulgo: 'Lateral', pin: '4444', titular: true, pos: 'left-[79%] top-[63%]', stats: { pts: 176, cravou: 9, pos: 10 } },
   // Meio (3)
   { id: 'p6', nome: 'Diego Alves', vulgo: 'Maestro', pin: '5555', titular: true, pos: 'left-[26%] top-[44%]', stats: { pts: 248, cravou: 18, pos: 3 } },
   { id: 'p7', nome: 'Marcos Viní', vulgo: 'Pcombo', pin: '6666', titular: true, pos: 'left-[50%] top-[40%]', stats: { pts: 312, cravou: 28, pos: 1 } },
