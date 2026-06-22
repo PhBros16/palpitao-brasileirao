@@ -41,9 +41,19 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
-/** Figurinha reduzida e clicável (botão dimensionado ao tamanho visual, não ao
- *  box de 190px do componente — evita áreas de clique gigantes sobrepostas). */
-function FigurinhaBotao({
+/** Iniciais a partir do nome: 1ª letra do primeiro e do último nome. */
+function getIniciais(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+/** Marcador de jogador no campo — estilo FIFA (clean): círculo com foto/iniciais
+ *  + nome abaixo. SEM a figurinha de álbum: ela é pesada demais para a tela de
+ *  entrada e a estética de papel/serrilha pertence ao interior do app. A
+ *  FigurinhaJogador completa só aparece no modal de PIN (momento de foco). */
+function MarcadorJogador({
   player,
   onClick,
   size,
@@ -52,28 +62,32 @@ function FigurinhaBotao({
   onClick: () => void
   size: 'campo' | 'banco'
 }) {
-  // 190px * 0.34 ≈ 65px (campo) · * 0.30 ≈ 57px (banco)
-  const box = size === 'campo' ? 'w-[65px] h-[88px]' : 'w-[57px] h-[78px]'
-  const escala = size === 'campo' ? 'scale-[0.34]' : 'scale-[0.30]'
+  const circulo = size === 'campo' ? 'h-12 w-12' : 'h-10 w-10'
+  const iniciais = size === 'campo' ? 'text-sm' : 'text-xs'
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={`Entrar como ${player.nome}`}
-      className={cx(
-        box,
-        'group relative transition-transform duration-150 hover:z-30 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300',
-      )}
+      className="group flex w-[64px] flex-col items-center gap-1 transition-transform duration-150 hover:z-30 hover:scale-110 focus:outline-none"
     >
-      <span className={cx('block origin-top-left', escala)}>
-        <FigurinhaJogador
-          nome={player.nome}
-          vulgo={player.vulgo}
-          fotoUrl={player.fotoUrl}
-          stats={player.stats}
-          showRarity={false}
-          className="pointer-events-none"
-        />
+      <span
+        className={cx(
+          circulo,
+          'flex items-center justify-center overflow-hidden rounded-full border-2 border-papel-100/80 bg-campo-300 shadow-md group-focus-visible:ring-2 group-focus-visible:ring-dourado-300',
+        )}
+      >
+        {player.fotoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={player.fotoUrl} alt={player.nome} className="h-full w-full object-cover" />
+        ) : (
+          <span className={cx(iniciais, 'font-sans font-bold text-papel-50')}>
+            {getIniciais(player.nome)}
+          </span>
+        )}
+      </span>
+      <span className="max-w-full truncate rounded bg-campo-noturno/70 px-1 py-0.5 font-sans text-[9px] font-semibold leading-none text-papel-50">
+        {player.vulgo || player.nome}
       </span>
     </button>
   )
@@ -165,7 +179,7 @@ export function LoginGramado({ players }: { players: LoginPlayer[] }) {
             key={p.id}
             className={cx('absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center', p.pos)}
           >
-            <FigurinhaBotao player={p} size="campo" onClick={() => abrir(p)} />
+            <MarcadorJogador player={p} size="campo" onClick={() => abrir(p)} />
           </div>
         ))}
 
@@ -176,7 +190,7 @@ export function LoginGramado({ players }: { players: LoginPlayer[] }) {
           </span>
           <div className="flex h-full items-center gap-1 overflow-x-auto px-2 pt-3">
             {reservas.map((p) => (
-              <FigurinhaBotao key={p.id} player={p} size="banco" onClick={() => abrir(p)} />
+              <MarcadorJogador key={p.id} player={p} size="banco" onClick={() => abrir(p)} />
             ))}
           </div>
         </div>
