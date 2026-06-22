@@ -1,0 +1,31 @@
+/**
+ * figurinha.module.css — Palpitão Brasileirão
+ *
+ * Único efeito que o Tailwind não expressa de forma limpa: a BORDA SERRILHADA
+ * (perfuração de selo/figurinha de álbum). Tudo o mais (cores, tipografia,
+ * espaçamento, raridade) é Tailwind/token no componente. Sem inline-style.
+ *
+ * Técnica: quatro camadas de máscara (uma por aresta), cada uma opaca em toda
+ * a dimensão oposta e com um furo (círculo transparente) repetido ao longo da
+ * sua aresta. Compostas com `intersect` (legado: source-in), um pixel só fica
+ * visível onde TODAS as camadas são opacas — logo, os furos de qualquer aresta
+ * são recortados, deixando o miolo intacto. Onde `mask-composite` não existir,
+ * degrada para um retângulo inteiro (sem perfuração) — aceitável.
+ */
+
+.serrilhada {
+  --perf: 13px; /* período entre as perfurações */
+  --hole: 3.5px; /* raio de cada furo */
+  -webkit-mask:
+    radial-gradient(var(--hole) at 50% 0, #0000 99%, #000) 50% 0 / var(--perf) 100% repeat-x,
+    radial-gradient(var(--hole) at 50% 100%, #0000 99%, #000) 50% 100% / var(--perf) 100% repeat-x,
+    radial-gradient(var(--hole) at 0 50%, #0000 99%, #000) 0 50% / 100% var(--perf) repeat-y,
+    radial-gradient(var(--hole) at 100% 50%, #0000 99%, #000) 100% 50% / 100% var(--perf) repeat-y;
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(var(--hole) at 50% 0, #0000 99%, #000) 50% 0 / var(--perf) 100% repeat-x,
+    radial-gradient(var(--hole) at 50% 100%, #0000 99%, #000) 50% 100% / var(--perf) 100% repeat-x,
+    radial-gradient(var(--hole) at 0 50%, #0000 99%, #000) 0 50% / 100% var(--perf) repeat-y,
+    radial-gradient(var(--hole) at 100% 50%, #0000 99%, #000) 100% 50% / 100% var(--perf) repeat-y;
+  mask-composite: intersect;
+}
