@@ -14,6 +14,7 @@ import { BannerPalpite } from './BannerPalpite'
 import { CardDestaque } from './CardDestaque'
 import { MiniPlayer } from './MiniPlayer'
 import { SecaoDistribuicao } from './SecaoDistribuicao'
+import { SecaoFixa } from './SecaoFixa'
 import { SecaoFrango } from './SecaoFrango'
 import { SecaoParcial } from './SecaoParcial'
 import { SecaoPodio } from './SecaoPodio'
@@ -33,30 +34,30 @@ export function HomeScreen({ data }: { data: HomeData }) {
         {/* 3 · Banner pendente (condicional) */}
         {data.palpitePendente && <BannerPalpite />}
 
-        {/* 4 · Parcial (expandido) */}
-        <Accordion titulo="Parcial da Rodada" storageKey="home:parcial" defaultOpen>
+        {/* 4 · Parcial (sempre visível) */}
+        <SecaoFixa titulo="Parcial da Rodada">
           <SecaoParcial linhas={data.parcial} finalizada={data.finalizada} />
-        </Accordion>
+        </SecaoFixa>
 
-        {/* 5 · Frango (colapsado) */}
-        <Accordion titulo="Frango da Rodada" storageKey="home:frango">
+        {/* 5 · Frango (sempre visível) */}
+        <SecaoFixa titulo="Frango da Rodada">
           <SecaoFrango frango={data.frango} />
-        </Accordion>
+        </SecaoFixa>
 
-        {/* 6 · Por Placar (colapsado) */}
+        {/* 6 · Por Placar (accordion, colapsado) */}
         <Accordion titulo="Por Placar" storageKey="home:porplacar">
           <SecaoPorPlacar jogos={data.jogos} />
         </Accordion>
 
-        {/* 7 · Distribuição (colapsado) */}
+        {/* 7 · Distribuição (accordion, colapsado) */}
         <Accordion titulo="Distribuição de Palpites" storageKey="home:distrib">
           <SecaoDistribuicao jogos={data.jogos} />
         </Accordion>
 
-        {/* 8 · Pódio (colapsado) */}
-        <Accordion titulo="Pódio Atual" storageKey="home:podio">
+        {/* 8 · Pódio (sempre visível) */}
+        <SecaoFixa titulo="Pódio Atual">
           <SecaoPodio podio={data.podio} />
-        </Accordion>
+        </SecaoFixa>
       </div>
     </main>
   )

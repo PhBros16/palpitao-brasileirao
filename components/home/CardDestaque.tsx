@@ -49,9 +49,9 @@ export function CardDestaque({ data }: { data: HomeData }) {
           <div className="font-display text-4xl font-bold leading-none text-dourado-50">{data.naRodada}</div>
           <div className="mt-1 font-mono text-[9px] text-dourado-200">pts acumulados</div>
         </div>
-        <div className="rounded-lg border border-campo-50/40 bg-campo-noturno/30 px-2 py-3 text-center">
+        <div className="rounded-lg border border-dourado-300/40 bg-campo-noturno/30 px-2 py-3 text-center">
           <div className="font-mono text-[9px] uppercase tracking-wider text-dourado-200">Hoje</div>
-          <div className={cx('font-display text-4xl font-bold leading-none', data.hoje > 0 ? 'text-campo-50' : 'text-dourado-200')}>
+          <div className={cx('font-display text-4xl font-bold leading-none', data.hoje > 0 ? 'text-dourado-50' : 'text-dourado-200')}>
             {data.hoje}
           </div>
           <div className="mt-1 font-mono text-[9px] text-dourado-200">
@@ -81,7 +81,7 @@ export function CardDestaque({ data }: { data: HomeData }) {
 }
 
 function StatBox({ label, valor, tom }: { label: string; valor: number; tom: 'neutro' | 'ouro' | 'verde' }) {
-  const cor = tom === 'ouro' ? 'text-dourado-50' : tom === 'verde' ? 'text-campo-50' : 'text-dourado-200'
+  const cor = tom === 'ouro' ? 'text-dourado-50' : tom === 'verde' ? 'text-dourado-300' : 'text-dourado-200'
   return (
     <div className="rounded-lg border border-dourado-300/30 bg-couro-400/30 px-1 py-2 text-center">
       <div className={cx('font-display text-2xl font-bold leading-none', cor)}>{valor}</div>
