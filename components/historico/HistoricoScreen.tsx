@@ -107,11 +107,49 @@ function CardRodada({
 
   return (
     <div ref={setRef} className="scroll-mt-20 overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50">
-      <div className="flex items-center justify-between border-b border-papel-borda-200 bg-papel-200 px-4 py-2.5">
-        <h2 className="font-display text-base font-bold text-tinta-300">Rodada {rodada.numero}</h2>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-tinta-100">Encerrada</span>
+      {/* Header: título à esquerda, botão "Jogos ▼" no canto superior direito (igual ao Copa) */}
+      <div className="flex items-center justify-between gap-2 border-b border-papel-borda-200 bg-papel-200 px-4 py-2.5">
+        <div>
+          <h2 className="font-display text-base font-bold text-tinta-300">Rodada {rodada.numero}</h2>
+          <span className="font-mono text-[9px] uppercase tracking-wider text-tinta-100">Encerrada</span>
+        </div>
+        {temJogos && (
+          <button
+            type="button"
+            onClick={() => setAberto((o) => !o)}
+            aria-expanded={aberto}
+            className="flex shrink-0 items-center gap-1 rounded-md border border-papel-borda-300 bg-papel-50 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-tinta-200 transition-colors hover:bg-papel-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
+          >
+            ⚽ Jogos <span aria-hidden>{aberto ? '▲' : '▼'}</span>
+          </button>
+        )}
       </div>
 
+      {/* Jogos da rodada — retrátil, entre o header e a tabela (igual ao Copa) */}
+      {temJogos && (
+        <div className={cx('grid transition-all duration-300 ease-out', aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+          <div className="overflow-hidden">
+            <div className="border-b border-papel-borda-200 bg-papel-100/60 px-4 py-2">
+              <div className="mb-1.5 font-mono text-[9px] uppercase tracking-wider text-tinta-100">
+                Jogos desta rodada
+              </div>
+              <ul className="flex flex-col">
+                {rodada.jogos!.map((j, i) => (
+                  <li key={i} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-1">
+                    <span className="truncate text-right font-sans text-xs text-tinta-300">{j.home}</span>
+                    <span className="rounded bg-papel-200 px-2 py-0.5 font-mono text-sm font-bold text-tinta-300">
+                      {j.placar.h} <span className="text-tinta-100">×</span> {j.placar.a}
+                    </span>
+                    <span className="truncate text-left font-sans text-xs text-tinta-300">{j.away}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tabela de ranking */}
       <table className="w-full border-collapse">
         <thead>
           <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-100">
@@ -130,37 +168,6 @@ function CardRodada({
           ))}
         </tbody>
       </table>
-
-      {temJogos && (
-        <>
-          <button
-            type="button"
-            onClick={() => setAberto((o) => !o)}
-            aria-expanded={aberto}
-            className="flex w-full items-center justify-between border-t border-papel-borda-200 bg-papel-100 px-4 py-2.5 text-left transition-colors hover:bg-papel-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
-          >
-            <span className="font-sans text-xs font-semibold text-tinta-300">Jogos desta rodada</span>
-            <span className={cx('font-mono text-xs text-tinta-100 transition-transform duration-300', aberto && 'rotate-180')} aria-hidden>
-              ▼
-            </span>
-          </button>
-          <div className={cx('grid transition-all duration-300 ease-out', aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
-            <div className="overflow-hidden">
-              <ul className="divide-y divide-papel-borda-200/50 px-4 py-1">
-                {rodada.jogos!.map((j, i) => (
-                  <li key={i} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2">
-                    <span className="truncate text-right font-sans text-xs text-tinta-300">{j.home}</span>
-                    <span className="rounded bg-papel-200 px-2 py-0.5 font-mono text-sm font-bold text-tinta-300">
-                      {j.placar.h} <span className="text-tinta-100">×</span> {j.placar.a}
-                    </span>
-                    <span className="truncate text-left font-sans text-xs text-tinta-300">{j.away}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }
