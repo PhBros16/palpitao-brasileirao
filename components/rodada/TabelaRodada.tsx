@@ -77,15 +77,10 @@ export function TabelaRodada({ dados }: { dados: DadosRodada }) {
             </thead>
             <tbody>
               {dados.linhas.map((linha) => (
-                <tr key={linha.id} className={cx(linha.ehVoce && 'bg-dourado-50/40')}>
-                  <td
-                    className={cx(
-                      'sticky left-0 z-10 border-b border-r-2 border-papel-borda-300 px-3 py-2',
-                      linha.ehVoce ? 'bg-dourado-50' : 'bg-papel-50',
-                    )}
-                  >
+                <tr key={linha.id}>
+                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-300 bg-papel-50 px-3 py-2">
                     {linha.ehVoce ? (
-                      <span className="font-sans text-xs font-bold text-tinta-300">{linha.nome} (você)</span>
+                      <span className="font-sans text-xs font-semibold text-tinta-300">{linha.nome}</span>
                     ) : (
                       <button
                         type="button"
