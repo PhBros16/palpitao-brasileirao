@@ -3,10 +3,25 @@
 export function BeatCapa({ onAbrir }: { onAbrir: () => void }) {
   return (
     <div className="relative flex h-full w-full flex-col items-center justify-between overflow-hidden bg-gradient-to-br from-couro-100 via-couro-300 to-couro-500 py-16">
-      {/* Lombada */}
-      <div className="absolute inset-y-0 left-0 w-5 bg-couro-500 shadow-[inset_-6px_0_14px_rgba(0,0,0,0.45)]" />
-      {/* Filete vertical decorativo direito */}
-      <div className="absolute inset-y-0 right-7 w-px bg-dourado-300/20" />
+      {/* Lombada (~40px) com costura dourada simulada */}
+      <div className="absolute inset-y-0 left-0 w-10 bg-couro-500 shadow-[inset_-8px_0_18px_rgba(0,0,0,0.5)]">
+        <div
+          className="absolute inset-y-0 right-2.5 w-0.5"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(to bottom, rgba(212,175,55,0.55) 0px, rgba(212,175,55,0.55) 5px, transparent 5px, transparent 10px)',
+          }}
+        />
+      </div>
+
+      {/* Filete dourado interno (emoldura o conteúdo) */}
+      <div className="pointer-events-none absolute bottom-4 left-12 right-3 top-4 border border-dourado-300/30" />
+
+      {/* Overlay diagonal de couro (profundidade / textura) */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10" />
+
+      {/* Sombra de volume à direita (simula espessura do livro encadernado) */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black/35 to-transparent" />
 
       {/* Área central */}
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-12 text-center">

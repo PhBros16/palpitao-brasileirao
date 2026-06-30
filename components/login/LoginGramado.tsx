@@ -15,6 +15,12 @@
 //    campo são classes Tailwind literais no dado (left-[..%] top-[..%]), então
 //    o JIT as gera normalmente.
 //
+// hideHeader=true (usado na abertura cinematográfica):
+//  • Oculta o cabeçalho (título + botão "Abrir o Álbum").
+//  • Campo preenche toda a altura disponível sem aspect-ratio fixo.
+//  • Banco migra para coluna lateral DIREITA (não faixa horizontal dentro do campo).
+//  • Marcações de campo recalibradas: centro em top-[50%], áreas de baixo em bottom-0.
+//
 // ⚠️ Segurança (CLAUDE.md §7): o PIN é validado aqui contra dados MOCKADOS só
 // nesta fase estática. NÃO existe MASTER_PASS no client. Quando os dados reais
 // entrarem (Supabase), a validação do PIN vira rota server-side autenticada —
@@ -93,7 +99,13 @@ function MarcadorJogador({
   )
 }
 
-export function LoginGramado({ players }: { players: LoginPlayer[] }) {
+export function LoginGramado({
+  players,
+  hideHeader = false,
+}: {
+  players: LoginPlayer[]
+  hideHeader?: boolean
+}) {
   const [selecionado, setSelecionado] = useState<LoginPlayer | null>(null)
   const [pin, setPin] = useState('')
   const [erro, setErro] = useState(false)
@@ -136,6 +148,174 @@ export function LoginGramado({ players }: { players: LoginPlayer[] }) {
     }
   }, [pin, selecionado])
 
+  // Modal de PIN (fixed — funciona em ambos os modos de layout)
+  const pinModal = selecionado && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-parede-200/85 p-4 backdrop-blur-sm"
+      onClick={fechar}
+    >
+      <div
+        className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-couro-300 bg-papel-100 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Figurinha do selecionado */}
+        <div className="h-[120px] w-[100px] overflow-hidden">
+          <span className="block origin-top-left scale-[0.52]">
+            <FigurinhaJogador
+              nome={selecionado.nome}
+              vulgo={selecionado.vulgo}
+              fotoUrl={selecionado.fotoUrl}
+              stats={selecionado.stats}
+              showRarity={false}
+              className="pointer-events-none"
+            />
+          </span>
+        </div>
+
+        <p className="font-sans text-sm font-bold uppercase tracking-tight text-tinta-300">
+          Digite seu PIN
+        </p>
+
+        {/* 4 bolinhas */}
+        <div className="flex gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className={cx(
+                'h-3.5 w-3.5 rounded-full border-2',
+                erro
+                  ? 'border-raridade-frango-selo'
+                  : i < pin.length
+                    ? 'border-couro-300 bg-couro-300'
+                    : 'border-papel-borda-300',
+              )}
+            />
+          ))}
+        </div>
+
+        {erro && (
+          <p className="font-mono text-[11px] uppercase tracking-wider text-raridade-frango-selo">
+            PIN incorreto
+          </p>
+        )}
+
+        {/* Teclado numérico */}
+        <div className="grid w-full grid-cols-3 gap-2">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => digitar(d)}
+              className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
+            >
+              {d}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={fechar}
+            className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-xs uppercase text-tinta-100 transition-colors active:bg-papel-200"
+          >
+            Sair
+          </button>
+          <button
+            type="button"
+            onClick={() => digitar('0')}
+            className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
+          >
+            0
+          </button>
+          <button
+            type="button"
+            onClick={apagar}
+            className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-lg text-tinta-100 transition-colors active:bg-papel-200"
+          >
+            ⌫
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Overlay de sucesso (fixed — funciona em ambos os modos de layout)
+  const successOverlay = entrou && (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-campo-noturno/95 p-6 text-center">
+      <p className="font-display text-2xl font-bold uppercase tracking-wide text-dourado-50">
+        Bem-vindo, {entrou.vulgo || entrou.nome}!
+      </p>
+      <p className="font-mono text-xs uppercase tracking-widest text-campo-50">
+        (login mock — sessão real vem depois)
+      </p>
+      <button
+        type="button"
+        onClick={() => setEntrou(null)}
+        className="rounded-md border-2 border-dourado-300 bg-couro-300 px-5 py-2 font-display text-sm font-bold uppercase tracking-wider text-dourado-50 transition-colors hover:bg-couro-200"
+      >
+        Voltar
+      </button>
+    </div>
+  )
+
+  // ── Modo abertura: campo preenche tela inteira, banco na lateral direita ──
+  if (hideHeader) {
+    return (
+      <main className="flex h-full w-full flex-col bg-campo-noturno">
+        {/* Hint (substitui o header completo) */}
+        <p className="flex-shrink-0 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-campo-50">
+          Toque no seu nome para entrar
+        </p>
+
+        {/* Linha principal: campo + banco lateral */}
+        <div className="flex flex-1 items-stretch overflow-hidden">
+          {/* Campo — sem aspect-ratio fixo, preenche a altura disponível */}
+          <div className="relative flex-1 overflow-hidden bg-[repeating-linear-gradient(180deg,var(--campo-100)_0_34px,var(--campo-200)_34px_68px)]">
+            {/* ── Linhas de campo (campo completo, sem faixa de banco) ── */}
+            {/* Gol de cima */}
+            <div className="absolute left-1/2 top-0 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/30" />
+            {/* Grande área de cima */}
+            <div className="absolute left-1/2 top-0 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/25" />
+            {/* Linha de meio-campo */}
+            <div className="absolute inset-x-0 top-[50%] h-px bg-papel-100/25" />
+            {/* Círculo central */}
+            <div className="absolute left-1/2 top-[50%] h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-papel-100/25" />
+            <div className="absolute left-1/2 top-[50%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-papel-100/30" />
+            {/* Grande área de baixo */}
+            <div className="absolute bottom-0 left-1/2 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/25" />
+            {/* Gol de baixo */}
+            <div className="absolute bottom-0 left-1/2 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/30" />
+
+            {/* ── Titulares posicionados ── */}
+            {titulares.map((p) => (
+              <div
+                key={p.id}
+                className={cx(
+                  'absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center',
+                  p.pos,
+                )}
+              >
+                <MarcadorJogador player={p} size="campo" onClick={() => abrir(p)} />
+              </div>
+            ))}
+          </div>
+
+          {/* Banco — coluna lateral direita (máx 3-4 jogadores visíveis) */}
+          <div className="flex w-[76px] flex-shrink-0 flex-col items-center gap-3 overflow-y-auto border-l border-papel-100/20 bg-campo-noturno/80 py-3">
+            <span className="font-mono text-[8px] uppercase tracking-widest text-campo-50">
+              Banco
+            </span>
+            {reservas.map((p) => (
+              <MarcadorJogador key={p.id} player={p} size="banco" onClick={() => abrir(p)} />
+            ))}
+          </div>
+        </div>
+
+        {pinModal}
+        {successOverlay}
+      </main>
+    )
+  }
+
+  // ── Modo normal: tela de login completa com cabeçalho e campo portrait ──
   return (
     <main className="flex min-h-screen flex-col items-center bg-campo-noturno px-4 py-6">
       {/* Cabeçalho + CTA almanaque */}
@@ -156,21 +336,15 @@ export function LoginGramado({ players }: { players: LoginPlayer[] }) {
         </p>
       </header>
 
-      {/* Campo em portrait */}
+      {/* Campo em portrait com aspecto 3:5 */}
       <div className="relative aspect-[3/5] w-full max-w-[380px] overflow-hidden rounded-lg border-2 border-papel-100/25 bg-[repeating-linear-gradient(180deg,var(--campo-100)_0_34px,var(--campo-200)_34px_68px)] shadow-2xl">
-        {/* ── Linhas de campo (giz = papel-100 a baixa opacidade) ── */}
-        {/* Gol de cima */}
+        {/* ── Linhas de campo ── */}
         <div className="absolute left-1/2 top-0 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/30" />
-        {/* Grande área de cima */}
         <div className="absolute left-1/2 top-0 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/25" />
-        {/* Linha de meio-campo (acima do banco) */}
         <div className="absolute inset-x-0 top-[43%] h-px bg-papel-100/25" />
-        {/* Círculo central */}
         <div className="absolute left-1/2 top-[43%] h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-papel-100/25" />
         <div className="absolute left-1/2 top-[43%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-papel-100/30" />
-        {/* Grande área de baixo (logo acima do banco) */}
         <div className="absolute bottom-[16%] left-1/2 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/25" />
-        {/* Gol de baixo */}
         <div className="absolute bottom-[16%] left-1/2 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/30" />
 
         {/* ── Titulares posicionados ── */}
@@ -196,113 +370,8 @@ export function LoginGramado({ players }: { players: LoginPlayer[] }) {
         </div>
       </div>
 
-      {/* ── Modal de PIN ── */}
-      {selecionado && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-parede-200/85 p-4 backdrop-blur-sm"
-          onClick={fechar}
-        >
-          <div
-            className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-couro-300 bg-papel-100 p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Figurinha do selecionado */}
-            <div className="h-[120px] w-[100px] overflow-hidden">
-              <span className="block origin-top-left scale-[0.52]">
-                <FigurinhaJogador
-                  nome={selecionado.nome}
-                  vulgo={selecionado.vulgo}
-                  fotoUrl={selecionado.fotoUrl}
-                  stats={selecionado.stats}
-                  showRarity={false}
-                  className="pointer-events-none"
-                />
-              </span>
-            </div>
-
-            <p className="font-sans text-sm font-bold uppercase tracking-tight text-tinta-300">
-              Digite seu PIN
-            </p>
-
-            {/* 4 bolinhas */}
-            <div className="flex gap-3">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className={cx(
-                    'h-3.5 w-3.5 rounded-full border-2',
-                    erro
-                      ? 'border-raridade-frango-selo'
-                      : i < pin.length
-                        ? 'border-couro-300 bg-couro-300'
-                        : 'border-papel-borda-300',
-                  )}
-                />
-              ))}
-            </div>
-
-            {erro && (
-              <p className="font-mono text-[11px] uppercase tracking-wider text-raridade-frango-selo">
-                PIN incorreto
-              </p>
-            )}
-
-            {/* Teclado numérico */}
-            <div className="grid w-full grid-cols-3 gap-2">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => digitar(d)}
-                  className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
-                >
-                  {d}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={fechar}
-                className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-xs uppercase text-tinta-100 transition-colors active:bg-papel-200"
-              >
-                Sair
-              </button>
-              <button
-                type="button"
-                onClick={() => digitar('0')}
-                className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
-              >
-                0
-              </button>
-              <button
-                type="button"
-                onClick={apagar}
-                className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-lg text-tinta-100 transition-colors active:bg-papel-200"
-              >
-                ⌫
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Estado de sucesso (mock) ── */}
-      {entrou && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-campo-noturno/95 p-6 text-center">
-          <p className="font-display text-2xl font-bold uppercase tracking-wide text-dourado-50">
-            Bem-vindo, {entrou.vulgo || entrou.nome}!
-          </p>
-          <p className="font-mono text-xs uppercase tracking-widest text-campo-50">
-            (login mock — sessão real vem depois)
-          </p>
-          <button
-            type="button"
-            onClick={() => setEntrou(null)}
-            className="rounded-md border-2 border-dourado-300 bg-couro-300 px-5 py-2 font-display text-sm font-bold uppercase tracking-wider text-dourado-50 transition-colors hover:bg-couro-200"
-          >
-            Voltar
-          </button>
-        </div>
-      )}
+      {pinModal}
+      {successOverlay}
     </main>
   )
 }
