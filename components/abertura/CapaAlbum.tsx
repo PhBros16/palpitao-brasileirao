@@ -6,6 +6,12 @@ import { StickerCapa, FigurinhaDieCut } from './FigurinhaCapa'
 // CapaAlbum — face frontal da capa de couro: moldura dourada, título
 // "PALPITÃO BRASILEIRÃO", selo de edição, botão "ABRIR O ÁLBUM" e figurinhas
 // soltas decorativas (die-cut) espalhadas como um caderno de colecionador.
+//
+// Composição das figurinhas — simétrica em espelho esquerda/direita:
+//   topo:  2 grandes nos cantos (Ronaldinho/Neymar) + 2 pequenas mais para
+//          dentro (Vasco/Flamengo), enquadrando o título sem tocá-lo.
+//   base:  2 médias nos cantos (Pelezinho/Fred) + 1 centralizada (Troféu),
+//          formando um trio acima do botão.
 export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
   return (
     <div className="absolute inset-0 overflow-hidden">
@@ -80,28 +86,29 @@ export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
         </motion.button>
       </div>
 
-      {/* Figurinhas — espalhamento equilibrado, longe do título */}
-      <StickerCapa top="5.5%" left="7%" rotate={-10} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-ronaldinho.png" altura={92} />
+      {/* Figurinhas — topo: par grande nos cantos + par pequeno mais interno */}
+      <StickerCapa top="4%" left="5%" rotate={-10} zIndex={4}>
+        <FigurinhaDieCut src="/stickers/clean-ronaldinho.png" altura={94} />
       </StickerCapa>
-      <StickerCapa top="3%" left="39%" rotate={4} zIndex={3}>
-        <FigurinhaDieCut src="/stickers/clean-vasco.png" altura={92} />
+      <StickerCapa top="4%" right="5%" rotate={10} zIndex={4}>
+        <FigurinhaDieCut src="/stickers/clean-neymar.png" altura={94} />
       </StickerCapa>
-      <StickerCapa top="7.5%" right="8%" rotate={9} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-pelezinho.png" altura={88} />
+      <StickerCapa top="15%" left="28%" rotate={-6} zIndex={3}>
+        <FigurinhaDieCut src="/stickers/clean-vasco.png" altura={64} />
+      </StickerCapa>
+      <StickerCapa top="15%" right="28%" rotate={6} zIndex={3}>
+        <FigurinhaDieCut src="/stickers/clean-flamengo.png" altura={64} />
       </StickerCapa>
 
-      <StickerCapa top="60.5%" left="5.5%" rotate={9} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-neymar.png" altura={90} />
+      {/* Figurinhas — base: par nos cantos + selo centralizado, trio acima do botão */}
+      <StickerCapa bottom="24%" left="6%" rotate={9} zIndex={4}>
+        <FigurinhaDieCut src="/stickers/clean-pelezinho.png" altura={86} />
       </StickerCapa>
-      <StickerCapa top="66%" left="29%" rotate={-7} zIndex={5}>
-        <FigurinhaDieCut src="/stickers/clean-flamengo.png" altura={84} />
+      <StickerCapa bottom="24%" right="6%" rotate={-9} zIndex={4}>
+        <FigurinhaDieCut src="/stickers/clean-fred.png" altura={86} />
       </StickerCapa>
-      <StickerCapa top="61%" right="23%" rotate={5} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-fred.png" altura={94} />
-      </StickerCapa>
-      <StickerCapa top="64.5%" right="5.5%" rotate={-7} zIndex={5}>
-        <FigurinhaDieCut src="/stickers/clean-trofeu.png" altura={92} />
+      <StickerCapa bottom="24%" left="50%" rotate={-3} zIndex={5} centralizado>
+        <FigurinhaDieCut src="/stickers/clean-trofeu.png" altura={76} />
       </StickerCapa>
     </div>
   )

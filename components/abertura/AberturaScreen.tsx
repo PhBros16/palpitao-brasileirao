@@ -48,13 +48,25 @@ export function AberturaScreen() {
       className="relative flex h-full w-full items-center justify-center overflow-hidden bg-campo-noturno"
       style={{ width: '100dvw', height: '100dvh' }}
     >
-      {/* Estádio por trás de tudo */}
-      <CenaEstadio acesos={acesos} jogadoresVisiveis={beat === 'revelado'} />
+      {/* Estádio por trás de tudo — invisível em repouso na fase "capa": o livro
+          não cobre 100% da viewport (padding + max-width/height responsivos),
+          então sem este gate os refletores (sempre montados) vazam nas margens
+          antes mesmo do toque em "Abrir o Álbum". Aparece com fade assim que
+          a virada começa, sincronizado com o flip. */}
+      <motion.div
+        className="absolute inset-0"
+        style={{ zIndex: 0 }}
+        initial={false}
+        animate={{ opacity: beat === 'capa' ? 0 : 1 }}
+        transition={{ duration: beat === 'capa' ? 0.3 : 0.9, ease: 'easeInOut' }}
+      >
+        <CenaEstadio acesos={acesos} jogadoresVisiveis={beat === 'revelado'} />
+      </motion.div>
 
       {/* Livro: metade esquerda é a lombada fixa, direita gira ao abrir */}
       <div
         className="absolute inset-0 flex items-center justify-center p-4"
-        style={{ perspective: '1200px', pointerEvents: beat === 'capa' ? 'auto' : 'none' }}
+        style={{ zIndex: 10, perspective: '1200px', pointerEvents: beat === 'capa' ? 'auto' : 'none' }}
       >
         <div
           className="relative"
