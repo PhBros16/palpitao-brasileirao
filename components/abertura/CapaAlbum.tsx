@@ -1,20 +1,20 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { StickerCapa, FigurinhaDieCut } from './FigurinhaCapa'
 
-// CapaAlbum — face frontal da capa de couro: moldura dourada, título
-// "PALPITÃO BRASILEIRÃO", selo de edição, botão "ABRIR O ÁLBUM" e figurinhas
-// soltas decorativas (die-cut) espalhadas como um caderno de colecionador.
+// CapaAlbum — face frontal da capa de couro: moldura dourada, selo circular
+// com bola, título "PALPITÃO BRASILEIRÃO" e botão "ABRIR O ÁLBUM".
 //
-// Composição das figurinhas — simétrica em espelho esquerda/direita:
-//   topo:  2 grandes nos cantos (Ronaldinho/Neymar) + 2 pequenas mais para
-//          dentro (Vasco/Flamengo), enquadrando o título sem tocá-lo.
-//   base:  2 médias nos cantos (Pelezinho/Fred) + 1 centralizada (Troféu),
-//          formando um trio acima do botão.
+// Fase 1 (atual): estático, sem stickers ilustrados. Linguagem visual flat,
+// consistente com o resto do app (ver SecaoPodio/SalaTrofeus/EscudoTime) —
+// formas simples + tokens de couro/dourado, decoração mínima via emoji no
+// mesmo espírito das medalhas (🥇🥈🥉) e do placeholder de troféu (🏆) já
+// usados em components/home e components/ranking. Nada de ilustração/PNG
+// realista.
 export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
   return (
     <div className="absolute inset-0 overflow-hidden">
+      {/* Sheen sutil do couro (gradiente, não ilustração) */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -33,11 +33,16 @@ export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
         }}
       />
 
-      {/* Bloco de título — centralizado, sempre cabe */}
+      {/* Conteúdo central */}
       <div
         className="absolute left-0 right-0 flex flex-col items-center px-4 text-center"
-        style={{ top: '41%', transform: 'translateY(-50%)', zIndex: 6 }}
+        style={{ top: '44%', transform: 'translateY(-50%)', zIndex: 6 }}
       >
+        {/* Selo — círculo + emoji, mesmo padrão do placeholder de troféu (SalaTrofeus) */}
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-dourado-300 bg-dourado-300/10 text-2xl shadow-inner">
+          ⚽
+        </span>
+
         <div
           className="font-display font-black uppercase leading-[0.95] text-dourado-300"
           style={{
@@ -60,11 +65,13 @@ export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
         >
           BRASILEIRÃO
         </div>
-        <div
-          className="mt-3 font-mono text-dourado-300/85"
-          style={{ fontSize: '0.65rem', letterSpacing: '0.3em' }}
-        >
-          — EDIÇÃO 2026 —
+
+        <div className="mt-4 flex items-center gap-3">
+          <div className="h-px w-8 bg-dourado-300/40" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-dourado-300/85">
+            Edição 2026
+          </span>
+          <div className="h-px w-8 bg-dourado-300/40" />
         </div>
       </div>
 
@@ -85,31 +92,6 @@ export function CapaAlbum({ onAbrir }: { onAbrir: () => void }) {
           Abrir o Álbum
         </motion.button>
       </div>
-
-      {/* Figurinhas — topo: par grande nos cantos + par pequeno mais interno */}
-      <StickerCapa top="4%" left="5%" rotate={-10} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-ronaldinho.png" altura={94} />
-      </StickerCapa>
-      <StickerCapa top="4%" right="5%" rotate={10} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-neymar.png" altura={94} />
-      </StickerCapa>
-      <StickerCapa top="15%" left="28%" rotate={-6} zIndex={3}>
-        <FigurinhaDieCut src="/stickers/clean-vasco.png" altura={64} />
-      </StickerCapa>
-      <StickerCapa top="15%" right="28%" rotate={6} zIndex={3}>
-        <FigurinhaDieCut src="/stickers/clean-flamengo.png" altura={64} />
-      </StickerCapa>
-
-      {/* Figurinhas — base: par nos cantos + selo centralizado, trio acima do botão */}
-      <StickerCapa bottom="24%" left="6%" rotate={9} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-pelezinho.png" altura={86} />
-      </StickerCapa>
-      <StickerCapa bottom="24%" right="6%" rotate={-9} zIndex={4}>
-        <FigurinhaDieCut src="/stickers/clean-fred.png" altura={86} />
-      </StickerCapa>
-      <StickerCapa bottom="24%" left="50%" rotate={-3} zIndex={5} centralizado>
-        <FigurinhaDieCut src="/stickers/clean-trofeu.png" altura={76} />
-      </StickerCapa>
     </div>
   )
 }
