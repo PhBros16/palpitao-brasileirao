@@ -89,12 +89,23 @@ export function AberturaScreen() {
             }}
           />
 
-          {/* Painel da capa — dobradiça na lombada */}
+          {/* Painel da capa — dobradiça na lombada. O flip termina com o verso
+              (contracapa "2026") cobrindo a tela por inteiro — correto
+              geometricamente, mas precisa dissolver em seguida, senão fica
+              bloqueando a CenaEstadio para sempre nas fases seguintes. Por
+              isso o fade de opacity, iniciado só quando o beat chega em
+              "refletores" (ou seja, depois que o flip já assentou). */}
           <motion.div
             className="absolute inset-y-0"
             style={{ left: 22, right: 0, transformOrigin: 'left center', transformStyle: 'preserve-3d' }}
-            animate={{ rotateY: capaAberta ? -180 : 0 }}
-            transition={{ duration: 1.1, ease: [0.5, 0.05, 0.25, 1.05] }}
+            animate={{
+              rotateY: capaAberta ? -180 : 0,
+              opacity: beat === 'refletores' || beat === 'revelado' ? 0 : 1,
+            }}
+            transition={{
+              rotateY: { duration: 1.1, ease: [0.5, 0.05, 0.25, 1.05] },
+              opacity: { duration: 0.5, ease: 'easeInOut' },
+            }}
           >
             {/* Frente */}
             <div
@@ -119,6 +130,14 @@ export function AberturaScreen() {
               style={{
                 backfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)',
+                // Precisa herdar o MESMO pivô do pai (lombada, borda esquerda).
+                // Sem isso, o verso gira em torno do próprio centro (padrão do
+                // CSS) — duas rotações de 180° em pivôs diferentes compõem
+                // uma TRANSLAÇÃO, não uma rotação pura, e o verso acaba
+                // deslocado quase todo pra fora da tela (só uma lasca fina
+                // fica visível perto da dobra) em vez de cobrir a área do
+                // livro por inteiro.
+                transformOrigin: 'left center',
                 backgroundImage:
                   'repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 5px)',
                 boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8)',
