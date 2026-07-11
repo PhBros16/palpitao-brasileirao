@@ -226,7 +226,7 @@ export function AberturaScreen() {
             pointerEvents: capaVisivel ? 'auto' : 'none',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible' }}>
+          <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
             <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
           </div>
           {/* transformOrigin igual ao pai (lombada/borda esquerda) — sem isso
@@ -240,15 +240,12 @@ export function AberturaScreen() {
               visibility: mostrarVerso ? 'visible' : 'hidden',
               transformOrigin: 'left center',
               transform: 'rotateY(180deg) translateZ(14px)',
+              backfaceVisibility: 'hidden',
             }}
           >
             <CapaVerso />
           </div>
           <CapaEspessura />
-        </div>
-
-        <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 999, color: '#0f0', background: '#000', fontSize: 12, padding: 4, fontFamily: 'monospace' }}>
-          aberto:{String(aberto)} verso:{String(mostrarVerso)} capaVisivel:{String(capaVisivel)}
         </div>
 
         {/* grão de filme sobre toda a cena — sutilíssimo, nunca compromete legibilidade */}
