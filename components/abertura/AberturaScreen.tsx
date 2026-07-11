@@ -247,6 +247,10 @@ export function AberturaScreen() {
           <CapaEspessura />
         </div>
 
+        <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 999, color: '#0f0', background: '#000', fontSize: 12, padding: 4, fontFamily: 'monospace' }}>
+          aberto:{String(aberto)} verso:{String(mostrarVerso)} capaVisivel:{String(capaVisivel)}
+        </div>
+
         {/* grão de filme sobre toda a cena — sutilíssimo, nunca compromete legibilidade */}
         <div
           className={`pointer-events-none absolute ${styles.grainJitter}`}
