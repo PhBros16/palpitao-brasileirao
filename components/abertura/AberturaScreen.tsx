@@ -222,7 +222,7 @@ export function AberturaScreen() {
             willChange: 'transform',
             transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
             transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-            visibility: capaVisivel ? 'visible' : 'hidden',
+            opacity: capaVisivel ? 1 : 0,
             pointerEvents: capaVisivel ? 'auto' : 'none',
           }}
         >
