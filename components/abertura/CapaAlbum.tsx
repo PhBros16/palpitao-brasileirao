@@ -114,25 +114,9 @@ export function CapaAlbum({
         style={{ width: 1.5, background: 'repeating-linear-gradient(0deg, var(--dourado-700) 0 5px, rgba(0,0,0,0) 5px 10px)' }}
       />
 
-      {/* moldura dourada dupla, fechada nos 4 cantos + sparkle nos cantos */}
+      {/* moldura dourada dupla, fechada nos 4 cantos */}
       <div className="absolute rounded-lg border-2 border-dourado-500" style={{ inset: '26px 22px', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }} />
       <div className="absolute rounded-md border border-dourado-300" style={{ inset: '32px 28px' }} />
-      {CANTOS.map((c, i) => (
-        <span
-          key={i}
-          className={`pointer-events-none absolute ${styles.cornerSparkle}`}
-          style={{
-            [c.v]: 22,
-            [c.h]: 18,
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, var(--dourado-100) 45%, transparent 75%)',
-            animationDuration: '3.4s',
-            animationDelay: c.atraso,
-          }}
-        />
-      ))}
 
       {/* conteúdo */}
       <div className="absolute flex flex-col items-center" style={{ inset: '32px 28px', padding: '38px 26px 34px' }}>
@@ -196,10 +180,10 @@ export function CapaAlbum({
 
         {/* título — cor sólida flat, só pulso periódico de brilho (sem gradiente/emboss) */}
         <div className="mt-[30px] text-center">
-          <div className={`text-[44px] font-bold uppercase leading-[0.92] tracking-[1px] text-dourado-100 ${styles.titleShimmerPulse}`}>PALPITÃO</div>
+          <div className={`font-display text-[44px] font-bold uppercase leading-[0.92] tracking-[1px] text-dourado-100 ${styles.titleShimmerPulse}`}>PALPITÃO</div>
           <div className="mt-2 flex items-center justify-center gap-2.5">
             <span className="h-px w-[26px]" style={{ background: 'linear-gradient(90deg, transparent, var(--dourado-300))' }} />
-            <span className={`text-base font-bold tracking-[5px] text-dourado-300 ${styles.titleShimmerPulse}`} style={{ animationDelay: '0.3s' }}>
+            <span className={`font-display text-base font-bold tracking-[5px] text-dourado-300 ${styles.titleShimmerPulse}`} style={{ animationDelay: '0.3s' }}>
               BRASILEIRÃO
             </span>
             <span className="h-px w-[26px]" style={{ background: 'linear-gradient(90deg, var(--dourado-300), transparent)' }} />
@@ -246,13 +230,6 @@ export function CapaAlbum({
     </div>
   )
 }
-
-const CANTOS = [
-  { v: 'top', h: 'left', atraso: '0s' },
-  { v: 'top', h: 'right', atraso: '0.9s' },
-  { v: 'bottom', h: 'left', atraso: '1.8s' },
-  { v: 'bottom', h: 'right', atraso: '2.7s' },
-] as const
 
 const POEIRA_DOURADA = [
   { left: '32%', top: '8%', size: '2.5px', cor: 'var(--dourado-50)', queda: '130px', deriva: '8px', opacidade: '0.65', duracao: '6s', atraso: '0s' },
