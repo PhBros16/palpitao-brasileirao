@@ -56,10 +56,6 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.015); }
 }
-@keyframes cornerSparkle {
-  0%, 100% { opacity: 0; transform: scale(0.6); }
-  50% { opacity: 0.9; transform: scale(1); }
-}
 
 /* ===== Campo — ambiente ===== */
 @keyframes grassDrift {
@@ -121,8 +117,6 @@
 .medallionShimmer { animation: medallionShimmer 6s ease-in-out infinite; }
 .titleShimmerPulse { animation: titleShimmerPulse 4.5s ease-in-out infinite; }
 .buttonPulse { animation: buttonPulse 2.6s ease-in-out infinite; }
-.cornerSparkle { animation-name: cornerSparkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
-
 .grassDrift { animation: grassDrift 42s linear infinite; }
 .vignettePulse { animation: vignettePulse 9s ease-in-out infinite; }
 .dustFloat { animation-name: dustFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
