@@ -220,7 +220,7 @@ export function AberturaScreen() {
             transformOrigin: 'left center',
             transformStyle: 'preserve-3d',
             willChange: 'transform',
-            transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1), opacity 280ms ease-out`,
+            transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1), opacity 550ms ease-out`,
             transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
             opacity: capaVisivel ? 1 : 0,
             pointerEvents: capaVisivel ? 'auto' : 'none',
