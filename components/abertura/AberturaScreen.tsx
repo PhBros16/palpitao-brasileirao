@@ -136,7 +136,7 @@ export function AberturaScreen() {
             )
           }, DUST_SETTLE_HOLD),
         )
-      }, DUR_FLIP / 2 + 60),
+      }, DUR_FLIP),
     )
   }, [])
 
