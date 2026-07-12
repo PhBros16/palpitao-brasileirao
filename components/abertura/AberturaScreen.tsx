@@ -29,7 +29,7 @@ import {
 } from './coreografia'
 import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransicao'
 import { somKit } from './somKit'
-import { BANCO, TITULARES } from './elencoMock'
+import { BANCO, TECNICO, TITULARES } from './elencoMock'
 import type { FasePoeira } from './tipos'
 
 const LARGURA_CENA = 390
@@ -145,8 +145,12 @@ export function AberturaScreen() {
     setAberto(false)
     setRevelado(false)
     setFasePoeira('oculta')
-    setCapaVisivel(true)
-    timers.current.push(setTimeout(() => setMostrarVerso(false), DUR_FLIP / 2))
+    timers.current.push(
+      setTimeout(() => {
+        setMostrarVerso(false)
+        setCapaVisivel(true)
+      }, DUR_FLIP / 2),
+    )
     iniciado.current = false
   }, [limparTimers])
 
@@ -176,7 +180,11 @@ export function AberturaScreen() {
     [inicioTiers, revelado],
   )
   const adminComEntrada = useMemo(
-    () => ({ entrada: estiloEntrada(322, 734, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + BANCO.length * INTERVALO_FILA, revelado) }),
+    () => ({ entrada: estiloEntrada(322, 734, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + (BANCO.length + 1) * INTERVALO_FILA, revelado) }),
+    [inicioTiers, revelado],
+  )
+  const tecnicoComEntrada = useMemo(
+    () => ({ entrada: estiloEntrada(TECNICO.xpx, TECNICO.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO], revelado) }),
     [inicioTiers, revelado],
   )
 
@@ -198,7 +206,7 @@ export function AberturaScreen() {
         {/* Interior — campo, banco e poeira, revelados por trás da capa */}
         <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
           <CenaEstadio revelado={revelado} titulares={titularesComEntrada} />
-          <BancoReservas revelado={revelado} reservas={reservasComEntrada} admin={adminComEntrada} />
+          <BancoReservas revelado={revelado} reservas={reservasComEntrada} admin={adminComEntrada} tecnico={tecnicoComEntrada} />
 
           {/* sombra que a capa aberta projeta perto da lombada */}
           <div
@@ -246,10 +254,6 @@ export function AberturaScreen() {
             <CapaVerso />
           </div>
           <CapaEspessura />
-        </div>
-
-        <div style={{ position: 'absolute', top: 4, left: 4, zIndex: 999, color: '#0f0', background: '#000', fontSize: 12, padding: 4, fontFamily: 'monospace' }}>
-          aberto:{String(aberto)} verso:{String(mostrarVerso)} capaVisivel:{String(capaVisivel)} fasePoeira:{fasePoeira} revelado:{String(revelado)}
         </div>
 
         {/* grão de filme sobre toda a cena — sutilíssimo, nunca compromete legibilidade */}
