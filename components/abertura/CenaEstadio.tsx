@@ -25,9 +25,12 @@ const LINHAS = {
 export function CenaEstadio({
   revelado,
   titulares,
+  onEntrar,
 }: {
   revelado: boolean
   titulares: Array<JogadorCampo & { entrada: EstiloEntrada }>
+  /** Chamado ao tocar em qualquer titular no campo revelado — leva pro login. */
+  onEntrar?: () => void
 }) {
   const zAtaque = estiloZonaLuz(3, revelado)
   const zMeio = estiloZonaLuz(2, revelado)
@@ -150,6 +153,7 @@ export function CenaEstadio({
             entrada={j.entrada}
             variante="titular"
             posicaoCampo={{ left: j.left, top: j.top }}
+            onClick={revelado ? onEntrar : undefined}
           />
         ))}
       </div>
