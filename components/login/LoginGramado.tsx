@@ -102,9 +102,14 @@ function MarcadorJogador({
 export function LoginGramado({
   players,
   hideHeader = false,
+  onEntrar,
 }: {
   players: LoginPlayer[]
   hideHeader?: boolean
+  /** Chamado quando o PIN é validado com sucesso — quem chama decide o que
+   *  fazer (guardar sessão, navegar, etc). Opcional pra não quebrar quem já
+   *  usa o componente sem isso (ex.: abertura cinematográfica). */
+  onEntrar?: (player: LoginPlayer) => void
 }) {
   const [selecionado, setSelecionado] = useState<LoginPlayer | null>(null)
   const [pin, setPin] = useState('')
@@ -140,6 +145,7 @@ export function LoginGramado({
       // eslint-disable-next-line no-console
       console.log('[login mock] entrou:', selecionado.nome)
       setEntrou(selecionado)
+      onEntrar?.(selecionado)
       setSelecionado(null)
       setPin('')
     } else {
