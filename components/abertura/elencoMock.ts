@@ -1,27 +1,36 @@
-import type { JogadorBase, JogadorCampo } from './tipos'
+import type { JogadorBanco, JogadorCampo } from './tipos'
 
-// Elenco mockado para a cena do estádio (Beat "revelado"). MOCK temporário —
-// CLAUDE.md Regra 2 ("nunca hardcodar jogadores") será atendida na Fase 4,
-// quando o elenco passar a vir do Supabase. As cores por jogador aqui são só
-// tinta decorativa de "ficha tática" (não fazem parte da paleta de marca).
+// Elenco mockado da abertura — MOCK temporário (CLAUDE.md Regra 2: o elenco
+// real vem do Supabase na Fase 4). Os 14 nomes são os mesmos já usados em
+// /login-teste e /abertura-teste — só a apresentação (chip tático + cascata
+// de entrada) mudou nesta reformulação.
 //
-// Formação 4-3-3. Coordenadas x/y em % do retângulo do CAMPO (não da tela).
+// Formação 4-3-3 (ataque para cima). left/top em % do retângulo do campo;
+// xpx/ypx são a mesma posição convertida pra px de cena (390×844, campo em
+// left:12,top:12,366×708) — usados pro vetor de corrida em fila única.
+// tier: 0=goleiro, 1=defesa, 2=meio, 3=ataque — define ordem de entrada e de
+// acendimento dos refletores por zona.
 export const TITULARES: JogadorCampo[] = [
-  { nome: 'Diego Alves', iniciais: 'DA', cor: '#f5a623', x: 50, y: 8 },
-  { nome: 'Pedro Sá', iniciais: 'PS', cor: '#2b6cb0', x: 18, y: 26 },
-  { nome: 'João Neto', iniciais: 'JN', cor: '#2b6cb0', x: 38, y: 24 },
-  { nome: 'Hugo Lima', iniciais: 'HL', cor: '#2b6cb0', x: 62, y: 24 },
-  { nome: 'Marcos Viní', iniciais: 'MV', cor: '#2b6cb0', x: 82, y: 26 },
-  { nome: 'Felipe Aro', iniciais: 'FA', cor: '#c53030', x: 25, y: 50 },
-  { nome: 'Bruno Dias', iniciais: 'BD', cor: '#c53030', x: 50, y: 53, voce: true },
-  { nome: 'Léo Castro', iniciais: 'LC', cor: '#c53030', x: 75, y: 50 },
-  { nome: 'Rafael Mota', iniciais: 'RM', cor: '#805ad5', x: 24, y: 78 },
-  { nome: 'Vitor Hugo', iniciais: 'VH', cor: '#805ad5', x: 50, y: 82 },
-  { nome: 'Igor Pena', iniciais: 'IP', cor: '#805ad5', x: 76, y: 78 },
+  { id: 'p1', iniciais: 'DA', nome: 'Diego Alves', numero: '1', left: '50%', top: '86%', tier: 0, xpx: 195, ypx: 620.88 },
+  { id: 'p2', iniciais: 'MV', nome: 'Marcos Viní', numero: '2', left: '16%', top: '74%', tier: 1, xpx: 70.56, ypx: 535.92 },
+  { id: 'p3', iniciais: 'PS', nome: 'Pedro Sá', numero: '3', left: '39%', top: '74%', tier: 1, xpx: 154.74, ypx: 535.92 },
+  { id: 'p4', iniciais: 'TL', nome: 'Tiago Lopes', numero: '4', left: '61%', top: '74%', tier: 1, xpx: 235.26, ypx: 535.92 },
+  { id: 'p5', iniciais: 'LC', nome: 'Léo Castro', numero: '6', left: '84%', top: '74%', tier: 1, xpx: 319.44, ypx: 535.92 },
+  { id: 'p6', iniciais: 'BD', nome: 'Bruno Dias', numero: '5', left: '25%', top: '52%', tier: 2, xpx: 103.5, ypx: 380.16 },
+  { id: 'p7', iniciais: 'HL', nome: 'Hugo Lima', numero: '8', left: '50%', top: '52%', tier: 2, xpx: 195, ypx: 380.16 },
+  { id: 'p8', iniciais: 'VH', nome: 'Vitor Hugo', numero: '10', left: '75%', top: '52%', tier: 2, xpx: 286.5, ypx: 380.16 },
+  { id: 'p9', iniciais: 'IP', nome: 'Igor Pena', numero: '7', left: '22%', top: '29%', tier: 3, xpx: 92.52, ypx: 217.32 },
+  { id: 'p10', iniciais: 'AS', nome: 'André Sousa', numero: '9', left: '50%', top: '29%', tier: 3, xpx: 195, ypx: 217.32 },
+  { id: 'p11', iniciais: 'JN', nome: 'João Neto', numero: '11', left: '78%', top: '29%', tier: 3, xpx: 297.48, ypx: 217.32 },
 ]
 
-export const BANCO: JogadorBase[] = [
-  { nome: 'Costa', iniciais: 'CO', cor: '#4a5568' },
-  { nome: 'Samuel', iniciais: 'SA', cor: '#4a5568' },
-  { nome: 'André', iniciais: 'AN', cor: '#4a5568' },
+// Técnico — entra junto com o banco (tier 4), primeiro da fila.
+export const TECNICO: JogadorBanco = { id: 'tec1', iniciais: 'PC', nome: 'Cardoso', numero: '', xpx: 87, ypx: 734 }
+
+// Banco — 3 reservas (tier 4, entram por último). xpx/ypx aproximam o centro
+// de cada slot na fileira do banco (ver CenaEstadio/BancoReservas).
+export const BANCO: JogadorBanco[] = [
+  { id: 'p12', iniciais: 'FA', nome: 'Felipe Aro', numero: '12', xpx: 146, ypx: 734 },
+  { id: 'p13', iniciais: 'RM', nome: 'Rafael Mota', numero: '13', xpx: 205, ypx: 734 },
+  { id: 'p14', iniciais: 'CR', nome: 'Caio Reis', numero: '14', xpx: 264, ypx: 734 },
 ]

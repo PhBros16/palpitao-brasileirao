@@ -1,2 +1,2 @@
 export { AberturaScreen } from './AberturaScreen'
-export type { Beat } from './tipos'
+export type { FasePoeira, JogadorBanco, JogadorCampo } from './tipos'
