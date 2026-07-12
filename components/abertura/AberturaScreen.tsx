@@ -12,6 +12,7 @@
 // a coreografia. Áudio sintetizado (somKit) dispara no toque de "Abrir o
 // Álbum" — único gesto que libera som no navegador (CLAUDE.md Seção 4).
 
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './abertura.module.css'
 import { BancoReservas } from './BancoReservas'
@@ -36,6 +37,7 @@ const LARGURA_CENA = 390
 const ALTURA_CENA = 844
 
 export function AberturaScreen() {
+  const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [mostrarVerso, setMostrarVerso] = useState(false)
   // O verso (miolo do livro), corretamente ancorado no mesmo pivô do pai,
@@ -205,7 +207,7 @@ export function AberturaScreen() {
       >
         {/* Interior — campo, banco e poeira, revelados por trás da capa */}
         <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
-          <CenaEstadio revelado={revelado} titulares={titularesComEntrada} />
+          <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={() => router.push('/login')} />
           <BancoReservas revelado={revelado} reservas={reservasComEntrada} admin={adminComEntrada} tecnico={tecnicoComEntrada} />
 
           {/* sombra que a capa aberta projeta perto da lombada */}
