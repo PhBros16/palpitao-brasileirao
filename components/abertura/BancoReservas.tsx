@@ -13,10 +13,12 @@ export function BancoReservas({
   revelado,
   reservas,
   admin,
+  tecnico,
 }: {
   revelado: boolean
   reservas: Array<JogadorBanco & { entrada: EstiloEntrada }>
   admin: { entrada: EstiloEntrada }
+  tecnico: { entrada: EstiloEntrada }
 }) {
   const zBanco = estiloZonaLuz(4, revelado)
 
@@ -42,6 +44,7 @@ export function BancoReservas({
       </div>
 
       <div className="relative flex items-start justify-evenly gap-2.5">
+        <ChipJogador iniciais="PC" nome="Cardoso" numero="" entrada={tecnico.entrada} variante="tecnico" />
         {reservas.map((r) => (
           <ChipJogador key={r.id} iniciais={r.iniciais} nome={r.nome} numero={r.numero} entrada={r.entrada} variante="reserva" />
         ))}
