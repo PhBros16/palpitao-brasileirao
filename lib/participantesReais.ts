@@ -9,20 +9,20 @@ import type { LoginPlayer } from '@/components/login'
 // numa próxima etapa (soma de predictions.points por participante). Mostrar
 // zero é mais honesto que inventar números até lá.
 const FLAVOR: Record<string, { vulgo?: string; titular: boolean; pos?: string }> = {
-  'Rafael Mota': { vulgo: 'Paredão', titular: true, pos: 'left-[50%] top-[76%]' },
-  'Bruno Dias': { vulgo: 'Xerife', titular: true, pos: 'left-[21%] top-[63%]' },
-  'Léo Castro': { vulgo: 'Muralha', titular: true, pos: 'left-[39%] top-[66%]' },
-  'Igor Pena': { vulgo: 'Zagueirão', titular: true, pos: 'left-[61%] top-[66%]' },
-  'Caio Reis': { vulgo: 'Lateral', titular: true, pos: 'left-[79%] top-[63%]' },
-  'Diego Alves': { vulgo: 'Maestro', titular: true, pos: 'left-[26%] top-[44%]' },
-  'Marcos Viní': { vulgo: 'Pcombo', titular: true, pos: 'left-[50%] top-[40%]' },
-  'Tiago Lopes': { vulgo: 'Volante', titular: true, pos: 'left-[74%] top-[44%]' },
-  'Pedro Sá': { vulgo: 'Artilheiro', titular: true, pos: 'left-[24%] top-[20%]' },
-  'João Neto': { vulgo: 'Pistoleiro', titular: true, pos: 'left-[50%] top-[16%]' },
-  'Hugo Lima': { vulgo: 'Ponta', titular: true, pos: 'left-[76%] top-[20%]' },
-  'Vitor Hugo': { vulgo: 'Reserva', titular: false },
-  'Felipe Aro': { vulgo: 'Coringa', titular: false },
-  'André Sousa': { vulgo: 'Veterano', titular: false },
+  'Ramon': { vulgo: 'Paredão', titular: true, pos: 'left-[50%] top-[76%]' },
+  'Matheus Couto': { vulgo: 'Xerife', titular: true, pos: 'left-[21%] top-[63%]' },
+  'Pedro Frozza': { vulgo: 'Muralha', titular: true, pos: 'left-[39%] top-[66%]' },
+  'Pedro Gaúcho': { vulgo: 'Zagueirão', titular: true, pos: 'left-[61%] top-[66%]' },
+  'Victor Bahia': { vulgo: 'Lateral', titular: true, pos: 'left-[79%] top-[63%]' },
+  'Victor Simões': { vulgo: 'Maestro', titular: true, pos: 'left-[26%] top-[44%]' },
+  'PH': { vulgo: 'Pcombo', titular: true, pos: 'left-[50%] top-[40%]' },
+  'André': { vulgo: 'Volante', titular: true, pos: 'left-[74%] top-[44%]' },
+  'Matheus Brito': { vulgo: 'Artilheiro', titular: true, pos: 'left-[24%] top-[20%]' },
+  'Costa': { vulgo: 'Pistoleiro', titular: true, pos: 'left-[50%] top-[16%]' },
+  'Diniz': { vulgo: 'Ponta', titular: true, pos: 'left-[76%] top-[20%]' },
+  'Samuel': { vulgo: 'Reserva', titular: false },
+  'Giovanni': { vulgo: 'Coringa', titular: false },
+  'Damus': { vulgo: 'Veterano', titular: false },
 }
 
 interface ParticipantRow {
