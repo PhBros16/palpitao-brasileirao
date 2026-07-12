@@ -24,6 +24,9 @@ export const TITULARES: JogadorCampo[] = [
   { id: 'p11', iniciais: 'JN', nome: 'João Neto', numero: '11', left: '78%', top: '29%', tier: 3, xpx: 297.48, ypx: 217.32 },
 ]
 
+// Técnico — entra junto com o banco (tier 4), primeiro da fila.
+export const TECNICO: JogadorBanco = { id: 'tec1', iniciais: 'PC', nome: 'Cardoso', numero: '', xpx: 87, ypx: 734 }
+
 // Banco — 3 reservas (tier 4, entram por último). xpx/ypx aproximam o centro
 // de cada slot na fileira do banco (ver CenaEstadio/BancoReservas).
 export const BANCO: JogadorBanco[] = [
