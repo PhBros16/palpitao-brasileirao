@@ -45,7 +45,14 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
     <div
       className={cx('flex flex-col items-center gap-[3px]', posicaoCampo && '-translate-x-1/2 -translate-y-1/2', entrada.animar && styles.filaUnica)}
       style={wrapperStyle}
-      onClick={onClick}
+      onClick={
+        onClick
+          ? (e) => {
+              e.stopPropagation()
+              onClick()
+            }
+          : undefined
+      }
     >
       <div
         className={cx(
