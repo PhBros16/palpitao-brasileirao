@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { calcPoints } from './domain/pontuacao'
 
 export interface JogoAdmin {
   id: string
@@ -7,6 +8,8 @@ export interface JogoAdmin {
   date: string
   time: string
   locked: boolean
+  resultadoH: number | null
+  resultadoA: number | null
 }
 
 export interface RodadaAdmin {
@@ -47,7 +50,7 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, home, away, match_date, match_time, travado_manual')
+    .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
     .eq('round_id', round.id)
     .order('match_date', { ascending: true })
 
@@ -58,6 +61,8 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
     date: m.match_date ?? '',
     time: m.match_time?.slice(0, 5) ?? '',
     locked: m.travado_manual ?? false,
+    resultadoH: m.home_score ?? null,
+    resultadoA: m.away_score ?? null,
   }))
 
   return {
@@ -135,5 +140,102 @@ export async function limparPalpitesRodada(roundId: string): Promise<void> {
   const ids = (matches ?? []).map((m) => m.id)
   if (ids.length === 0) return
   const { error } = await supabase.from('predictions').delete().in('match_id', ids)
+  if (error) throw error
+}
+
+/** Lista de participantes reais pro seletor de "Correção Manual". */
+export async function buscarParticipantesNomes(): Promise<Array<{ id: string; name: string }>> {
+  const { data, error } = await supabase.from('participants').select('id, name').order('name')
+  if (error) throw error
+  return data ?? []
+}
+
+/**
+ * Grava o placar real de cada jogo e recalcula os pontos de TODOS os palpites
+ * da rodada — reaproveita lib/domain/pontuacao.ts (a mesma regra testada do
+ * Copa), sem duplicar a lógica de pontuação aqui. Se a rodada valer dobro
+ * (`is_double`), multiplica o resultado por 2 depois de calcPoints (é
+ * exatamente a costura de extensão que o comentário do calcPoints já previa).
+ */
+export async function calcularPontosRodada(
+  roundId: string,
+  resultados: Record<string, { h: number; a: number }>,
+  valeDobro: boolean,
+): Promise<void> {
+  for (const [matchId, r] of Object.entries(resultados)) {
+    const { error } = await supabase.from('matches').update({ home_score: r.h, away_score: r.a }).eq('id', matchId)
+    if (error) throw error
+  }
+
+  const matchIds = Object.keys(resultados)
+  if (matchIds.length === 0) return
+
+  const { data: predictions, error: predErr } = await supabase
+    .from('predictions')
+    .select('id, match_id, pred_h, pred_a')
+    .in('match_id', matchIds)
+  if (predErr) throw predErr
+
+  for (const p of predictions ?? []) {
+    const resultado = resultados[p.match_id]
+    if (!resultado) continue
+    const pontos = calcPoints({ h: p.pred_h, a: p.pred_a }, { h: resultado.h, a: resultado.a })
+    if (pontos === null) continue
+    const pontosFinal = valeDobro ? pontos * 2 : pontos
+    const { error } = await supabase.from('predictions').update({ points: pontosFinal }).eq('id', p.id)
+    if (error) throw error
+  }
+}
+
+export interface PalpitePorJogo {
+  matchId: string
+  home: string
+  away: string
+  predH: number | null
+  predA: number | null
+  resultadoH: number | null
+  resultadoA: number | null
+  points: number | null
+  predictionId: string | null
+}
+
+/** Palpites de UM participante nos jogos de uma rodada — pra tela de correção manual. */
+export async function buscarPalpitesParticipante(roundId: string, participantId: string): Promise<PalpitePorJogo[]> {
+  const { data: matches, error: mErr } = await supabase
+    .from('matches')
+    .select('id, home, away, home_score, away_score')
+    .eq('round_id', roundId)
+    .order('match_date', { ascending: true })
+  if (mErr) throw mErr
+
+  const matchIds = (matches ?? []).map((m) => m.id)
+  const { data: predictions, error: pErr } = await supabase
+    .from('predictions')
+    .select('id, match_id, pred_h, pred_a, points')
+    .eq('participant_id', participantId)
+    .in('match_id', matchIds.length ? matchIds : ['00000000-0000-0000-0000-000000000000'])
+  if (pErr) throw pErr
+
+  const porJogo = new Map((predictions ?? []).map((p) => [p.match_id, p]))
+
+  return (matches ?? []).map((m) => {
+    const pred = porJogo.get(m.id)
+    return {
+      matchId: m.id,
+      home: m.home,
+      away: m.away,
+      predH: pred?.pred_h ?? null,
+      predA: pred?.pred_a ?? null,
+      resultadoH: m.home_score ?? null,
+      resultadoA: m.away_score ?? null,
+      points: pred?.points ?? null,
+      predictionId: pred?.id ?? null,
+    }
+  })
+}
+
+/** Sobrescreve manualmente os pontos de um palpite específico. */
+export async function corrigirPontoManual(predictionId: string, novoValor: number): Promise<void> {
+  const { error } = await supabase.from('predictions').update({ points: novoValor }).eq('id', predictionId)
   if (error) throw error
 }
