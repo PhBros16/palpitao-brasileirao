@@ -5,8 +5,10 @@
 // sem API-Football. Extras "Quem Avança / Pênaltis" e multiplicadores de fase removidos.
 // Dados mockados. Acesso restrito via prop isAdmin.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Accordion } from '@/components/home/Accordion'
+import { buscarRodadaAtiva, salvarRodada, finalizarRodada, limparPalpitesRodada, type JogoAdmin } from '@/lib/rodadaAdmin'
+import { getEscudo } from '@/lib/escudos'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -178,10 +180,31 @@ function SecaoWhatsApp() {
 // ─── SEÇÃO: Configuração da Rodada ───────────────────────────────────────────
 
 function SecaoConfiguracaoRodada() {
+  const [roundId, setRoundId] = useState<string | null>(null)
   const [nome, setNome] = useState('Rodada 20')
   const [numero, setNumero] = useState(20)
   const [aberta, setAberta] = useState(true)
-  const [jogos, setJogos] = useState<Jogo[]>(JOGOS_MOCK)
+  const [valeDobro, setValeDobro] = useState(false)
+  const [jogos, setJogos] = useState<Jogo[]>([])
+  const [idsOriginais, setIdsOriginais] = useState<string[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+
+  useEffect(() => {
+    buscarRodadaAtiva()
+      .then((r) => {
+        setRoundId(r.roundId)
+        setNome(r.nome)
+        setNumero(r.numero)
+        setAberta(r.aberta)
+        setValeDobro(r.valeDobro)
+        setJogos(r.jogos)
+        setIdsOriginais(r.jogos.map((j) => j.id))
+      })
+      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .finally(() => setCarregando(false))
+  }, [])
 
   function addJogo() {
     setJogos((js) => [
@@ -198,8 +221,62 @@ function SecaoConfiguracaoRodada() {
     setJogos((js) => js.map((j) => (j.id === id ? { ...j, ...p } : j)))
   }
 
+  async function handleSalvar() {
+    setSalvando(true)
+    setMensagem(null)
+    try {
+      const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais)
+      setRoundId(idFinal)
+      const atualizado = await buscarRodadaAtiva()
+      setJogos(atualizado.jogos)
+      setIdsOriginais(atualizado.jogos.map((j) => j.id))
+      setMensagem('Rodada salva.')
+    } catch (e) {
+      setMensagem(`Erro ao salvar: ${(e as Error).message}`)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function handleFinalizar() {
+    if (!roundId) return
+    setSalvando(true)
+    try {
+      await finalizarRodada(roundId)
+      setAberta(false)
+      setMensagem('Rodada finalizada.')
+    } catch (e) {
+      setMensagem(`Erro ao finalizar: ${(e as Error).message}`)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function handleLimparPalpites() {
+    if (!roundId) return
+    if (!confirm('Apagar todos os palpites desta rodada? Não dá pra desfazer.')) return
+    setSalvando(true)
+    try {
+      await limparPalpitesRodada(roundId)
+      setMensagem('Palpites apagados.')
+    } catch (e) {
+      setMensagem(`Erro ao limpar: ${(e as Error).message}`)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  if (carregando) {
+    return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
+  }
+
   return (
     <div className="space-y-3">
+      {mensagem && (
+        <Card>
+          <p className="font-sans text-sm text-tinta-200">{mensagem}</p>
+        </Card>
+      )}
       <Card>
         <Row label="Nome">
           <InputText value={nome} onChange={setNome} placeholder="ex: Rodada 20" className="flex-1" />
@@ -218,6 +295,12 @@ function SecaoConfiguracaoRodada() {
           <Toggle checked={aberta} onChange={setAberta} />
           <span className="font-sans text-sm text-tinta-200">{aberta ? 'Abertos' : 'Fechados'}</span>
         </Row>
+        <Row label="Vale x2">
+          <Toggle checked={valeDobro} onChange={setValeDobro} />
+          <span className="font-sans text-sm text-tinta-200">
+            {valeDobro ? '⚡ Pontuação em dobro (última do turno)' : 'Pontuação normal'}
+          </span>
+        </Row>
       </Card>
 
       {jogos.map((j, idx) => (
@@ -233,9 +316,11 @@ function SecaoConfiguracaoRodada() {
             </button>
           </div>
           <Row label="Casa">
+            {getEscudo(j.home) && <img src={getEscudo(j.home)} alt="" className="h-6 w-6 flex-shrink-0 object-contain" />}
             <InputText value={j.home} onChange={(v) => patch(j.id, { home: v })} placeholder="Flamengo" className="flex-1" />
           </Row>
           <Row label="Fora">
+            {getEscudo(j.away) && <img src={getEscudo(j.away)} alt="" className="h-6 w-6 flex-shrink-0 object-contain" />}
             <InputText value={j.away} onChange={(v) => patch(j.id, { away: v })} placeholder="Vasco" className="flex-1" />
           </Row>
           <Row label="Data">
@@ -265,9 +350,9 @@ function SecaoConfiguracaoRodada() {
       </button>
 
       <div className="flex flex-wrap gap-2">
-        <Btn variant="gold">💾 Salvar Rodada</Btn>
-        <Btn variant="green">✔ Finalizar Rodada</Btn>
-        <Btn variant="danger">🗑 Limpar Palpites</Btn>
+        <Btn variant="gold" onClick={handleSalvar} disabled={salvando}>{salvando ? '...' : '💾 Salvar Rodada'}</Btn>
+        <Btn variant="green" onClick={handleFinalizar} disabled={salvando || !roundId}>✔ Finalizar Rodada</Btn>
+        <Btn variant="danger" onClick={handleLimparPalpites} disabled={salvando || !roundId}>🗑 Limpar Palpites</Btn>
       </div>
     </div>
   )
