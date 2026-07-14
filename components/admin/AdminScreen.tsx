@@ -7,7 +7,18 @@
 
 import { useEffect, useState } from 'react'
 import { Accordion } from '@/components/home/Accordion'
-import { buscarRodadaAtiva, salvarRodada, finalizarRodada, limparPalpitesRodada, type JogoAdmin } from '@/lib/rodadaAdmin'
+import {
+  buscarRodadaAtiva,
+  salvarRodada,
+  finalizarRodada,
+  limparPalpitesRodada,
+  buscarParticipantesNomes,
+  calcularPontosRodada,
+  buscarPalpitesParticipante,
+  corrigirPontoManual,
+  type JogoAdmin,
+  type PalpitePorJogo,
+} from '@/lib/rodadaAdmin'
 import { getEscudo } from '@/lib/escudos'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
@@ -363,19 +374,114 @@ function SecaoConfiguracaoRodada() {
 type Placar = { h: string; a: string }
 
 function SecaoResultadoCorrecao() {
-  const [res, setRes] = useState<Record<string, Placar>>(
-    Object.fromEntries(JOGOS_MOCK.map((j) => [j.id, { h: '', a: '' }])),
-  )
+  const [roundId, setRoundId] = useState<string | null>(null)
+  const [valeDobro, setValeDobro] = useState(false)
+  const [jogos, setJogos] = useState<Array<{ id: string; home: string; away: string }>>([])
+  const [res, setRes] = useState<Record<string, Placar>>({})
+  const [carregando, setCarregando] = useState(true)
+  const [calculando, setCalculando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+
+  const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
   const [jogadorSel, setJogadorSel] = useState('')
+  const [palpites, setPalpites] = useState<PalpitePorJogo[]>([])
+  const [carregandoPalpites, setCarregandoPalpites] = useState(false)
+  const [correcaoBuf, setCorrecaoBuf] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
+      .then(([rodada, nomes]) => {
+        setRoundId(rodada.roundId)
+        setValeDobro(rodada.valeDobro)
+        setJogos(rodada.jogos)
+        setRes(Object.fromEntries(rodada.jogos.map((j) => [j.id, { h: j.resultadoH?.toString() ?? '', a: j.resultadoA?.toString() ?? '' }])))
+        setParticipantes(nomes)
+      })
+      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .finally(() => setCarregando(false))
+  }, [])
 
   function setField(id: string, field: 'h' | 'a', val: string) {
     setRes((r) => ({ ...r, [id]: { ...r[id], [field]: val } }))
   }
 
+  async function handleCalcular() {
+    if (!roundId) return
+    setCalculando(true)
+    setMensagem(null)
+    try {
+      const resultados: Record<string, { h: number; a: number }> = {}
+      for (const j of jogos) {
+        const h = res[j.id]?.h
+        const a = res[j.id]?.a
+        if (h === '' || h === undefined || a === '' || a === undefined) continue
+        resultados[j.id] = { h: parseInt(h, 10), a: parseInt(a, 10) }
+      }
+      await calcularPontosRodada(roundId, resultados, valeDobro)
+      setMensagem('Pontos calculados! ⚡')
+      if (jogadorSel) {
+        const p = participantes.find((x) => x.name === jogadorSel)
+        if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
+      }
+    } catch (e) {
+      setMensagem(`Erro ao calcular: ${(e as Error).message}`)
+    } finally {
+      setCalculando(false)
+    }
+  }
+
+  async function selecionarJogador(nome: string) {
+    setJogadorSel(nome)
+    setCorrecaoBuf({})
+    if (!nome || !roundId) {
+      setPalpites([])
+      return
+    }
+    setCarregandoPalpites(true)
+    try {
+      const p = participantes.find((x) => x.name === nome)
+      if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
+    } catch (e) {
+      setMensagem(`Erro ao carregar palpites: ${(e as Error).message}`)
+    } finally {
+      setCarregandoPalpites(false)
+    }
+  }
+
+  async function handleCorrigir(predictionId: string | null) {
+    if (!predictionId) return
+    const valor = correcaoBuf[predictionId]
+    if (valor === undefined || valor === '') return
+    try {
+      await corrigirPontoManual(predictionId, parseInt(valor, 10))
+      if (jogadorSel && roundId) {
+        const p = participantes.find((x) => x.name === jogadorSel)
+        if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
+      }
+      setMensagem('Correção aplicada.')
+    } catch (e) {
+      setMensagem(`Erro ao corrigir: ${(e as Error).message}`)
+    }
+  }
+
+  if (carregando) {
+    return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
+  }
+
+  if (!roundId) {
+    return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada encontrada.</p></Card>
+  }
+
   return (
     <div className="space-y-3">
+      {mensagem && (
+        <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>
+      )}
+      {valeDobro && (
+        <Card><p className="font-sans text-sm font-semibold text-dourado-600">⚡ Esta rodada vale pontuação em dobro</p></Card>
+      )}
       <Card>
-        {JOGOS_MOCK.map((j) => (
+        {jogos.map((j) => (
           <div key={j.id} className="border-b border-papel-borda-200 py-3 last:border-0">
             <p className="mb-2 font-sans text-sm font-semibold text-tinta-300">
               {j.home} × {j.away}
@@ -401,7 +507,9 @@ function SecaoResultadoCorrecao() {
           </div>
         ))}
         <div className="mt-3">
-          <Btn variant="gold">⚡ Calcular Pontos Automaticamente</Btn>
+          <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>
+            {calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}
+          </Btn>
         </div>
       </Card>
 
@@ -411,18 +519,18 @@ function SecaoResultadoCorrecao() {
         <div className="flex gap-2">
           <select
             value={jogadorSel}
-            onChange={(e) => setJogadorSel(e.target.value)}
+            onChange={(e) => selecionarJogador(e.target.value)}
             className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
           >
             <option value="">Selecione o palpiteiro...</option>
-            {NOMES.map((n) => (
-              <option key={n} value={n}>{n}</option>
+            {participantes.map((p) => (
+              <option key={p.id} value={p.name}>{p.name}</option>
             ))}
           </select>
           {jogadorSel && (
             <button
               type="button"
-              onClick={() => setJogadorSel('')}
+              onClick={() => selecionarJogador('')}
               className="rounded border border-papel-borda-300 px-2.5 font-mono text-xs text-tinta-200 hover:bg-papel-100"
             >
               ✕
@@ -433,27 +541,36 @@ function SecaoResultadoCorrecao() {
         {jogadorSel && (
           <Card className="mt-2">
             <p className="mb-3 font-display text-sm font-bold text-dourado-500">{jogadorSel}</p>
-            {JOGOS_MOCK.map((j) => (
-              <div key={j.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
+            {carregandoPalpites && <p className="font-sans text-xs text-tinta-100">Carregando...</p>}
+            {!carregandoPalpites && palpites.map((pj) => (
+              <div key={pj.matchId} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
                 <p className="mb-1.5 font-sans text-xs font-semibold text-tinta-300">
-                  {j.home} × {j.away}
+                  {pj.home} × {pj.away}
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-sans text-xs text-tinta-100">
-                    Palpite: <b className="font-mono text-tinta-300">2×1</b>
+                    Palpite: <b className="font-mono text-tinta-300">{pj.predH !== null ? `${pj.predH}×${pj.predA}` : 'NP'}</b>
                   </span>
                   <span className="font-sans text-xs text-tinta-100">
-                    Resultado: <b className="font-mono text-dourado-500">—</b>
+                    Resultado: <b className="font-mono text-dourado-500">{pj.resultadoH !== null ? `${pj.resultadoH}×${pj.resultadoA}` : '—'}</b>
+                  </span>
+                  <span className="font-sans text-xs text-tinta-100">
+                    Pontos: <b className="font-mono text-dourado-500">{pj.points ?? '—'}</b>
                   </span>
                   <span className="flex items-center gap-1.5 font-mono text-xs text-tinta-100">
                     Corrigir:
                     <input
                       type="number" inputMode="numeric" min={0} placeholder="—"
-                      className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1.5 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none"
+                      value={correcaoBuf[pj.predictionId ?? ''] ?? ''}
+                      onChange={(e) => setCorrecaoBuf((b) => ({ ...b, [pj.predictionId ?? '']: e.target.value }))}
+                      disabled={!pj.predictionId}
+                      className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1.5 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none disabled:opacity-40"
                     />
                     <button
                       type="button"
-                      className="rounded border border-papel-borda-300 px-2 py-0.5 font-mono text-[10px] text-tinta-200 hover:bg-papel-100"
+                      onClick={() => handleCorrigir(pj.predictionId)}
+                      disabled={!pj.predictionId}
+                      className="rounded border border-papel-borda-300 px-2 py-0.5 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40"
                     >
                       ✓ Ok
                     </button>
