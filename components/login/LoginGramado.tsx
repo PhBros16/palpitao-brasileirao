@@ -1,30 +1,25 @@
 'use client'
 
-// LoginGramado — tela de login no gramado tático (versão estática, sem R3F).
+// LoginGramado — tela de login no gramado tático.
 //
 // Reconstrução do zero do TacticalLoginScreen do Copa (referência de
 // COMPORTAMENTO apenas — nada do código do Copa foi portado). Usa os tokens de
 // design e o componente FigurinhaJogador já existente.
 //
 // Princípios:
-//  • Mobile-first, PORTRAIT obrigatório (CLAUDE.md §4 item 3, §5, Regra 8).
-//  • Figurinhas com showRarity=false — raridade NUNCA aparece no login
-//    (decisão travada no CLAUDE.md §4).
-//  • Estilo 100% via Tailwind/tokens, zero inline-style.
-//  • Data-driven: a formação e os jogadores chegam por prop. As posições no
-//    campo são classes Tailwind literais no dado (left-[..%] top-[..%]), então
-//    o JIT as gera normalmente.
+//  • Mobile-first, PORTRAIT obrigatório.
+//  • Figurinhas com showRarity=false — raridade NUNCA aparece no login.
+//  • Estilo 100% via Tailwind/tokens, EXCETO a posição dos jogadores no campo:
+//    essa vai via style inline (posStyle), porque as posições vêm dinâmicas da
+//    formação escolhida no admin e o JIT do Tailwind não gera classes montadas
+//    em runtime via template string (bug anterior: jogadores sumiam do campo).
 //
 // hideHeader=true (usado na abertura cinematográfica):
-//  • Oculta o cabeçalho (título + botão "Abrir o Álbum").
-//  • Campo preenche toda a altura disponível sem aspect-ratio fixo.
-//  • Banco migra para coluna lateral DIREITA (não faixa horizontal dentro do campo).
-//  • Marcações de campo recalibradas: centro em top-[50%], áreas de baixo em bottom-0.
+//  • Oculta o cabeçalho. Campo preenche toda a altura. Banco migra pra coluna
+//    lateral DIREITA. Marcações recalibradas.
 //
-// ⚠️ Segurança (CLAUDE.md §7): o PIN é validado aqui contra dados MOCKADOS só
-// nesta fase estática. NÃO existe MASTER_PASS no client. Quando os dados reais
-// entrarem (Supabase), a validação do PIN vira rota server-side autenticada —
-// o PIN não deve trafegar nem ser conferido no client em produção.
+// ⚠️ Segurança: o PIN é validado no client nesta fase. NÃO existe MASTER_PASS
+// no client. Validação real vira rota server-side na Fase 5.
 
 import { useEffect, useState } from 'react'
 import { FigurinhaJogador, type FigurinhaStats } from '@/components/figurinha'
@@ -38,8 +33,10 @@ export interface LoginPlayer {
   pin: string
   /** Titular (vai a campo) ou reserva (banco). */
   titular: boolean
-  /** Classes Tailwind LITERAIS de posição no campo: ex. 'left-[50%] top-[78%]'. */
-  pos?: string
+  /** Posição no campo via style inline (left/top em %). Vem da formação
+   *  escolhida no admin. Inline porque o JIT do Tailwind não gera classes
+   *  dinâmicas — ver comentário no topo. */
+  posStyle?: { left: string; top: string }
   stats: FigurinhaStats
 }
 
@@ -55,10 +52,7 @@ function getIniciais(nome: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-/** Marcador de jogador no campo — estilo FIFA (clean): círculo com foto/iniciais
- *  + nome abaixo. SEM a figurinha de álbum: ela é pesada demais para a tela de
- *  entrada e a estética de papel/serrilha pertence ao interior do app. A
- *  FigurinhaJogador completa só aparece no modal de PIN (momento de foco). */
+/** Marcador de jogador no campo — círculo com foto/iniciais + nome abaixo. */
 function MarcadorJogador({
   player,
   onClick,
@@ -106,9 +100,6 @@ export function LoginGramado({
 }: {
   players: LoginPlayer[]
   hideHeader?: boolean
-  /** Chamado quando o PIN é validado com sucesso — quem chama decide o que
-   *  fazer (guardar sessão, navegar, etc). Opcional pra não quebrar quem já
-   *  usa o componente sem isso (ex.: abertura cinematográfica). */
   onEntrar?: (player: LoginPlayer) => void
 }) {
   const [selecionado, setSelecionado] = useState<LoginPlayer | null>(null)
@@ -138,12 +129,9 @@ export function LoginGramado({
     setPin((atual) => atual.slice(0, -1))
   }
 
-  // Valida quando completa 4 dígitos (mesmo padrão do Copa — MOCK).
   useEffect(() => {
     if (pin.length !== 4 || !selecionado) return
     if (pin === selecionado.pin) {
-      // eslint-disable-next-line no-console
-      console.log('[login mock] entrou:', selecionado.nome)
       setEntrou(selecionado)
       onEntrar?.(selecionado)
       setSelecionado(null)
@@ -154,7 +142,6 @@ export function LoginGramado({
     }
   }, [pin, selecionado])
 
-  // Modal de PIN (fixed — funciona em ambos os modos de layout)
   const pinModal = selecionado && (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-parede-200/85 p-4 backdrop-blur-sm"
@@ -164,7 +151,6 @@ export function LoginGramado({
         className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-couro-300 bg-papel-100 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Figurinha do selecionado */}
         <div className="h-[120px] w-[100px] overflow-hidden">
           <span className="block origin-top-left scale-[0.52]">
             <FigurinhaJogador
@@ -182,7 +168,6 @@ export function LoginGramado({
           Digite seu PIN
         </p>
 
-        {/* 4 bolinhas */}
         <div className="flex gap-3">
           {[0, 1, 2, 3].map((i) => (
             <span
@@ -205,7 +190,6 @@ export function LoginGramado({
           </p>
         )}
 
-        {/* Teclado numérico */}
         <div className="grid w-full grid-cols-3 gap-2">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
             <button
@@ -243,7 +227,6 @@ export function LoginGramado({
     </div>
   )
 
-  // Overlay de sucesso (fixed — funciona em ambos os modos de layout)
   const successOverlay = entrou && (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-campo-noturno/95 p-6 text-center">
       <p className="font-display text-2xl font-bold uppercase tracking-wide text-dourado-50">
@@ -266,45 +249,32 @@ export function LoginGramado({
   if (hideHeader) {
     return (
       <main className="flex h-full w-full flex-col bg-campo-noturno">
-        {/* Hint (substitui o header completo) */}
         <p className="flex-shrink-0 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-campo-50">
           Toque no seu nome para entrar
         </p>
 
-        {/* Linha principal: campo + banco lateral */}
         <div className="flex flex-1 items-stretch overflow-hidden">
-          {/* Campo — sem aspect-ratio fixo, preenche a altura disponível */}
           <div className="relative flex-1 overflow-hidden bg-[repeating-linear-gradient(180deg,var(--campo-100)_0_34px,var(--campo-200)_34px_68px)]">
-            {/* ── Linhas de campo (campo completo, sem faixa de banco) ── */}
-            {/* Gol de cima */}
             <div className="absolute left-1/2 top-0 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/30" />
-            {/* Grande área de cima */}
             <div className="absolute left-1/2 top-0 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/25" />
-            {/* Linha de meio-campo */}
             <div className="absolute inset-x-0 top-[50%] h-px bg-papel-100/25" />
-            {/* Círculo central */}
             <div className="absolute left-1/2 top-[50%] h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-papel-100/25" />
             <div className="absolute left-1/2 top-[50%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-papel-100/30" />
-            {/* Grande área de baixo */}
             <div className="absolute bottom-0 left-1/2 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/25" />
-            {/* Gol de baixo */}
             <div className="absolute bottom-0 left-1/2 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/30" />
 
-            {/* ── Titulares posicionados ── */}
+            {/* ── Titulares: posição via style inline (posStyle) ── */}
             {titulares.map((p) => (
               <div
                 key={p.id}
-                className={cx(
-                  'absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center',
-                  p.pos,
-                )}
+                className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center"
+                style={p.posStyle}
               >
                 <MarcadorJogador player={p} size="campo" onClick={() => abrir(p)} />
               </div>
             ))}
           </div>
 
-          {/* Banco — coluna lateral direita (máx 3-4 jogadores visíveis) */}
           <div className="flex w-[76px] flex-shrink-0 flex-col items-center gap-3 overflow-y-auto border-l border-papel-100/20 bg-campo-noturno/80 py-3">
             <span className="font-mono text-[8px] uppercase tracking-widest text-campo-50">
               Banco
@@ -324,7 +294,6 @@ export function LoginGramado({
   // ── Modo normal: tela de login completa com cabeçalho e campo portrait ──
   return (
     <main className="flex min-h-screen flex-col items-center bg-campo-noturno px-4 py-6">
-      {/* Cabeçalho + CTA almanaque */}
       <header className="mb-5 flex flex-col items-center gap-3">
         <h1 className="text-center font-display text-2xl font-bold uppercase leading-none tracking-wide text-dourado-50">
           Palpitão Brasileirão
@@ -342,9 +311,7 @@ export function LoginGramado({
         </p>
       </header>
 
-      {/* Campo em portrait com aspecto 3:5 */}
       <div className="relative aspect-[3/5] w-full max-w-[380px] overflow-hidden rounded-lg border-2 border-papel-100/25 bg-[repeating-linear-gradient(180deg,var(--campo-100)_0_34px,var(--campo-200)_34px_68px)] shadow-2xl">
-        {/* ── Linhas de campo ── */}
         <div className="absolute left-1/2 top-0 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/30" />
         <div className="absolute left-1/2 top-0 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-b-2 border-papel-100/25" />
         <div className="absolute inset-x-0 top-[43%] h-px bg-papel-100/25" />
@@ -353,17 +320,17 @@ export function LoginGramado({
         <div className="absolute bottom-[16%] left-1/2 h-[14%] w-[58%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/25" />
         <div className="absolute bottom-[16%] left-1/2 h-[2%] w-[22%] -translate-x-1/2 border-x-2 border-t-2 border-papel-100/30" />
 
-        {/* ── Titulares posicionados ── */}
+        {/* ── Titulares: posição via style inline (posStyle) ── */}
         {titulares.map((p) => (
           <div
             key={p.id}
-            className={cx('absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center', p.pos)}
+            className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center"
+            style={p.posStyle}
           >
             <MarcadorJogador player={p} size="campo" onClick={() => abrir(p)} />
           </div>
         ))}
 
-        {/* ── Banco (faixa inferior do campo) ── */}
         <div className="absolute inset-x-0 bottom-0 z-20 h-[16%] border-t-2 border-papel-100/25 bg-campo-noturno/70">
           <span className="absolute left-2 top-1 font-mono text-[8px] uppercase tracking-widest text-campo-50">
             Banco
