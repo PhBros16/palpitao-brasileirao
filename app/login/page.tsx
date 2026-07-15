@@ -10,10 +10,12 @@
 // está "logado" sem precisar de auth real ainda.
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { LoginGramado, type LoginPlayer } from '@/components/login'
 import { buscarJogadoresLogin } from '@/lib/participantesReais'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [jogadores, setJogadores] = useState<LoginPlayer[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -29,6 +31,7 @@ export default function LoginPage() {
 
   function handleEntrar(player: LoginPlayer) {
     localStorage.setItem('palpitao_sessao', JSON.stringify({ id: player.id, nome: player.nome }))
+    router.push('/palpites')
   }
 
   if (erro) {
