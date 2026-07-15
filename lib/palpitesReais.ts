@@ -10,11 +10,17 @@ export interface RodadaPalpites {
 
 /** Combina match_date (date) + match_time (time) num ISO completo.
  *  Sem data/hora definida, usa "agora" — assim o jogo já nasce travado
- *  (mesmo comportamento documentado no admin: "sem data trava hoje"). */
+ *  (mesmo comportamento documentado no admin: "sem data trava hoje").
+ *  match_time pode vir do Postgres como "HH:MM" ou "HH:MM:SS" — normaliza. */
 function combinarKickoff(date: string | null, time: string | null): string {
   if (!date) return new Date().toISOString()
-  const hora = time ?? '00:00'
-  return new Date(`${date}T${hora}:00`).toISOString()
+  const horaBruta = time ?? '00:00'
+  // Garante formato HH:MM:SS (Postgres pode devolver com ou sem segundos)
+  const partes = horaBruta.split(':')
+  const hh = (partes[0] ?? '00').padStart(2, '0')
+  const mm = (partes[1] ?? '00').padStart(2, '0')
+  const ss = (partes[2] ?? '00').padStart(2, '0')
+  return new Date(`${date}T${hh}:${mm}:${ss}`).toISOString()
 }
 
 /** Busca a rodada com palpites abertos (a mais recente, se houver mais de
