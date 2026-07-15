@@ -5,6 +5,10 @@
 // isso precisa virar rota server-side antes de produção com dados sensíveis
 // de verdade — por ora os PINs são só "0000" placeholder, risco baixo).
 //
+// Fase 5 (Alterar Formação): a formação em campo agora vem de app_settings.
+// buscarJogadoresLogin(formacaoId) recebe o id e devolve os LoginPlayer com
+// as classes Tailwind de posição já corretas.
+//
 // Sessão: guardada em localStorage (chave 'palpitao_sessao') só com
 // participant_id + nome. Suficiente pra próxima etapa (Palpites) saber quem
 // está "logado" sem precisar de auth real ainda.
@@ -13,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoginGramado, type LoginPlayer } from '@/components/login'
 import { buscarJogadoresLogin } from '@/lib/participantesReais'
+import { lerFormacaoId } from '@/lib/appSettings'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,13 +25,17 @@ export default function LoginPage() {
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
-    buscarJogadoresLogin()
-      .then(setJogadores)
-      .catch((e) => {
+    (async () => {
+      try {
+        const formacaoId = await lerFormacaoId()
+        const players = await buscarJogadoresLogin(formacaoId)
+        setJogadores(players)
+      } catch (e) {
         // eslint-disable-next-line no-console
         console.error('[login] falha ao buscar participantes:', e)
         setErro('Não consegui carregar os participantes. Confere a conexão com o Supabase.')
-      })
+      }
+    })()
   }, [])
 
   function handleEntrar(player: LoginPlayer) {
