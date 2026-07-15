@@ -20,10 +20,14 @@ export function PalpitesRodada({
   rodadaNome,
   jogos,
   palpitesIniciais,
+  onSalvar,
 }: {
   rodadaNome: string
   jogos: JogoPalpite[]
   palpitesIniciais?: Record<string, Palpite>
+  /** Chamado ao salvar, com os palpites atuais — quem chama decide o que
+   *  fazer (gravar no Supabase, etc). Sem isso, só loga no console (mock). */
+  onSalvar?: (palpites: Record<string, Palpite>) => void | Promise<void>
 }) {
   const [palpites, setPalpites] = useState<Record<string, Palpite>>(palpitesIniciais ?? {})
   const [now, setNow] = useState<number>(() => Date.now())
@@ -74,8 +78,20 @@ export function PalpitesRodada({
     return !locked && (!p || p.h === '' || p.a === '')
   })
 
-  function salvar() {
-    // Por enquanto só estado local — integração server-side vem com o Supabase.
+  const [salvando, setSalvando] = useState(false)
+
+  async function salvar() {
+    if (onSalvar) {
+      setSalvando(true)
+      try {
+        await onSalvar(palpites)
+        setSalvoEm(new Date())
+      } finally {
+        setSalvando(false)
+      }
+      return
+    }
+    // Sem onSalvar (uso mock) — só loga no console.
     // eslint-disable-next-line no-console
     console.log('[palpites mock] salvar:', palpites)
     setSalvoEm(new Date())
@@ -142,9 +158,10 @@ export function PalpitesRodada({
           <button
             type="button"
             onClick={salvar}
-            className="rounded-md border-2 border-dourado-300 bg-couro-300 px-6 py-2 font-display text-sm font-bold uppercase tracking-wider text-dourado-50 shadow-md transition-colors hover:bg-couro-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
+            disabled={salvando}
+            className="rounded-md border-2 border-dourado-300 bg-couro-300 px-6 py-2 font-display text-sm font-bold uppercase tracking-wider text-dourado-50 shadow-md transition-colors hover:bg-couro-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300 disabled:opacity-60"
           >
-            Salvar Palpites
+            {salvando ? 'Salvando...' : 'Salvar Palpites'}
           </button>
         </div>
       </div>
