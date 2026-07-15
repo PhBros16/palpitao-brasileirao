@@ -38,7 +38,10 @@ interface ParticipantRow {
 }
 
 /** Distribui os participantes nas posições da formação (mesmo motor do
- *  elencoMock, mas devolve LoginPlayer com className Tailwind pra `pos`). */
+ *  elencoMock). Devolve LoginPlayer com posStyle = objeto de estilo inline
+ *  (left/top em %). NÃO usa classes Tailwind dinâmicas — o JIT não as gera
+ *  quando montadas em runtime via template string, e os jogadores somem do
+ *  campo. Style inline resolve de vez. */
 function distribuirPorFormacao(
   participantes: ParticipantRow[],
   formacaoId: string,
@@ -62,11 +65,9 @@ function distribuirPorFormacao(
   let ordenados: typeof comFlavor = []
 
   if (formacao.tipo === 'doida') {
-    // Todos em campo (14 posições). Ordem gol→def→mei→ata→tec→res.
     ordenados = [...naturais.gol, ...naturais.def, ...naturais.mei, ...naturais.ata, ...naturais.tec, ...naturais.res]
   } else {
     const { gol, def, mei, ata } = formacao.slots!
-    // Titulares na ordem da formação
     const titulares: typeof comFlavor = []
     titulares.push(...naturais.gol.slice(0, gol))
     const defEscolhidos = naturais.def.slice(0, def)
@@ -80,8 +81,6 @@ function distribuirPorFormacao(
     const ataEscolhidos = ataPool.slice(0, ata)
     const ataSobra = ataPool.slice(ata)
     titulares.push(...ataEscolhidos)
-
-    // Reservas: quem sobrou + técnico + reservas oficiais
     const reservas = [...ataSobra, ...naturais.tec, ...naturais.res]
     ordenados = [...titulares, ...reservas]
   }
@@ -89,12 +88,9 @@ function distribuirPorFormacao(
   return ordenados.map((x, i) => {
     const p = x.row
     const isTitular = formacao.tipo === 'doida' || i < formacao.posicoes.length
-    let posClass: string | undefined
+    let posStyle: { left: string; top: string } | undefined
     if (isTitular && formacao.posicoes[i]) {
-      // Converte "50%" → "left-[50%] top-[86%]"
-      const l = formacao.posicoes[i].left
-      const t = formacao.posicoes[i].top
-      posClass = `left-[${l}] top-[${t}]`
+      posStyle = { left: formacao.posicoes[i].left, top: formacao.posicoes[i].top }
     }
     return {
       id: p.id,
@@ -103,7 +99,7 @@ function distribuirPorFormacao(
       fotoUrl: p.avatar ?? undefined,
       pin: p.pin,
       titular: isTitular,
-      pos: posClass,
+      posStyle,
       stats: { pts: 0, cravou: 0, pos: 0 },
     }
   })
