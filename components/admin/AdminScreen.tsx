@@ -11,6 +11,9 @@ import {
   buscarRodadaAtiva,
   salvarRodada,
   finalizarRodada,
+  reabrirRodada,
+  buscarRodadasFinalizadas,
+  buscarJogosSemPlacar,
   limparPalpitesRodada,
   buscarParticipantesNomes,
   calcularPontosRodada,
@@ -249,13 +252,31 @@ function SecaoConfiguracaoRodada() {
     }
   }
 
-  async function handleFinalizar() {
+  const [modalFinalizar, setModalFinalizar] = useState<'fechado' | 'confirmar' | 'aviso'>('fechado')
+  const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
+
+  async function abrirFinalizar() {
     if (!roundId) return
     setSalvando(true)
     try {
+      const faltando = await buscarJogosSemPlacar(roundId)
+      setJogosSemPlacar(faltando)
+      setModalFinalizar(faltando.length > 0 ? 'aviso' : 'confirmar')
+    } catch (e) {
+      setMensagem(`Erro ao verificar jogos: ${(e as Error).message}`)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function confirmarFinalizar() {
+    if (!roundId) return
+    setSalvando(true)
+    setModalFinalizar('fechado')
+    try {
       await finalizarRodada(roundId)
       setAberta(false)
-      setMensagem('Rodada finalizada.')
+      setMensagem('Rodada finalizada. Pontos lançados no Ranking. 🏆')
     } catch (e) {
       setMensagem(`Erro ao finalizar: ${(e as Error).message}`)
     } finally {
@@ -362,9 +383,55 @@ function SecaoConfiguracaoRodada() {
 
       <div className="flex flex-wrap gap-2">
         <Btn variant="gold" onClick={handleSalvar} disabled={salvando}>{salvando ? '...' : '💾 Salvar Rodada'}</Btn>
-        <Btn variant="green" onClick={handleFinalizar} disabled={salvando || !roundId}>✔ Finalizar Rodada</Btn>
+        <Btn variant="green" onClick={abrirFinalizar} disabled={salvando || !roundId}>✔ Finalizar Rodada</Btn>
         <Btn variant="danger" onClick={handleLimparPalpites} disabled={salvando || !roundId}>🗑 Limpar Palpites</Btn>
       </div>
+
+      {/* Modal: confirmação simples (todos os placares lançados) */}
+      {modalFinalizar === 'confirmar' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
+          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+            <p className="mb-2 font-display text-lg font-bold text-tinta-300">Finalizar rodada?</p>
+            <p className="mb-4 font-sans text-sm text-tinta-200">
+              Isso é <b>definitivo</b> e lança tudo no <b>Ranking</b>.
+              Se precisar corrigir depois, use <i>Reabrir Rodada</i>.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Cancelar</Btn>
+              <Btn variant="green" onClick={confirmarFinalizar}>✔ Finalizar</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: aviso "Tá doido é?" (algum jogo sem placar) */}
+      {modalFinalizar === 'aviso' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
+          <div className="w-full max-w-sm rounded-lg border-2 border-raridade-frango-selo bg-papel-50 p-5 shadow-xl">
+            <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">
+              Tá doido é?
+            </p>
+            <p className="mb-3 font-sans text-sm text-tinta-200">
+              Faltou lançar o resultado desses jogos Pai:
+            </p>
+            <ul className="mb-4 max-h-48 overflow-y-auto rounded border border-papel-borda-200 bg-papel-100 px-3 py-2">
+              {jogosSemPlacar.map((j) => (
+                <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">
+                  {j.home} × {j.away}
+                </li>
+              ))}
+            </ul>
+            <p className="mb-4 font-mono text-[10px] text-tinta-100">
+              Se algum jogo foi adiado, dá pra finalizar mesmo assim
+              (esses ficam sem pontuação).
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Voltar</Btn>
+              <Btn variant="danger" onClick={confirmarFinalizar}>Finalizar mesmo assim</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -581,6 +648,106 @@ function SecaoResultadoCorrecao() {
           </Card>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── SEÇÃO: Reabrir Rodada ────────────────────────────────────────────────────
+
+function SecaoReabrirRodada() {
+  const [rodadas, setRodadas] = useState<Array<{ id: string; number: number; name: string }>>([])
+  const [selecionada, setSelecionada] = useState('')
+  const [carregando, setCarregando] = useState(true)
+  const [reabrindo, setReabrindo] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+  const [confirmar, setConfirmar] = useState(false)
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const rs = await buscarRodadasFinalizadas()
+      setRodadas(rs)
+    } catch (e) {
+      setMensagem(`Erro ao carregar: ${(e as Error).message}`)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => {
+    carregar()
+  }, [])
+
+  async function handleReabrir() {
+    if (!selecionada) return
+    setReabrindo(true)
+    setConfirmar(false)
+    try {
+      await reabrirRodada(selecionada)
+      setMensagem('Rodada reaberta. Ela voltou pra "em andamento" e pode ser editada.')
+      setSelecionada('')
+      await carregar()
+    } catch (e) {
+      setMensagem(`Erro ao reabrir: ${(e as Error).message}`)
+    } finally {
+      setReabrindo(false)
+    }
+  }
+
+  const rodadaSel = rodadas.find((r) => r.id === selecionada)
+
+  return (
+    <div className="space-y-3">
+      {mensagem && (
+        <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>
+      )}
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Volta uma rodada finalizada pro estado "em andamento" — útil se descobrir erro
+          de digitação no placar depois de finalizar. Pontos já calculados permanecem.
+        </p>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando rodadas...</p>
+        ) : rodadas.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma rodada finalizada ainda.</p>
+        ) : (
+          <>
+            <Row label="Rodada">
+              <select
+                value={selecionada}
+                onChange={(e) => setSelecionada(e.target.value)}
+                className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
+              >
+                <option value="">Selecione a rodada...</option>
+                {rodadas.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name} (Nº {r.number})</option>
+                ))}
+              </select>
+            </Row>
+            <div className="mt-3">
+              <Btn variant="gold" onClick={() => setConfirmar(true)} disabled={!selecionada || reabrindo}>
+                🔓 Reabrir Rodada
+              </Btn>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {confirmar && rodadaSel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
+          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+            <p className="mb-2 font-display text-lg font-bold text-tinta-300">Reabrir {rodadaSel.name}?</p>
+            <p className="mb-4 font-sans text-sm text-tinta-200">
+              Ela sai do Ranking oficial e volta pro estado "em andamento". Pontos já calculados
+              permanecem — ao finalizar de novo, o Ranking se ajusta.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
+              <Btn variant="gold" onClick={handleReabrir}>🔓 Reabrir</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1081,6 +1248,7 @@ const SECOES = [
   { key: 'whatsapp',  titulo: '📲 Compartilhar no WhatsApp',  conteudo: <SecaoWhatsApp /> },
   { key: 'rodada',    titulo: '⚙ Configuração da Rodada',     conteudo: <SecaoConfiguracaoRodada /> },
   { key: 'resultado', titulo: '⚽ Resultado & Correção',       conteudo: <SecaoResultadoCorrecao /> },
+  { key: 'reabrir',   titulo: '🔓 Reabrir Rodada',              conteudo: <SecaoReabrirRodada /> },
   { key: 'frango',    titulo: '🐔 Frango da Rodada',           conteudo: <SecaoFrango /> },
   { key: 'novidades', titulo: '🆕 Novidades',                  conteudo: <SecaoNovidades /> },
   { key: 'musica',    titulo: '🎵 Música Padrão',              conteudo: <SecaoMusica /> },
