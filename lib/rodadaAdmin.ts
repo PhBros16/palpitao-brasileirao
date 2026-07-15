@@ -127,11 +127,46 @@ export async function salvarRodada(
   return idFinal!
 }
 
-/** Finaliza a rodada — fecha palpites e marca como encerrada. O cálculo de
- *  pontos em si usa lib/domain/pontuacao.ts (não duplicado aqui). */
+/** Retorna a lista de jogos SEM placar lançado na rodada — usado pra popular
+ *  o modal "Tá doido é?" antes de finalizar. Se retornar vazio, é seguro
+ *  finalizar sem aviso. */
+export async function buscarJogosSemPlacar(roundId: string): Promise<Array<{ id: string; home: string; away: string }>> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, home, away, home_score, away_score')
+    .eq('round_id', roundId)
+    .order('match_date', { ascending: true })
+  if (error) throw error
+  return (data ?? [])
+    .filter((m) => m.home_score === null || m.away_score === null)
+    .map((m) => ({ id: m.id, home: m.home, away: m.away }))
+}
+
+/** Finaliza a rodada — fecha palpites e marca como encerrada. Isso é o gatilho
+ *  que promove a rodada em andamento pro ranking oficial. Reversível via
+ *  reabrirRodada() caso o admin descubra erro depois. */
 export async function finalizarRodada(roundId: string): Promise<void> {
   const { error } = await supabase.from('rounds').update({ finalized: true, palpites_open: false }).eq('id', roundId)
   if (error) throw error
+}
+
+/** Reabre uma rodada finalizada — volta ela pro estado "em andamento".
+ *  Não mexe em pontos já calculados (só troca as flags). Ao finalizar de novo,
+ *  o ranking incorpora os pontos naturalmente. */
+export async function reabrirRodada(roundId: string): Promise<void> {
+  const { error } = await supabase.from('rounds').update({ finalized: false, palpites_open: true }).eq('id', roundId)
+  if (error) throw error
+}
+
+/** Lista todas as rodadas finalizadas — pra popular o seletor de reabertura. */
+export async function buscarRodadasFinalizadas(): Promise<Array<{ id: string; number: number; name: string }>> {
+  const { data, error } = await supabase
+    .from('rounds')
+    .select('id, number, name')
+    .eq('finalized', true)
+    .order('number', { ascending: false })
+  if (error) throw error
+  return data ?? []
 }
 
 /** Apaga todos os palpites da rodada (predictions), sem mexer nos jogos. */
