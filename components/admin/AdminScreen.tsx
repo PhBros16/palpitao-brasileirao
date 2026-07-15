@@ -1000,7 +1000,94 @@ function SecaoPontuacao() {
 }
 
 function SecaoNovidades() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco.</p></Card>
+  const [titulo, setTitulo] = useState('')
+  const [resumo, setResumo] = useState('')
+  const [lista, setLista] = useState<Array<{ id: string; titulo: string; resumo: string | null; data: string | null }>>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const { data, error } = await supabase
+        .from('novidades')
+        .select('id, titulo, resumo, data')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setLista(data ?? [])
+    } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    finally { setCarregando(false) }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  async function publicar() {
+    if (!titulo.trim()) return
+    setSalvando(true); setMensagem(null)
+    try {
+      const { error } = await supabase.from('novidades').insert({
+        titulo: titulo.trim(),
+        resumo: resumo.trim() || null,
+      })
+      if (error) throw error
+      setTitulo(''); setResumo('')
+      setMensagem('Novidade publicada. 🆕')
+      await carregar()
+    } catch (e) { setMensagem(`Erro ao publicar: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  async function remover(id: string) {
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('novidades').delete().eq('id', id)
+      if (error) throw error
+      setMensagem('Novidade removida.')
+      await carregar()
+    } catch (e) { setMensagem(`Erro ao remover: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Publique uma novidade pra aparecer como pop-up quando os participantes entrarem no app.
+        </p>
+        <Row label="Título"><InputText value={titulo} onChange={setTitulo} placeholder="ex: Ranking disponível!" className="flex-1" /></Row>
+        <Row label="Resumo">
+          <textarea value={resumo} onChange={(e) => setResumo(e.target.value)} placeholder="Breve descrição..." rows={2}
+            className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
+        </Row>
+        <div className="mt-3">
+          <Btn variant="gold" onClick={publicar} disabled={salvando || !titulo.trim()}>{salvando ? '...' : '🆕 Publicar'}</Btn>
+        </div>
+      </Card>
+
+      <Card>
+        <SubLabel>Publicadas</SubLabel>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+        ) : lista.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma novidade publicada.</p>
+        ) : (
+          lista.map((n) => (
+            <div key={n.id} className="flex items-start gap-2 border-b border-papel-borda-200 py-2.5 last:border-0">
+              <div className="flex-1">
+                <p className="font-sans text-sm font-semibold text-tinta-300">{n.titulo}</p>
+                {n.resumo && <p className="mt-0.5 font-sans text-xs text-tinta-200">{n.resumo}</p>}
+                <p className="mt-0.5 font-mono text-[10px] text-tinta-100">{n.data ? new Date(n.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</p>
+              </div>
+              <button type="button" onClick={() => remover(n.id)} disabled={salvando}
+                className="font-mono text-[10px] text-raridade-frango-selo hover:underline disabled:opacity-40">Remover</button>
+            </div>
+          ))
+        )}
+      </Card>
+    </div>
+  )
 }
 function SecaoMusica() {
   return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
@@ -1023,19 +1110,13 @@ function SecaoFinalizarCampeonato() {
 const SECOES = [
   { key: 'whatsapp',     titulo: '📲 Compartilhar no WhatsApp',  conteudo: <SecaoWhatsApp /> },
   { key: 'rodada',       titulo: '⚙ Configuração da Rodada',     conteudo: <SecaoConfiguracaoRodada /> },
-  { key: 'formacao',     titulo: '⚽ Alterar Formação',           conteudo: <SecaoAlterarFormacao /> },
   { key: 'resultado',    titulo: '⚽ Resultado & Correção',       conteudo: <SecaoResultadoCorrecao /> },
   { key: 'frango',       titulo: '🐔 Frango da Rodada',           conteudo: <SecaoFrango /> },
   { key: 'reabrir',      titulo: '🔓 Reabrir Rodada',             conteudo: <SecaoReabrirRodada /> },
   { key: 'projecao',     titulo: '🔮 Projeção de Campeão',        conteudo: <SecaoProjecao /> },
   { key: 'evolucao',     titulo: '📈 Gráfico de Evolução',        conteudo: <SecaoEvolucao /> },
+  { key: 'formacao',     titulo: '⚽ Alterar Formação',           conteudo: <SecaoAlterarFormacao /> },
   { key: 'pontuacao',    titulo: '📐 Esquema de Pontuação',       conteudo: <SecaoPontuacao /> },
-  { key: 'novidades',    titulo: '🆕 Novidades',                  conteudo: <SecaoNovidades /> },
-  { key: 'musica',       titulo: '🎵 Música Tema',                conteudo: <SecaoMusica /> },
-  { key: 'adms',         titulo: '👑 Conheça os Adms',            conteudo: <SecaoAdms /> },
-  { key: 'pins',         titulo: '🔐 PINs dos Jogadores',         conteudo: <SecaoPINs /> },
-  { key: 'log',          titulo: '📋 Log de Ações',               conteudo: <SecaoLog /> },
-  { key: 'finalizar',    titulo: '🏆 Finalizar Campeonato',       conteudo: <SecaoFinalizarCampeonato /> },
 ]
 
 export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
