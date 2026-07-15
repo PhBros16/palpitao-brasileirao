@@ -67,7 +67,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cx(
         'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300',
-        checked ? 'bg-campo-500' : 'bg-papel-borda-400',
+        checked ? 'bg-green-700' : 'bg-papel-borda-400',
       )}
     >
       <span
@@ -91,7 +91,7 @@ function Btn({
 }) {
   const styles: Record<string, string> = {
     gold: 'bg-dourado-400 text-papel-50 hover:bg-dourado-500 border-transparent',
-    green: 'bg-campo-500 text-papel-50 hover:bg-campo-600 border-transparent',
+    green: 'bg-green-700 text-white hover:bg-green-800 border-transparent',
     danger: 'bg-red-600 text-papel-50 hover:bg-red-700 border-transparent',
     outline: 'bg-transparent text-tinta-200 hover:bg-papel-200 border-papel-borda-300',
     whatsapp: 'bg-[#25D366] text-papel-50 hover:bg-[#1ebe5d] border-transparent',
