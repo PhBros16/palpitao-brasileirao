@@ -1,4 +1,4 @@
-# 🏆 Palpitão Copa 2026
+# 🏆 EM CONSTRUÇÃO
 
 > O bolão de Copa do Mundo mais completo que você já viu.
 
