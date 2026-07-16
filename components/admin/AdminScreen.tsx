@@ -278,6 +278,32 @@ function SecaoConfiguracaoRodada() {
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
 
   useEffect(() => {
+      const [ehExtra, setEhExtra] = useState(false)
+
+  // Sugere o próximo número disponível quando marca "É extra"
+  async function toggleExtra(v: boolean) {
+    setEhExtra(v)
+    if (v) {
+      // Busca o maior number >= 100 já usado e sugere o próximo
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data } = await supabase
+          .from('rounds')
+          .select('number')
+          .gte('number', 100)
+          .order('number', { ascending: false })
+          .limit(1)
+        const proximo = data && data.length > 0 ? data[0].number + 1 : 100
+        setNumero(proximo)
+        if (!nome.toLowerCase().startsWith('extra')) {
+          setNome(`Extra ${proximo - 99}`)
+        }
+      } catch { /* silencioso */ }
+    } else {
+      // Voltou pra rodada normal — sugere número entre 1 e 38
+      if (numero >= 100) setNumero(20)
+    }
+  }
     buscarRodadaAtiva()
       .then((r) => {
         setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
@@ -360,6 +386,12 @@ function SecaoConfiguracaoRodada() {
         <Row label="Vale x2">
           <Toggle checked={valeDobro} onChange={setValeDobro} />
           <span className="font-sans text-sm text-tinta-200">{valeDobro ? '⚡ Pontuação em dobro' : 'Pontuação normal'}</span>
+        </Row>
+        <Row label="É extra">
+          <Toggle checked={ehExtra} onChange={toggleExtra} />
+          <span className="font-sans text-sm text-tinta-200">
+            {ehExtra ? '🔀 Rodada extra (aparece como "E1", "E2"...)' : 'Rodada normal (R1–R38)'}
+          </span>
         </Row>
       </Card>
 
