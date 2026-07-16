@@ -204,16 +204,16 @@ export async function buscarStatsGrupo(): Promise<StatsGrupoCompleto> {
     }
   })
 
-  // 2. Acerto Vencedor
+  // 2. Acerto do Vencedor (SÓ vencedor — 1pt — igual ao App Script/CSV oficial)
+  // Não conta cravadas nem saldos (já aparecem em blocos próprios).
   const acertoVencedor: JogadorAcertoVencedor[] = participants.map((p) => {
     const agg = aggMap.get(p.id)!
     const total = totalPalpitesMap.get(p.id) ?? 0
-    const acertos = agg.cravadas + agg.saldos + agg.vencedores
     return {
       nome: p.name,
-      acertos,
+      acertos: agg.vencedores,
       totalPalpites: total,
-      pct: total > 0 ? Math.round((acertos / total) * 100) : 0,
+      pct: total > 0 ? Math.round((agg.vencedores / total) * 100) : 0,
     }
   })
 
