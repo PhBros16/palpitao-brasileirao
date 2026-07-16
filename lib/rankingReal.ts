@@ -3,15 +3,15 @@ import { lerConfig } from './appSettings'
 
 // Camada de dados do Ranking real.
 //
-// Agrega participants + predictions + matches + rounds (só finalizadas) e
-// devolve tudo que a tela /ranking precisa.
+// Fonte oficial: tabela round_results (importada do histórico).
+// Pra rodadas NOVAS (19+), os pontos serão gravados em round_results via
+// a rotina de finalização de rodada (próxima etapa).
 //
 // Regras:
-//   - Só rodadas com finalized=true entram no cálculo (pontos E métricas).
-//   - Só participantes com is_admin=false (o "Administração" fica de fora).
+//   - Só participantes com is_admin=false
+//   - Só rodadas com finalized=true
 //   - Ordena por: total desc → cravadas desc → vencedor desc → saldo desc
-//   - Projeção %: config app_settings.projecao_janela (janela em rodadas).
-//     Se < 2 rodadas finalizadas, projeção = null (UI mostra "—").
+//   - Projeção %: config app_settings.projecao_janela
 
 export interface LinhaRanking {
   participantId: string
@@ -52,44 +52,24 @@ export interface FrenteFrenteRodada {
   totalB: number
 }
 
-/** Busca o ranking geral (só rodadas finalizadas, só não-admins), já ordenado. */
+/** Busca o ranking geral (de round_results, só finalizadas, só não-admins). */
 export async function buscarRankingReal(): Promise<LinhaRanking[]> {
-  const [
-    { data: participants, error: pErr },
-    { data: rounds, error: rErr },
-  ] = await Promise.all([
-    // 👇 Filtra "Administração" e qualquer outro is_admin=true
-    supabase.from('participants').select('id, name').eq('is_admin', false).order('name'),
-    supabase.from('rounds').select('id').eq('finalized', true),
-  ])
+  const { data: participants, error: pErr } = await supabase
+    .from('participants')
+    .select('id, name')
+    .eq('is_admin', false)
+    .order('name')
   if (pErr) throw pErr
-  if (rErr) throw rErr
   if (!participants) return []
 
-  const roundIdsFinalizadas = (rounds ?? []).map((r) => r.id)
+  const { data: rounds, error: rErr } = await supabase
+    .from('rounds')
+    .select('id')
+    .eq('finalized', true)
+  if (rErr) throw rErr
+  const roundIds = (rounds ?? []).map((r) => r.id)
 
-  if (roundIdsFinalizadas.length === 0) {
-    return participants.map((p, i) => ({
-      participantId: p.id,
-      nome: p.name,
-      total: 0, cravadas: 0, vencedor: 0, saldo: 0,
-      projecaoPct: null,
-      posicao: i + 1,
-    }))
-  }
-
-  const { data: matches, error: mErr } = await supabase
-    .from('matches')
-    .select('id, home_score, away_score')
-    .in('round_id', roundIdsFinalizadas)
-  if (mErr) throw mErr
-
-  const matchIds = (matches ?? []).map((m) => m.id)
-  const matchScoreMap = new Map(
-    (matches ?? []).map((m) => [m.id, { h: m.home_score, a: m.away_score }])
-  )
-
-  if (matchIds.length === 0) {
+  if (roundIds.length === 0) {
     return participants.map((p, i) => ({
       participantId: p.id, nome: p.name,
       total: 0, cravadas: 0, vencedor: 0, saldo: 0,
@@ -97,39 +77,28 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }))
   }
 
-  const { data: predictions, error: predErr } = await supabase
-    .from('predictions')
-    .select('participant_id, match_id, pred_h, pred_a, points')
-    .in('match_id', matchIds)
-  if (predErr) throw predErr
+  // Agrega de round_results
+  const { data: rr, error: rrErr } = await supabase
+    .from('round_results')
+    .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
+    .in('round_id', roundIds)
+  if (rrErr) throw rrErr
 
   const agregado = new Map<string, { total: number; cravadas: number; vencedor: number; saldo: number }>()
   for (const p of participants) agregado.set(p.id, { total: 0, cravadas: 0, vencedor: 0, saldo: 0 })
 
-  for (const pred of predictions ?? []) {
-    const resultado = matchScoreMap.get(pred.match_id)
-    if (!resultado || resultado.h === null || resultado.a === null) continue
-    const bucket = agregado.get(pred.participant_id)
-    if (!bucket) continue // ignora admins
-
-    bucket.total += pred.points ?? 0
-
-    const ph = pred.pred_h, pa = pred.pred_a
-    const rh = resultado.h, ra = resultado.a
-
-    if (ph === rh && pa === ra) {
-      bucket.cravadas++
-    } else if (ph - pa === rh - ra) {
-      bucket.saldo++
-    } else {
-      const pw = ph > pa ? 1 : ph < pa ? -1 : 0
-      const rw = rh > ra ? 1 : rh < ra ? -1 : 0
-      if (pw === rw) bucket.vencedor++
-    }
+  for (const row of rr ?? []) {
+    const bucket = agregado.get(row.participant_id)
+    if (!bucket) continue // ignora admin
+    bucket.total += row.round_pts ?? 0
+    bucket.cravadas += row.exact_scores ?? 0
+    bucket.saldo += row.correct_saldo ?? 0
+    bucket.vencedor += row.correct_winner ?? 0
   }
 
-  const projMap = roundIdsFinalizadas.length >= 2
-    ? await calcularProjecoes(participants.map((p) => ({ id: p.id, nome: p.name })), roundIdsFinalizadas)
+  // Projeção
+  const projMap = roundIds.length >= 2
+    ? await calcularProjecoes(participants.map((p) => ({ id: p.id })), roundIds)
     : new Map<string, number>()
 
   const linhas = participants.map((p) => {
@@ -141,7 +110,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
       cravadas: agg.cravadas,
       vencedor: agg.vencedor,
       saldo: agg.saldo,
-      projecaoPct: roundIdsFinalizadas.length >= 2 ? (projMap.get(p.id) ?? 0) : null,
+      projecaoPct: roundIds.length >= 2 ? (projMap.get(p.id) ?? 0) : null,
       posicao: 0,
     }
   })
@@ -158,24 +127,14 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
 }
 
 async function calcularProjecoes(
-  participants: Array<{ id: string; nome: string }>,
+  participants: Array<{ id: string }>,
   roundIdsFinalizadas: string[],
 ): Promise<Map<string, number>> {
   const cfg = await lerConfig<{ rodadas: number }>('projecao_janela')
   const janela = cfg?.rodadas ?? 3
   const totalRodadas = 38
 
-  const { data: matchesTodas } = await supabase
-    .from('matches')
-    .select('id, round_id')
-    .in('round_id', roundIdsFinalizadas)
-  const matchToRound = new Map((matchesTodas ?? []).map((m) => [m.id, m.round_id]))
-
-  const { data: preds } = await supabase
-    .from('predictions')
-    .select('participant_id, match_id, points')
-    .in('match_id', (matchesTodas ?? []).map((m) => m.id))
-
+  // Busca round_results + ordena por round number
   const { data: roundsOrd } = await supabase
     .from('rounds')
     .select('id, number')
@@ -183,17 +142,21 @@ async function calcularProjecoes(
     .order('number', { ascending: true })
   const roundIdsSorted = (roundsOrd ?? []).map((r) => r.id)
 
+  const { data: rr } = await supabase
+    .from('round_results')
+    .select('participant_id, round_id, round_pts')
+    .in('round_id', roundIdsSorted)
+
+  // Total acumulado por participante
   const totalPorPart = new Map<string, number>()
+  // Pontos por rodada por participante
   const porRound = new Map<string, Map<string, number>>()
   for (const rid of roundIdsSorted) porRound.set(rid, new Map())
 
-  for (const pred of preds ?? []) {
-    if (pred.points === null) continue
-    const rid = matchToRound.get(pred.match_id)
-    if (!rid) continue
-    totalPorPart.set(pred.participant_id, (totalPorPart.get(pred.participant_id) ?? 0) + pred.points)
-    const bucket = porRound.get(rid)!
-    bucket.set(pred.participant_id, (bucket.get(pred.participant_id) ?? 0) + pred.points)
+  for (const row of rr ?? []) {
+    totalPorPart.set(row.participant_id, (totalPorPart.get(row.participant_id) ?? 0) + (row.round_pts ?? 0))
+    const bucket = porRound.get(row.round_id)
+    if (bucket) bucket.set(row.participant_id, (bucket.get(row.participant_id) ?? 0) + (row.round_pts ?? 0))
   }
 
   const rodadasJanela = janela === 0 ? roundIdsSorted : roundIdsSorted.slice(-janela)
@@ -246,7 +209,6 @@ export async function buscarFrenteAFrente(
 
   const limites: Record<string, number> = { ultima: 1, ult3: 3, ult5: 5, ult10: 10, total: 999 }
   const rodadasEscolhidas = rounds.slice(0, limites[janela]).reverse()
-
   const roundIds = rodadasEscolhidas.map((r) => r.id)
 
   const { data: matches } = await supabase
@@ -287,6 +249,7 @@ export async function buscarFrenteAFrente(
         pontosB: pB?.pts ?? null,
       }
     })
+    // Pontos do frente-a-frente vêm de round_results (mais confiável)
     const totalA = jogos.reduce((s, j) => s + (j.pontosA ?? 0), 0)
     const totalB = jogos.reduce((s, j) => s + (j.pontosB ?? 0), 0)
     return { roundId: r.id, numero: r.number, nome: r.name, jogos, totalA, totalB }
