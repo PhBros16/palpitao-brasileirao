@@ -139,7 +139,7 @@ function BlocoMinhas() {
       {/* Heatmap Performance por Rodada */}
       <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
         <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">🔥 Performance por Rodada</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap justify-center gap-1.5">
           {stats.ptsPorRodada.map((r) => {
             const cor = corCelulaHeatmap(r.pontos)
             return (
@@ -150,7 +150,7 @@ function BlocoMinhas() {
                 className={cx('flex h-10 w-10 flex-col items-center justify-center rounded transition-transform hover:scale-110', cor)}
                 title={`${r.nome}: ${r.pontos === null ? 'NP' : r.pontos + ' pts'}`}
               >
-                <span className="font-mono text-[9px] font-bold">R{r.numero}</span>
+                <span className="font-mono text-[9px] font-bold">{r.label}</span>
                 <span className="font-mono text-[10px] font-bold">{r.pontos === null ? '—' : r.pontos}</span>
               </button>
             )
