@@ -387,18 +387,22 @@ export function RodadaAoVivo() {
                         <CelulaPalpite celula={c} />
                       </td>
                     ))}
-                    <td
-                      className={cx(
-                        'border-b border-papel-borda-200/60 px-3 py-2 text-center font-mono text-sm font-bold',
-                        corPts(linha.palpitouAlgo ? linha.ptsRodada : null),
-                      )}
-                    >
-                      {linha.palpitouAlgo ? linha.ptsRodada : '—'}
+                    <td className="border-b border-papel-borda-200/60 px-2 py-1.5">
+                      <div
+                        className={cx(
+                          'flex h-10 items-center justify-center rounded px-2 text-center font-mono text-sm font-bold',
+                          corPts(linha.palpitouAlgo ? linha.ptsRodada : null),
+                        )}
+                      >
+                        {linha.palpitouAlgo ? linha.ptsRodada : '—'}
+                      </div>
                     </td>
-                    <td className="border-b border-papel-borda-200/60 bg-papel-100 px-2 py-2 text-center font-mono text-[10px] text-tinta-200">
-                      {linha.ultimoPalpiteEm
-                        ? new Date(linha.ultimoPalpiteEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                        : '—'}
+                    <td className="border-b border-papel-borda-200/60 px-2 py-1.5">
+                      <div className="flex h-10 items-center justify-center rounded bg-papel-200 px-2 text-center font-mono text-[10px] text-tinta-300">
+                        {linha.ultimoPalpiteEm
+                          ? new Date(linha.ultimoPalpiteEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                          : '—'}
+                      </div>
                     </td>
                   </tr>
                 )
