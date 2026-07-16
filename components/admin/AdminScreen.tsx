@@ -1117,6 +1117,12 @@ const SECOES = [
   { key: 'evolucao',     titulo: '📈 Gráfico de Evolução',        conteudo: <SecaoEvolucao /> },
   { key: 'formacao',     titulo: '⚽ Alterar Formação',           conteudo: <SecaoAlterarFormacao /> },
   { key: 'pontuacao',    titulo: '📐 Esquema de Pontuação',       conteudo: <SecaoPontuacao /> },
+  { key: 'novidades',    titulo: '🆕 Novidades',                  conteudo: <SecaoNovidades /> },
+  { key: 'musica',       titulo: '🎵 Música Tema',                conteudo: <SecaoMusica /> },
+  { key: 'adms',         titulo: '👑 Conheça os Adms',            conteudo: <SecaoAdms /> },
+  { key: 'pins',         titulo: '🔐 PINs dos Jogadores',         conteudo: <SecaoPINs /> },
+  { key: 'log',          titulo: '📋 Log de Ações',               conteudo: <SecaoLog /> },
+  { key: 'finalizar',    titulo: '🏆 Finalizar Campeonato',       conteudo: <SecaoFinalizarCampeonato /> },
 ]
 
 export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
