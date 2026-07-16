@@ -50,7 +50,7 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
+    .select('id, home, away, match_date, match_time, travado_manual, home_score, home_score, away_score')
     .eq('round_id', round.id)
     .order('match_date', { ascending: true })
 
@@ -142,17 +142,13 @@ export async function buscarJogosSemPlacar(roundId: string): Promise<Array<{ id:
     .map((m) => ({ id: m.id, home: m.home, away: m.away }))
 }
 
-/** Finaliza a rodada — fecha palpites e marca como encerrada. Isso é o gatilho
- *  que promove a rodada em andamento pro ranking oficial. Reversível via
- *  reabrirRodada() caso o admin descubra erro depois. */
+/** Finaliza a rodada — fecha palpites e marca como encerrada. */
 export async function finalizarRodada(roundId: string): Promise<void> {
   const { error } = await supabase.from('rounds').update({ finalized: true, palpites_open: false }).eq('id', roundId)
   if (error) throw error
 }
 
-/** Reabre uma rodada finalizada — volta ela pro estado "em andamento".
- *  Não mexe em pontos já calculados (só troca as flags). Ao finalizar de novo,
- *  o ranking incorpora os pontos naturalmente. */
+/** Reabre uma rodada finalizada — volta ela pro estado "em andamento". */
 export async function reabrirRodada(roundId: string): Promise<void> {
   const { error } = await supabase.from('rounds').update({ finalized: false, palpites_open: true }).eq('id', roundId)
   if (error) throw error
@@ -187,10 +183,7 @@ export async function buscarParticipantesNomes(): Promise<Array<{ id: string; na
 
 /**
  * Grava o placar real de cada jogo e recalcula os pontos de TODOS os palpites
- * da rodada — reaproveita lib/domain/pontuacao.ts (a mesma regra testada do
- * Copa), sem duplicar a lógica de pontuação aqui. Se a rodada valer dobro
- * (`is_double`), multiplica o resultado por 2 depois de calcPoints (é
- * exatamente a costura de extensão que o comentário do calcPoints já previa).
+ * da rodada via lib/domain/pontuacao.ts (calcPoints).
  */
 export async function calcularPontosRodada(
   roundId: string,
@@ -273,4 +266,95 @@ export async function buscarPalpitesParticipante(roundId: string, participantId:
 export async function corrigirPontoManual(predictionId: string, novoValor: number): Promise<void> {
   const { error } = await supabase.from('predictions').update({ points: novoValor }).eq('id', predictionId)
   if (error) throw error
+}
+
+// ─── NOVO: Histórico de rodadas pra Projeção de Campeão ──────────────────────
+
+export interface RodadaHistoricoAdmin {
+  /** UUID da rodada */
+  roundId: string
+  /** Número da rodada (ex: 1, 2, ..., 18, 19) */
+  numero: number
+  /** Nome da rodada (ex: "Rodada 1") */
+  nome: string
+  /** Pontos de cada participante nesta rodada.
+   *  Chave = participants.name (canônico), valor = soma de predictions.points */
+  scores: Record<string, number>
+}
+
+/**
+ * Busca o histórico completo de rodadas finalizadas com pontos por participante.
+ *
+ * Usado pela SecaoProjecao pra montar o input de calcProjecaoPct.
+ *
+ * Query strategy:
+ *  1. Busca todas as rounds finalizadas (order by number ASC).
+ *  2. Busca todos os matches dessas rounds de uma vez (IN roundIds).
+ *  3. Busca todas as predictions com points desses matches de uma vez (IN matchIds).
+ *  4. Busca todos os participants de uma vez.
+ *  5. Monta o Record<nome, pontos> por rodada em memória — sem N+1 queries.
+ */
+export async function buscarHistoricoRodadas(): Promise<RodadaHistoricoAdmin[]> {
+  // 1. Rounds finalizadas
+  const { data: rounds, error: rErr } = await supabase
+    .from('rounds')
+    .select('id, number, name')
+    .eq('finalized', true)
+    .order('number', { ascending: true })
+  if (rErr) throw rErr
+  if (!rounds || rounds.length === 0) return []
+
+  const roundIds = rounds.map((r) => r.id)
+
+  // 2. Matches dessas rounds
+  const { data: matches, error: mErr } = await supabase
+    .from('matches')
+    .select('id, round_id')
+    .in('round_id', roundIds)
+  if (mErr) throw mErr
+
+  const matchIds = (matches ?? []).map((m) => m.id)
+  if (matchIds.length === 0) return rounds.map((r) => ({ roundId: r.id, numero: r.number, nome: r.name, scores: {} }))
+
+  // Mapa matchId → roundId (pra distribuir pontos pelas rodadas)
+  const matchParaRound = new Map((matches ?? []).map((m) => [m.id, m.round_id]))
+
+  // 3. Predictions com points
+  const { data: predictions, error: pErr } = await supabase
+    .from('predictions')
+    .select('match_id, participant_id, points')
+    .in('match_id', matchIds)
+    .not('points', 'is', null)
+  if (pErr) throw pErr
+
+  // 4. Participants
+  const { data: participants, error: partErr } = await supabase
+    .from('participants')
+    .select('id, name')
+  if (partErr) throw partErr
+
+  const idParaNome = new Map((participants ?? []).map((p) => [p.id, p.name]))
+
+  // 5. Agrupa pontos por round → participante
+  // scores[roundId][participantName] = soma de points
+  const scoresMap = new Map<string, Record<string, number>>()
+  for (const roundId of roundIds) {
+    scoresMap.set(roundId, {})
+  }
+
+  for (const pred of predictions ?? []) {
+    const roundId = matchParaRound.get(pred.match_id)
+    if (!roundId) continue
+    const nome = idParaNome.get(pred.participant_id)
+    if (!nome) continue
+    const bucket = scoresMap.get(roundId)!
+    bucket[nome] = (bucket[nome] ?? 0) + (pred.points ?? 0)
+  }
+
+  return rounds.map((r) => ({
+    roundId: r.id,
+    numero: r.number,
+    nome: r.name,
+    scores: scoresMap.get(r.id) ?? {},
+  }))
 }
