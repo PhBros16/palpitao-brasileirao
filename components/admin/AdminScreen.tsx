@@ -141,7 +141,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── SEÇÃO: Compartilhar no WhatsApp (REAL) ──────────────────────────────────
+// ─── SEÇÃO: Compartilhar no WhatsApp ─────────────────────────────────────────
 
 function SecaoWhatsApp() {
   const [carregando, setCarregando] = useState(false)
@@ -598,7 +598,7 @@ function SecaoResultadoCorrecao() {
   )
 }
 
-// ─── SEÇÃO: Frango da Rodada (REAL) ──────────────────────────────────────────
+// ─── SEÇÃO: Frango da Rodada ─────────────────────────────────────────────────
 
 function SecaoFrango() {
   const [roundId, setRoundId] = useState<string | null>(null)
@@ -678,7 +678,6 @@ function SecaoFrango() {
     </div>
   )
 }
-
 // ─── SEÇÃO: Reabrir Rodada ────────────────────────────────────────────────────
 
 function SecaoReabrirRodada() {
@@ -755,7 +754,7 @@ function SecaoReabrirRodada() {
   )
 }
 
-// ─── SEÇÃO: Projeção de Campeão (REAL) ───────────────────────────────────────
+// ─── SEÇÃO: Projeção de Campeão ──────────────────────────────────────────────
 
 const OPCOES_JANELA: Array<[number, string]> = [
   [2, 'Últ. 2'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Campeonato inteiro'],
@@ -866,7 +865,7 @@ function SecaoProjecao() {
   )
 }
 
-// ─── SEÇÃO: Gráfico de Evolução (REAL) ───────────────────────────────────────
+// ─── SEÇÃO: Gráfico de Evolução ──────────────────────────────────────────────
 
 const OPCOES_EVOLUCAO: Array<[number, string]> = [
   [1, 'Última'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Desde o início'],
@@ -917,6 +916,108 @@ function SecaoEvolucao() {
   )
 }
 
+// ─── SEÇÃO: Alterar Formação ─────────────────────────────────────────────────
+
+function MiniCampo({ formacao }: { formacao: Formacao }) {
+  return (
+    <svg viewBox="0 0 100 120" className="h-24 w-20">
+      <rect x="2" y="2" width="96" height="116" rx="4" fill="#0a3a1e" stroke="#1a5a3a" strokeWidth="1" />
+      <line x1="2" y1="60" x2="98" y2="60" stroke="#1a5a3a" strokeWidth="0.5" />
+      <circle cx="50" cy="60" r="8" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
+      <rect x="30" y="2" width="40" height="12" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
+      <rect x="30" y="106" width="40" height="12" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
+      {formacao.posicoes.map((p, i) => {
+        const cx = parseFloat(p.left)
+        const cy = parseFloat(p.top) * 1.2
+        return <circle key={i} cx={cx} cy={Math.min(cy, 118)} r="2.2" fill="#F0D060" stroke="#1a1a1a" strokeWidth="0.5" />
+      })}
+    </svg>
+  )
+}
+
+function SecaoAlterarFormacao() {
+  const [atual, setAtual] = useState<string>('4-3-3')
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+
+  useEffect(() => {
+    lerFormacaoId()
+      .then((id) => setAtual(id))
+      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  async function escolher(id: string) {
+    if (id === atual || salvando) return
+    setSalvando(true); setMensagem(null)
+    try {
+      await salvarFormacaoId(id)
+      await gravarLog('FORMACAO_ALTERADA', { id, nome: getFormacao(id).nome })
+      setAtual(id)
+      setMensagem(`Formação alterada pra ${getFormacao(id).nome}. ⚽`)
+    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando formação...</p></Card>
+
+  const classicas = FORMACOES.filter((f) => f.tipo === 'classica')
+  const doidas = FORMACOES.filter((f) => f.tipo === 'doida')
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+      <Card>
+        <p className="font-sans text-sm text-tinta-200">
+          A formação escolhida vale pros campinhos da <b>abertura</b> e do <b>login</b>.
+          Toca em qualquer card pra trocar na hora.
+        </p>
+      </Card>
+      <SubLabel>⚽ Clássicas</SubLabel>
+      <div className="grid grid-cols-2 gap-3">
+        {classicas.map((f) => {
+          const ativa = f.id === atual
+          return (
+            <button key={f.id} type="button" onClick={() => escolher(f.id)} disabled={salvando}
+              className={cx('relative flex flex-col items-center gap-1 rounded-lg border-2 bg-papel-50 p-3 transition-all',
+                ativa ? 'border-dourado-400 shadow-lg ring-2 ring-dourado-200' : 'border-papel-borda-200 hover:border-dourado-200 hover:bg-papel-100')}>
+              {ativa && (
+                <span className="absolute right-1.5 top-1.5 rounded border border-dourado-400 bg-dourado-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-dourado-700">ATUAL</span>
+              )}
+              <MiniCampo formacao={f} />
+              <div className="text-center">
+                <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
+                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <SubLabel>🤪 Doidas</SubLabel>
+      <div className="grid grid-cols-2 gap-3">
+        {doidas.map((f) => {
+          const ativa = f.id === atual
+          return (
+            <button key={f.id} type="button" onClick={() => escolher(f.id)} disabled={salvando}
+              className={cx('relative flex flex-col items-center gap-1 rounded-lg border-2 bg-papel-50 p-3 transition-all',
+                ativa ? 'border-dourado-400 shadow-lg ring-2 ring-dourado-200' : 'border-papel-borda-200 hover:border-dourado-200 hover:bg-papel-100')}>
+              {ativa && (
+                <span className="absolute right-1.5 top-1.5 rounded border border-dourado-400 bg-dourado-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-dourado-700">ATUAL</span>
+              )}
+              <MiniCampo formacao={f} />
+              <div className="text-center">
+                <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
+                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── SEÇÃO: Esquema de Pontuação (fixo) ──────────────────────────────────────
 
 function SecaoPontuacao() {
@@ -939,7 +1040,7 @@ function SecaoPontuacao() {
   )
 }
 
-// ─── SEÇÃO: Novidades (REAL) ──────────────────────────────────────────────────
+// ─── SEÇÃO: Novidades ────────────────────────────────────────────────────────
 
 function SecaoNovidades() {
   const [titulo, setTitulo] = useState('')
@@ -1024,7 +1125,7 @@ function SecaoMusica() {
   return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
 }
 
-// ─── SEÇÃO: Conheça os Adms (REAL) ───────────────────────────────────────────
+// ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
 
 const ADM_VAZIO: Omit<AdminProfile, 'id'> = { nome: '', vulgo: null, foto: null, descricao: null, ordem: 0 }
 
@@ -1084,7 +1185,6 @@ function SecaoAdms() {
   return (
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
-
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">
           Gerencie os cards da seção "Conheça os Adms" — aparecem na tela inicial pra todos.
@@ -1161,14 +1261,14 @@ function SecaoAdms() {
   )
 }
 
-// ─── SEÇÃO: PINs dos Jogadores (REAL) ────────────────────────────────────────
+// ─── SEÇÃO: PINs dos Jogadores ───────────────────────────────────────────────
 
 function SecaoPINs() {
   const [participantes, setParticipantes] = useState<ParticipantePin[]>([])
   const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState<string | null>(null) // id do participante sendo salvo
+  const [salvando, setSalvando] = useState<string | null>(null)
   const [mensagem, setMensagem] = useState<string | null>(null)
-  const [buf, setBuf] = useState<Record<string, string>>({}) // id → novo pin digitado
+  const [buf, setBuf] = useState<Record<string, string>>({})
 
   useEffect(() => {
     buscarParticipantesPins()
@@ -1231,7 +1331,7 @@ function SecaoPINs() {
   )
 }
 
-// ─── SEÇÃO: Log de Ações (REAL) ───────────────────────────────────────────────
+// ─── SEÇÃO: Log de Ações ─────────────────────────────────────────────────────
 
 function SecaoLog() {
   const [entradas, setEntradas] = useState<EntradaLog[]>([])
@@ -1265,6 +1365,7 @@ function SecaoLog() {
     ADM_ADICIONADO: '👑',
     ADM_EDITADO: '✏️',
     ADM_REMOVIDO: '🗑',
+    FORMACAO_ALTERADA: '⚽',
     CAMPEONATO_FINALIZADO: '🏆',
   }
 
@@ -1310,7 +1411,7 @@ function SecaoLog() {
   )
 }
 
-// ─── SEÇÃO: Finalizar Campeonato (REAL) ──────────────────────────────────────
+// ─── SEÇÃO: Finalizar Campeonato ─────────────────────────────────────────────
 
 function SecaoFinalizarCampeonato() {
   const [nomecamp, setNomecamp] = useState('Brasileirão Série A 2026')
@@ -1321,26 +1422,26 @@ function SecaoFinalizarCampeonato() {
   const [snapshots, setSnapshots] = useState<Array<{ id: string; nome: string; campeao: string; data_encerramento: string }>>([])
   const [carregando, setCarregando] = useState(true)
 
-  useEffect(() => {
-    supabase
-      .from('campeonatos_finalizados')
-      .select('id, nome, campeao, data_encerramento')
-      .order('data_encerramento', { ascending: false })
-      .then(({ data }) => setSnapshots(data ?? []))
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
-      .finally(() => setCarregando(false))
-  }, [])
+  async function carregarSnapshots() {
+    setCarregando(true)
+    try {
+      const { data } = await supabase
+        .from('campeonatos_finalizados')
+        .select('id, nome, campeao, data_encerramento')
+        .order('data_encerramento', { ascending: false })
+      setSnapshots(data ?? [])
+    } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    finally { setCarregando(false) }
+  }
+
+  useEffect(() => { carregarSnapshots() }, [])
 
   async function handleFinalizar() {
     setConfirmar(false); setSalvando(true); setMensagem(null)
     try {
       await finalizarCampeonato(nomecamp, adminNome || 'admin')
       setMensagem('Campeonato finalizado e snapshot salvo. 🏆')
-      const { data } = await supabase
-        .from('campeonatos_finalizados')
-        .select('id, nome, campeao, data_encerramento')
-        .order('data_encerramento', { ascending: false })
-      setSnapshots(data ?? [])
+      await carregarSnapshots()
     } catch (e) { setMensagem(`Erro: ${(e as Error).message}`) }
     finally { setSalvando(false) }
   }
@@ -1471,7 +1572,7 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
               {s.conteudo}
             </Accordion>
           ))}
-      </div>
+        </div>
       </div>
     </main>
   )
