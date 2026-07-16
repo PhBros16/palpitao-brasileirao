@@ -45,6 +45,16 @@ function corCelula(cat: PalpiteCelula['categoria']): string {
   }
 }
 
+// ─── Cor de fundo da coluna PTS por faixa de pontuação ──────────────────────
+function corPts(pts: number | null): string {
+  if (pts === null) return 'bg-papel-100 text-tinta-100'      // NP
+  if (pts >= 20) return 'bg-green-100 text-green-800'
+  if (pts >= 15) return 'bg-blue-100 text-blue-800'
+  if (pts >= 10) return 'bg-yellow-100 text-yellow-800'
+  if (pts >= 5) return 'bg-orange-100 text-orange-800'
+  return 'bg-red-100 text-red-800'                             // 0-4
+}
+
 // ─── Cabeçalho do jogo (escudo + iniciais dos 2 times) ───────────────────────
 function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
   return (
@@ -377,10 +387,15 @@ export function RodadaAoVivo() {
                         <CelulaPalpite celula={c} />
                       </td>
                     ))}
-                    <td className="border-b border-papel-borda-200/60 bg-papel-50 px-3 py-2 text-center font-mono text-sm font-bold text-dourado-700">
+                    <td
+                      className={cx(
+                        'border-b border-papel-borda-200/60 px-3 py-2 text-center font-mono text-sm font-bold',
+                        corPts(linha.palpitouAlgo ? linha.ptsRodada : null),
+                      )}
+                    >
                       {linha.palpitouAlgo ? linha.ptsRodada : '—'}
                     </td>
-                    <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-[10px] text-tinta-100">
+                    <td className="border-b border-papel-borda-200/60 bg-papel-100 px-2 py-2 text-center font-mono text-[10px] text-tinta-200">
                       {linha.ultimoPalpiteEm
                         ? new Date(linha.ultimoPalpiteEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                         : '—'}
