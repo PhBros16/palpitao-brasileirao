@@ -1471,7 +1471,7 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
               {s.conteudo}
             </Accordion>
           ))}
-        div>
+      </div>
       </div>
     </main>
   )
