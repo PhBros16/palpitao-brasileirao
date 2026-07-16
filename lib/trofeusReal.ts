@@ -6,7 +6,7 @@ import { supabase } from './supabase'
 //   - Sangue Frio / Vidente: mata-mata → rodada dupla (is_double=true)
 //   - Flamenguista (Brasil) → Chutômetro (2x1 em 50+ jogos)
 //
-// Total: 34 troféus (16 tier1 + 12 tier2 + 5 tier3 + 1 tier4).
+// Total: 39 troféus (16 tier1 + 13 tier2 + 9 tier3 + 1 tier4).
 // Fonte primária: round_results (pontos por rodada) + predictions + matches
 // pra detalhes por jogo (cravadas, saldos, empates, etc).
 
@@ -42,16 +42,15 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
   ])
 
   if (!participants || !rounds || rounds.length === 0) {
-    return { participantId, nome: '?', trofeus: [], totalConquistados: 0, totalGeral: 34 }
+    return { participantId, nome: '?', trofeus: [], totalConquistados: 0, totalGeral: 39 }
   }
 
   const jogador = participants.find((p) => p.id === participantId)
   if (!jogador) {
-    return { participantId, nome: '?', trofeus: [], totalConquistados: 0, totalGeral: 34 }
+    return { participantId, nome: '?', trofeus: [], totalConquistados: 0, totalGeral: 39 }
   }
 
   const roundIds = rounds.map((r) => r.id)
-  const roundInfoMap = new Map(rounds.map((r) => [r.id, { number: r.number, is_double: r.is_double }]))
 
   // 2. round_results de TODOS (pra calcular posição em cada rodada)
   const { data: rrRows } = await supabase
@@ -65,7 +64,6 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
     .select('id, round_id, home_score, away_score')
     .in('round_id', roundIds)
   const matchIds = (matches ?? []).map((m) => m.id)
-  const matchInfoMap = new Map((matches ?? []).map((m) => [m.id, { roundId: m.round_id, h: m.home_score, a: m.away_score }]))
 
   // 4. Predictions do jogador
   const { data: preds } = matchIds.length > 0 ? await supabase
@@ -271,7 +269,6 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
   const maisPrimeiroId = [...rodadasPrimeiroPorPart.entries()].reduce((best, cur) => (cur[1] > (rodadasPrimeiroPorPart.get(best) ?? -1) ? cur[0] : best), participants[0].id)
 
   // % empates apostados por participante (pra diplomata)
-  // Simplificação: contamos todos os empates de todos os predictions
   const empatesPorPart = new Map<string, number>()
   const totalPorPartPreds = new Map<string, number>()
   const { data: predsAll } = matchIds.length > 0 ? await supabase
@@ -293,6 +290,42 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
 
   // Líder absoluto (total pontos)
   const liderTotalId = [...totalPorPart.entries()].reduce((best, cur) => (cur[1] > (totalPorPart.get(best) ?? -1) ? cur[0] : best), participants[0].id)
+
+  // ─── Papagaio: verifica se copiou o líder em alguma rodada ─────────────
+
+  // Reaproveita predsAll já buscado acima.
+  // Mapa: matchId → participantId → {h, a}
+  const palpitesPorMatch = new Map<string, Map<string, { h: number; a: number }>>()
+  for (const p of predsAll ?? []) {
+    if (!palpitesPorMatch.has(p.match_id)) palpitesPorMatch.set(p.match_id, new Map())
+    palpitesPorMatch.get(p.match_id)!.set(p.participant_id, { h: p.pred_h, a: p.pred_a })
+  }
+
+  let papagaioDesbloqueado = false
+  for (const r of history) {
+    if (r.palpitesJogador.length < 2) continue
+
+    // Líder da rodada (maior round_pts). Se for o próprio jogador, ignora.
+    const ordenados = Object.entries(r.scores).sort((a, b) => b[1] - a[1])
+    const lider = ordenados[0]
+    if (!lider || lider[0] === participantId) continue
+
+    // Todos os palpites do jogador nessa rodada precisam bater EXATAMENTE
+    // com os do líder (mesmo pred_h e pred_a). Se algum jogo o líder não
+    // palpitou, falha.
+    const todosIguais = r.palpitesJogador.every((meuPalp) => {
+      const palpitesMatch = palpitesPorMatch.get(meuPalp.matchId)
+      if (!palpitesMatch) return false
+      const palpiteLider = palpitesMatch.get(lider[0])
+      if (!palpiteLider) return false
+      return palpiteLider.h === meuPalp.pred_h && palpiteLider.a === meuPalp.pred_a
+    })
+
+    if (todosIguais) {
+      papagaioDesbloqueado = true
+      break
+    }
+  }
 
   // ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -391,7 +424,7 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
       unlocked: history.some((r) => r.palpitesJogador.length === 1 && exatosNaRodada(r) === 1) },
   ]
 
-  // ─── TIER 2 — 12 troféus ───────────────────────────────────────────────
+  // ─── TIER 2 — 13 troféus ───────────────────────────────────────────────
 
   const tier2: TrofeuReal[] = [
     { id: 't2-em-chamas', icon: '🔥', tier: 2, label: 'Em Chamas',
@@ -425,7 +458,7 @@ export async function buscarTrofeusJogador(participantId: string): Promise<Trofe
 
     { id: 't2-papagaio', icon: '🦜', tier: 2, label: 'O Papagaio',
       desc: 'Apostou igual ao líder em todos os jogos de uma rodada.',
-      unlocked: false }, // Requer palpites de OUTROS jogadores — deixamos desabilitado nesta fase (fase futura)
+      unlocked: papagaioDesbloqueado },
 
     { id: 't2-tartaruga', icon: '🐢', tier: 2, label: 'Tartaruga',
       desc: 'Ficou 2+ rodadas consecutivas em último e conseguiu sair.',
