@@ -54,8 +54,8 @@ export function Classificacao({
       </div>
 
       {/* Tabela (scroll horizontal quando necessário; # e Nome fixos) */}
-      <div className="overflow-x-auto rounded-lg border border-papel-borda-200">
-        <table className="w-full border-separate border-spacing-0">
+      <div className="rounded-lg border border-papel-borda-200">
+        <table className="w-full table-fixed border-separate border-spacing-0">
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
               <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-center">#</th>
