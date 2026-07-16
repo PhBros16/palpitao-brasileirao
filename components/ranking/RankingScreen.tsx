@@ -32,14 +32,14 @@ export function RankingScreen({ dados, onClickLinha }: { dados: DadosRanking; on
         <h1 className="mb-3 font-display text-2xl font-bold text-tinta-300">Ranking</h1>
 
         {/* Sub-abas */}
-        <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg border border-papel-borda-200 bg-papel-50 p-1">
+        <div className="mb-4 flex gap-1 rounded-lg border border-papel-borda-200 bg-papel-50 p-1">
           {ABAS.map(([s, label]) => (
             <button
               key={s}
               type="button"
               onClick={() => setSub(s)}
               className={cx(
-                'shrink-0 rounded-md px-3 py-1.5 font-sans text-xs font-semibold transition-colors',
+                'flex-1 rounded-md px-2 py-1.5 font-sans text-xs font-semibold transition-colors',
                 sub === s ? 'bg-couro-300 text-dourado-50' : 'text-tinta-200 hover:bg-papel-200',
               )}
             >
