@@ -15,3 +15,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* ─── Scrollbar customizada (tema Panini) ─────────────────────────────── */
+
+.scrollbar-tema {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(180 140 90) rgb(245 235 215);
+}
+
+.scrollbar-tema::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.scrollbar-tema::-webkit-scrollbar-track {
+  background: rgb(245 235 215);
+  border-radius: 6px;
+}
+
+.scrollbar-tema::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(180 140 90), rgb(140 100 60));
+  border-radius: 6px;
+  border: 2px solid rgb(245 235 215);
+}
+
+.scrollbar-tema::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(200 160 100), rgb(160 120 70));
+}
