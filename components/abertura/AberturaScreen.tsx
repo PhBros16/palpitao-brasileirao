@@ -11,6 +11,12 @@
 // ResizeObserver pra caber em qualquer viewport/contêiner real, sem recalcular
 // a coreografia. Áudio sintetizado (somKit) dispara no toque de "Abrir o
 // Álbum" — único gesto que libera som no navegador (CLAUDE.md Seção 4).
+//
+// Login integrado: ao clicar num titular no campo revelado, abre o PinModal
+// aqui mesmo (não navega mais pra /login — que agora só redireciona pra /).
+// PIN validado contra Supabase (participants.name → participants.pin) via
+// buscarPinPorNome() do elencoMock.ts. Sessão gravada em localStorage
+// (chave 'palpitao_sessao') igual ao fluxo já usado por /palpites.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -30,8 +36,9 @@ import {
 } from './coreografia'
 import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransicao'
 import { somKit } from './somKit'
-import { BANCO, TECNICO, TITULARES } from './elencoMock'
-import type { FasePoeira } from './tipos'
+import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
+import { PinModal } from './PinModal'
+import type { FasePoeira, JogadorCampo } from './tipos'
 
 const LARGURA_CENA = 390
 const ALTURA_CENA = 844
@@ -40,17 +47,15 @@ export function AberturaScreen() {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [mostrarVerso, setMostrarVerso] = useState(false)
-  // O verso (miolo do livro), corretamente ancorado no mesmo pivô do pai,
-  // cobre 100% da tela ao final do flip — geometricamente correto, mas
-  // precisa dissolver em seguida, senão bloqueia a poeira/CenaEstadio pra
-  // sempre. Some logo depois do flip assentar, não só depois de toda a
-  // sequência de poeira (a poeira precisa aparecer POR CIMA do interior já
-  // visível, não atrás da capa ainda fechada).
   const [capaVisivel, setCapaVisivel] = useState(true)
   const [revelado, setRevelado] = useState(false)
   const [fasePoeira, setFasePoeira] = useState<FasePoeira>('oculta')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const [escala, setEscala] = useState(1)
+
+  // Login integrado: jogador selecionado pra abrir o PinModal
+  const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
+  const [buscandoPin, setBuscandoPin] = useState(false)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const iniciado = useRef(false)
@@ -61,8 +66,6 @@ export function AberturaScreen() {
     timers.current = []
   }, [])
 
-  // Escala a cena fixa (390×844) pra caber no contêiner real, sem recalcular
-  // a coreografia (todos os px de layout assumem exatamente esse tamanho).
   useEffect(() => {
     const atualizar = () => {
       const el = outerRef.current
@@ -80,8 +83,6 @@ export function AberturaScreen() {
     }
   }, [])
 
-  // Parallax sutil do medalhão — mouse no desktop, giroscópio (best-effort,
-  // sem prompt de permissão) no mobile. Sem gesto disponível, fica parado.
   useEffect(() => {
     let raf: number | null = null
     const onMouseMove = (e: MouseEvent) => {
@@ -112,12 +113,8 @@ export function AberturaScreen() {
     iniciado.current = true
     somKit.playTheme()
     setAberto(true)
-    // troca de face no ponto médio do flip (edge-on = invisível, sem flash)
     timers.current.push(setTimeout(() => setMostrarVerso(true), DUR_FLIP / 2))
 
-    // Quatro fases sequenciais, cada uma só começa quando a anterior termina:
-    // 1) flip  2) poeira assenta e paira  3) poeira sopra embora  4) cascata
-    // de luzes + elenco (Fase 6 já existente).
     timers.current.push(
       setTimeout(() => {
         setCapaVisivel(false)
@@ -130,7 +127,6 @@ export function AberturaScreen() {
                 setRevelado(true)
                 setFasePoeira('oculta')
                 somKit.startCrowd(2.4, 0.22)
-                // um "clac" por zona de refletor (goleiro→defesa→meio→ataque→banco)
                 for (let tier = 0; tier < CONTAGEM_TIERS.length; tier++) {
                   timers.current.push(setTimeout(() => somKit.playSpotlightClack(0), tier * 180))
                 }
@@ -143,6 +139,8 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
+    // Se o modal de PIN está aberto, prioriza fechar ele — não recolhe a capa.
+    if (pinPlayer) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -154,12 +152,30 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers])
+  }, [limparTimers, pinPlayer])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
-  // Fila única: cada tier só libera seu primeiro membro depois que a própria
-  // zona de luz termina de acender E a fila do tier anterior já saiu.
+  // Click num titular no campo revelado → busca PIN real do Supabase → abre modal.
+  const handleClickJogador = useCallback(async (j: JogadorCampo) => {
+    if (buscandoPin || pinPlayer) return
+    setBuscandoPin(true)
+    try {
+      const player = await buscarPinPorNome(j.nome)
+      if (player) setPinPlayer(player)
+      // Se não achou (nome não bate com nenhum participant), não faz nada silenciosamente.
+    } finally {
+      setBuscandoPin(false)
+    }
+  }, [buscandoPin, pinPlayer])
+
+  // PIN validado → grava sessão (mesma chave usada em /palpites) → navega.
+  const handlePinSucesso = useCallback((player: JogadorComPin) => {
+    localStorage.setItem('palpitao_sessao', JSON.stringify({ id: player.id, nome: player.nome }))
+    setPinPlayer(null)
+    router.push('/palpites')
+  }, [router])
+
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
 
   const titularesComEntrada = useMemo(() => {
@@ -207,10 +223,9 @@ export function AberturaScreen() {
       >
         {/* Interior — campo, banco e poeira, revelados por trás da capa */}
         <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
-          <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={() => router.push('/login')} />
+          <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
           <BancoReservas revelado={revelado} reservas={reservasComEntrada} admin={adminComEntrada} tecnico={tecnicoComEntrada} />
 
-          {/* sombra que a capa aberta projeta perto da lombada */}
           <div
             className="pointer-events-none absolute bottom-0 left-0 top-0"
             style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
@@ -219,10 +234,7 @@ export function AberturaScreen() {
           <PoeiraTransicao fase={fasePoeira} />
         </div>
 
-        {/* Capa — dobradiça na lombada (borda esquerda). Depois que o flip
-            assenta, o verso (miolo) cobre a tela por inteiro — correto
-            geometricamente, mas precisa dissolver pra revelar a poeira/
-            CenaEstadio por trás (ver capaVisivel/handleAbrir). */}
+        {/* Capa */}
         <div
           style={{
             position: 'absolute',
@@ -239,10 +251,6 @@ export function AberturaScreen() {
           <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
             <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
           </div>
-          {/* transformOrigin igual ao pai (lombada/borda esquerda) — sem isso
-              duas rotações de 180° em pivôs diferentes compõem uma TRANSLAÇÃO,
-              não uma rotação pura, e o verso acaba deslocado quase todo pra
-              fora da tela (bug real encontrado e corrigido na fase anterior). */}
           <div
             style={{
               position: 'absolute',
@@ -258,7 +266,7 @@ export function AberturaScreen() {
           <CapaEspessura />
         </div>
 
-        {/* grão de filme sobre toda a cena — sutilíssimo, nunca compromete legibilidade */}
+        {/* Grão de filme */}
         <div
           className={`pointer-events-none absolute ${styles.grainJitter}`}
           style={{
@@ -272,6 +280,15 @@ export function AberturaScreen() {
           }}
         />
       </div>
+
+      {/* PIN modal — fica FORA da cena escalada, cobre a viewport inteira */}
+      {pinPlayer && (
+        <PinModal
+          player={pinPlayer}
+          onFechar={() => setPinPlayer(null)}
+          onSucesso={handlePinSucesso}
+        />
+      )}
     </div>
   )
 }
