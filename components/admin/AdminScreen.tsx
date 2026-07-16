@@ -15,8 +15,19 @@ import {
   buscarPalpitesParticipante,
   corrigirPontoManual,
   buscarHistoricoRodadas,
+  gravarLog,
+  buscarLog,
+  buscarParticipantesPins,
+  atualizarPin,
+  buscarAdmins,
+  salvarAdmin,
+  removerAdmin,
+  finalizarCampeonato,
   type JogoAdmin,
   type PalpitePorJogo,
+  type EntradaLog,
+  type ParticipantePin,
+  type AdminProfile,
 } from '@/lib/rodadaAdmin'
 import { getEscudo } from '@/lib/escudos'
 import { FORMACOES, getFormacao, type Formacao } from '@/lib/formacoes'
@@ -152,14 +163,13 @@ function SecaoWhatsApp() {
     const mMap = new Map((matches ?? []).map((m) => [m.id, m]))
 
     const participantes = parts.map((p) => ({ id: p.id, nome: p.name }))
-    const palpitesPorJogador = new Map<string, Array<{ matchId: string; palpite: any; resultado: any; pontos: number | null }>>()
+    const palpitesPorJogador = new Map<string, Array<{ palpite: any; resultado: any; pontos: number | null }>>()
 
     for (const pred of preds) {
       const m = mMap.get(pred.match_id)
       if (!m || m.home_score === null || m.away_score === null) continue
       const arr = palpitesPorJogador.get(pred.participant_id) ?? []
       arr.push({
-        matchId: pred.match_id,
         palpite: { h: pred.pred_h, a: pred.pred_a },
         resultado: { h: m.home_score, a: m.away_score },
         pontos: pred.points,
@@ -185,8 +195,7 @@ function SecaoWhatsApp() {
       })
       .sort((a, b) => b.total - a.total || b.cravadas - a.cravadas || b.vencedor - a.vencedor || b.saldo - a.saldo)
 
-    const top5 = ranking.slice(0, 5)
-    const linhas = top5.map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
+    const linhas = ranking.slice(0, 5).map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
     return `🏆 *RANKING GERAL — Palpitão Brasileirão*\n\n${linhas}\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
   }
 
@@ -196,7 +205,9 @@ function SecaoWhatsApp() {
 
     const { data: matches } = await supabase.from('matches').select('id').eq('round_id', rodada.roundId)
     const matchIds = (matches ?? []).map((m) => m.id)
-    if (matchIds.length === 0) return `⚽ *${rodada.nome} — Palpitão Brasileirão*\n\nNenhum jogo cadastrado ainda.\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
+    if (matchIds.length === 0) {
+      return `⚽ *${rodada.nome} — Palpitão Brasileirão*\n\nNenhum jogo cadastrado ainda.\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
+    }
 
     const [{ data: parts }, { data: preds }] = await Promise.all([
       supabase.from('participants').select('id, name'),
@@ -219,8 +230,7 @@ function SecaoWhatsApp() {
   }
 
   async function share(tipo: 'geral' | 'parcial') {
-    setCarregando(true)
-    setMensagem(null)
+    setCarregando(true); setMensagem(null)
     try {
       const texto = tipo === 'geral' ? await montarTextoGeral() : await montarTextoParcial()
       window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
@@ -270,13 +280,9 @@ function SecaoConfiguracaoRodada() {
   useEffect(() => {
     buscarRodadaAtiva()
       .then((r) => {
-        setRoundId(r.roundId)
-        setNome(r.nome)
-        setNumero(r.numero)
-        setAberta(r.aberta)
-        setValeDobro(r.valeDobro)
-        setJogos(r.jogos)
-        setIdsOriginais(r.jogos.map((j) => j.id))
+        setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
+        setAberta(r.aberta); setValeDobro(r.valeDobro)
+        setJogos(r.jogos); setIdsOriginais(r.jogos.map((j) => j.id))
       })
       .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
       .finally(() => setCarregando(false))
@@ -294,9 +300,9 @@ function SecaoConfiguracaoRodada() {
       const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais)
       setRoundId(idFinal)
       const atualizado = await buscarRodadaAtiva()
-      setJogos(atualizado.jogos)
-      setIdsOriginais(atualizado.jogos.map((j) => j.id))
+      setJogos(atualizado.jogos); setIdsOriginais(atualizado.jogos.map((j) => j.id))
       setMensagem('Rodada salva.')
+      await gravarLog('RODADA_SALVA', { nome, numero })
     } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
     finally { setSalvando(false) }
   }
@@ -317,6 +323,7 @@ function SecaoConfiguracaoRodada() {
     setSalvando(true); setModalFinalizar('fechado')
     try {
       await finalizarRodada(roundId)
+      await gravarLog('RODADA_FINALIZADA', { roundId, nome })
       setAberta(false)
       setMensagem('Rodada finalizada. Pontos lançados no Ranking. 🏆')
     } catch (e) { setMensagem(`Erro ao finalizar: ${(e as Error).message}`) }
@@ -328,6 +335,7 @@ function SecaoConfiguracaoRodada() {
     setSalvando(true)
     try {
       await limparPalpitesRodada(roundId)
+      await gravarLog('PALPITES_LIMPOS', { roundId, nome })
       setMensagem('Palpites apagados.')
     } catch (e) { setMensagem(`Erro ao limpar: ${(e as Error).message}`) }
     finally { setSalvando(false) }
@@ -351,7 +359,7 @@ function SecaoConfiguracaoRodada() {
         </Row>
         <Row label="Vale x2">
           <Toggle checked={valeDobro} onChange={setValeDobro} />
-          <span className="font-sans text-sm text-tinta-200">{valeDobro ? '⚡ Pontuação em dobro (última do turno)' : 'Pontuação normal'}</span>
+          <span className="font-sans text-sm text-tinta-200">{valeDobro ? '⚡ Pontuação em dobro' : 'Pontuação normal'}</span>
         </Row>
       </Card>
 
@@ -372,9 +380,11 @@ function SecaoConfiguracaoRodada() {
           </Row>
           <Row label="Data">
             <InputText value={j.date} onChange={(v) => patch(j.id, { date: v })} placeholder="AAAA-MM-DD" />
-            {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ sem data — trava hoje</span>}
+            {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ sem data</span>}
           </Row>
-          <Row label="Horário"><InputText value={j.time} onChange={(v) => patch(j.id, { time: v })} placeholder="19:00" className="w-24" /></Row>
+          <Row label="Horário">
+            <InputText value={j.time} onChange={(v) => patch(j.id, { time: v })} placeholder="19:00" className="w-24" />
+          </Row>
           <Row label="Travado">
             <Toggle checked={j.locked} onChange={(v) => patch(j.id, { locked: v })} />
             <span className="font-sans text-xs text-tinta-200">{j.locked ? '🔒 Travado manualmente' : 'Automático pelo horário'}</span>
@@ -415,10 +425,14 @@ function SecaoConfiguracaoRodada() {
             <p className="mb-3 font-sans text-sm text-tinta-200">Faltou lançar o resultado desses jogos Pai:</p>
             <ul className="mb-4 max-h-48 overflow-y-auto rounded border border-papel-borda-200 bg-papel-100 px-3 py-2">
               {jogosSemPlacar.map((j) => (
-                <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">{j.home} × {j.away}</li>
+                <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">
+                  {j.home} × {j.away}
+                </li>
               ))}
             </ul>
-            <p className="mb-4 font-mono text-[10px] text-tinta-100">Se algum jogo foi adiado, dá pra finalizar mesmo assim (esses ficam sem pontuação).</p>
+            <p className="mb-4 font-mono text-[10px] text-tinta-100">
+              Se algum jogo foi adiado, dá pra finalizar mesmo assim (esses ficam sem pontuação).
+            </p>
             <div className="flex flex-wrap justify-end gap-2">
               <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Voltar</Btn>
               <Btn variant="danger" onClick={confirmarFinalizar}>Finalizar mesmo assim</Btn>
@@ -426,114 +440,6 @@ function SecaoConfiguracaoRodada() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── SEÇÃO: Alterar Formação (REAL) ──────────────────────────────────────────
-
-function MiniCampo({ formacao }: { formacao: Formacao }) {
-  return (
-    <svg viewBox="0 0 100 120" className="h-24 w-20">
-      <rect x="2" y="2" width="96" height="116" rx="4" fill="#0a3a1e" stroke="#1a5a3a" strokeWidth="1" />
-      <line x1="2" y1="60" x2="98" y2="60" stroke="#1a5a3a" strokeWidth="0.5" />
-      <circle cx="50" cy="60" r="8" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
-      <rect x="30" y="2" width="40" height="12" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
-      <rect x="30" y="106" width="40" height="12" fill="none" stroke="#1a5a3a" strokeWidth="0.5" />
-      {formacao.posicoes.map((p, i) => {
-        const cx = parseFloat(p.left)
-        const cy = parseFloat(p.top) * 1.2
-        return <circle key={i} cx={cx} cy={Math.min(cy, 118)} r="2.2" fill="#F0D060" stroke="#1a1a1a" strokeWidth="0.5" />
-      })}
-    </svg>
-  )
-}
-
-function SecaoAlterarFormacao() {
-  const [atual, setAtual] = useState<string>('4-3-3')
-  const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
-
-  useEffect(() => {
-    lerFormacaoId()
-      .then((id) => setAtual(id))
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
-      .finally(() => setCarregando(false))
-  }, [])
-
-  async function escolher(id: string) {
-    if (id === atual || salvando) return
-    setSalvando(true); setMensagem(null)
-    try {
-      await salvarFormacaoId(id)
-      setAtual(id)
-      setMensagem(`Formação alterada pra ${getFormacao(id).nome}. ⚽`)
-    } catch (e) {
-      setMensagem(`Erro ao salvar: ${(e as Error).message}`)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando formação...</p></Card>
-
-  const classicas = FORMACOES.filter((f) => f.tipo === 'classica')
-  const doidas = FORMACOES.filter((f) => f.tipo === 'doida')
-
-  return (
-    <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
-      <Card>
-        <p className="font-sans text-sm text-tinta-200">
-          A formação escolhida vale pros campinhos da <b>abertura</b> e do <b>login</b>.
-          Toca em qualquer card pra trocar na hora.
-        </p>
-      </Card>
-      <SubLabel>⚽ Clássicas</SubLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {classicas.map((f) => {
-          const ativa = f.id === atual
-          return (
-            <button key={f.id} type="button" onClick={() => escolher(f.id)} disabled={salvando}
-              className={cx('relative flex flex-col items-center gap-1 rounded-lg border-2 bg-papel-50 p-3 transition-all',
-                ativa ? 'border-dourado-400 shadow-lg ring-2 ring-dourado-200' : 'border-papel-borda-200 hover:border-dourado-200 hover:bg-papel-100')}>
-              {ativa && (
-                <span className="absolute right-1.5 top-1.5 rounded border border-dourado-400 bg-dourado-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-dourado-700">
-                  ATUAL
-                </span>
-              )}
-              <MiniCampo formacao={f} />
-              <div className="text-center">
-                <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
-                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-      <SubLabel>🤪 Doidas</SubLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {doidas.map((f) => {
-          const ativa = f.id === atual
-          return (
-            <button key={f.id} type="button" onClick={() => escolher(f.id)} disabled={salvando}
-              className={cx('relative flex flex-col items-center gap-1 rounded-lg border-2 bg-papel-50 p-3 transition-all',
-                ativa ? 'border-dourado-400 shadow-lg ring-2 ring-dourado-200' : 'border-papel-borda-200 hover:border-dourado-200 hover:bg-papel-100')}>
-              {ativa && (
-                <span className="absolute right-1.5 top-1.5 rounded border border-dourado-400 bg-dourado-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-dourado-700">
-                  ATUAL
-                </span>
-              )}
-              <MiniCampo formacao={f} />
-              <div className="text-center">
-                <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
-                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
-              </div>
-            </button>
-          )
-        })}
-      </div>
     </div>
   )
 }
@@ -550,7 +456,6 @@ function SecaoResultadoCorrecao() {
   const [carregando, setCarregando] = useState(true)
   const [calculando, setCalculando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
-
   const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
   const [jogadorSel, setJogadorSel] = useState('')
   const [palpites, setPalpites] = useState<PalpitePorJogo[]>([])
@@ -560,9 +465,7 @@ function SecaoResultadoCorrecao() {
   useEffect(() => {
     Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
       .then(([rodada, nomes]) => {
-        setRoundId(rodada.roundId)
-        setValeDobro(rodada.valeDobro)
-        setJogos(rodada.jogos)
+        setRoundId(rodada.roundId); setValeDobro(rodada.valeDobro); setJogos(rodada.jogos)
         setRes(Object.fromEntries(rodada.jogos.map((j) => [j.id, { h: j.resultadoH?.toString() ?? '', a: j.resultadoA?.toString() ?? '' }])))
         setParticipantes(nomes)
       })
@@ -585,6 +488,7 @@ function SecaoResultadoCorrecao() {
         resultados[j.id] = { h: parseInt(h, 10), a: parseInt(a, 10) }
       }
       await calcularPontosRodada(roundId, resultados, valeDobro)
+      await gravarLog('PONTOS_CALCULADOS', { roundId })
       setMensagem('Pontos calculados! ⚡')
       if (jogadorSel) {
         const p = participantes.find((x) => x.name === jogadorSel)
@@ -611,6 +515,7 @@ function SecaoResultadoCorrecao() {
     if (valor === undefined || valor === '') return
     try {
       await corrigirPontoManual(predictionId, parseInt(valor, 10))
+      await gravarLog('PONTOS_CORRIGIDOS_MANUAL', { predictionId, novoValor: parseInt(valor, 10), jogador: jogadorSel })
       if (jogadorSel && roundId) {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
@@ -643,7 +548,9 @@ function SecaoResultadoCorrecao() {
           </div>
         ))}
         <div className="mt-3">
-          <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>{calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}</Btn>
+          <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>
+            {calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}
+          </Btn>
         </div>
       </Card>
 
@@ -651,7 +558,7 @@ function SecaoResultadoCorrecao() {
         <SubLabel>Correção Manual por Palpiteiro</SubLabel>
         <div className="flex gap-2">
           <select value={jogadorSel} onChange={(e) => selecionarJogador(e.target.value)}
-            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300">
+            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none">
             <option value="">Selecione o palpiteiro...</option>
             {participantes.map((p) => (<option key={p.id} value={p.name}>{p.name}</option>))}
           </select>
@@ -695,7 +602,7 @@ function SecaoResultadoCorrecao() {
 
 function SecaoFrango() {
   const [roundId, setRoundId] = useState<string | null>(null)
-  const [rodadaNome, setRodadaNome] = useState<string>('')
+  const [rodadaNome, setRodadaNome] = useState('')
   const [jogador, setJogador] = useState('')
   const [fotoUrl, setFotoUrl] = useState('')
   const [texto, setTexto] = useState('')
@@ -707,9 +614,7 @@ function SecaoFrango() {
   useEffect(() => {
     Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
       .then(async ([rodada, nomes]) => {
-        setRoundId(rodada.roundId)
-        setRodadaNome(rodada.nome)
-        setParticipantes(nomes)
+        setRoundId(rodada.roundId); setRodadaNome(rodada.nome); setParticipantes(nomes)
         if (rodada.roundId) {
           const { data } = await supabase.from('shame').select('player_name, text, photo_url').eq('round_id', rodada.roundId).maybeSingle()
           if (data) { setJogador(data.player_name ?? ''); setTexto(data.text ?? ''); setFotoUrl(data.photo_url ?? '') }
@@ -727,6 +632,7 @@ function SecaoFrango() {
       if (jogador.trim()) {
         const { error } = await supabase.from('shame').insert({ round_id: roundId, player_name: jogador.trim(), text: texto.trim() || null, photo_url: fotoUrl.trim() || null })
         if (error) throw error
+        await gravarLog('FRANGO_ATRIBUIDO', { roundId, jogador, rodada: rodadaNome })
       }
       setMensagem('Frango salvo. 🐔')
     } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
@@ -745,15 +651,13 @@ function SecaoFrango() {
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando...</p></Card>
-  if (!roundId) return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada ativa pra atribuir o frango.</p></Card>
+  if (!roundId) return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada ativa.</p></Card>
 
   return (
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          O frango de <b>{rodadaNome}</b> só aparece pra ele durante a próxima rodada. 🐔
-        </p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">O frango de <b>{rodadaNome}</b> — carinhosamente constrangedor. 🐔</p>
         <Row label="Jogador">
           <select value={jogador} onChange={(e) => setJogador(e.target.value)}
             className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none">
@@ -761,9 +665,7 @@ function SecaoFrango() {
             {participantes.map((p) => (<option key={p.id} value={p.name}>{p.name}</option>))}
           </select>
         </Row>
-        <Row label="Foto URL">
-          <InputText value={fotoUrl} onChange={setFotoUrl} placeholder="https://..." className="flex-1" />
-        </Row>
+        <Row label="Foto URL"><InputText value={fotoUrl} onChange={setFotoUrl} placeholder="https://..." className="flex-1" /></Row>
         <Row label="Texto">
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Mensagem carinhosamente constrangedora..." rows={2}
             className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
@@ -800,10 +702,11 @@ function SecaoReabrirRodada() {
     if (!selecionada) return
     setReabrindo(true); setConfirmar(false)
     try {
+      const rod = rodadas.find((r) => r.id === selecionada)
       await reabrirRodada(selecionada)
+      await gravarLog('RODADA_REABERTA', { roundId: selecionada, nome: rod?.name })
       setMensagem('Rodada reaberta.')
-      setSelecionada('')
-      await carregar()
+      setSelecionada(''); await carregar()
     } catch (e) { setMensagem(`Erro ao reabrir: ${(e as Error).message}`) }
     finally { setReabrindo(false) }
   }
@@ -814,9 +717,7 @@ function SecaoReabrirRodada() {
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Volta uma rodada finalizada pro estado "em andamento" — útil se descobrir erro de digitação depois de finalizar.
-        </p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Volta uma rodada finalizada pro estado "em andamento".</p>
         {carregando ? (
           <p className="font-sans text-xs text-tinta-100">Carregando rodadas...</p>
         ) : rodadas.length === 0 ? (
@@ -836,7 +737,6 @@ function SecaoReabrirRodada() {
           </>
         )}
       </Card>
-
       {confirmar && rodadaSel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
           <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
@@ -858,39 +758,26 @@ function SecaoReabrirRodada() {
 // ─── SEÇÃO: Projeção de Campeão (REAL) ───────────────────────────────────────
 
 const OPCOES_JANELA: Array<[number, string]> = [
-  [2,  'Últ. 2'],
-  [3,  'Últ. 3'],
-  [5,  'Últ. 5'],
-  [10, 'Últ. 10'],
-  [0,  'Campeonato inteiro'],
+  [2, 'Últ. 2'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Campeonato inteiro'],
 ]
-
-interface ResultadoProjecao {
-  nome: string
-  pct: number
-}
 
 function SecaoProjecao() {
   const [janela, setJanela] = useState(3)
   const [carregando, setCarregando] = useState(true)
   const [calculando, setCalculando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
-  const [projecoes, setProjecoes] = useState<ResultadoProjecao[]>([])
-  const [totalRodadasFinalizadas, setTotalRodadasFinalizadas] = useState(0)
+  const [projecoes, setProjecoes] = useState<Array<{ nome: string; pct: number }>>([])
+  const [totalFinalizadas, setTotalFinalizadas] = useState(0)
 
-  // Carrega janela salva + calcula projeção inicial
   useEffect(() => {
     async function init() {
       try {
         const cfg = await lerConfig<{ rodadas: number }>('projecao_janela')
-        const janelaInicial = cfg?.rodadas ?? 3
-        setJanela(janelaInicial)
-        await calcular(janelaInicial)
-      } catch (e) {
-        setMensagem(`Erro ao carregar: ${(e as Error).message}`)
-      } finally {
-        setCarregando(false)
-      }
+        const j = cfg?.rodadas ?? 3
+        setJanela(j)
+        await calcular(j)
+      } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+      finally { setCarregando(false) }
     }
     init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -900,22 +787,14 @@ function SecaoProjecao() {
     setCalculando(true)
     try {
       const historico = await buscarHistoricoRodadas()
-      setTotalRodadasFinalizadas(historico.length)
+      setTotalFinalizadas(historico.length)
+      if (historico.length < 2) { setProjecoes([]); return }
 
-      if (historico.length < 2) {
-        setProjecoes([])
-        return
-      }
-
-      // Aplica janela: 0 = tudo, N = últimas N rodadas
       const slice = j === 0 ? historico : historico.slice(-j)
-
-      // Monta players (união de todos os nomes que aparecem no histórico)
       const todosNomes = new Set<string>()
       for (const r of historico) Object.keys(r.scores).forEach((n) => todosNomes.add(n))
       const players = Array.from(todosNomes)
 
-      // totalPoints = soma de TODAS as rodadas (não só da janela)
       const totalPoints: Record<string, number> = {}
       for (const r of historico) {
         for (const [nome, pts] of Object.entries(r.scores)) {
@@ -923,33 +802,20 @@ function SecaoProjecao() {
         }
       }
 
-      // history no formato que calcProjecaoPct espera
       const history = slice.map((r) => ({ scores: r.scores }))
-
       const resultado = calcProjecaoPct({ players, totalPoints, history, totalRodadas: 38 })
-
-      const lista = Object.entries(resultado)
-        .map(([nome, pct]) => ({ nome, pct }))
-        .sort((a, b) => b.pct - a.pct)
-
-      setProjecoes(lista)
-    } catch (e) {
-      setMensagem(`Erro ao calcular: ${(e as Error).message}`)
-    } finally {
-      setCalculando(false)
-    }
+      setProjecoes(
+        Object.entries(resultado).map(([nome, pct]) => ({ nome, pct })).sort((a, b) => b.pct - a.pct)
+      )
+    } catch (e) { setMensagem(`Erro ao calcular: ${(e as Error).message}`) }
+    finally { setCalculando(false) }
   }
 
-  async function mudarJanela(novaJanela: number) {
-    if (novaJanela === janela || calculando) return
-    setJanela(novaJanela)
-    setMensagem(null)
-    try {
-      await salvarConfig('projecao_janela', { rodadas: novaJanela })
-    } catch {
-      // Falha silenciosa no save — a UI atualiza de qualquer jeito
-    }
-    await calcular(novaJanela)
+  async function mudarJanela(j: number) {
+    if (j === janela || calculando) return
+    setJanela(j); setMensagem(null)
+    try { await salvarConfig('projecao_janela', { rodadas: j }) } catch { /* silencioso */ }
+    await calcular(j)
   }
 
   const maxPct = projecoes[0]?.pct ?? 1
@@ -957,49 +823,28 @@ function SecaoProjecao() {
   return (
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-xs text-raridade-frango-selo">{mensagem}</p></Card>}
-
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Define quantas rodadas usar pra calcular a chance de cada um ser campeão.
-          Aparece no Ranking.
-        </p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Define quantas rodadas usar pra calcular a chance de cada um ser campeão.</p>
         <div className="flex flex-wrap gap-2">
           {OPCOES_JANELA.map(([val, label]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => mudarJanela(val)}
-              disabled={calculando || carregando}
-              className={cx(
-                'rounded-md border px-3 py-1.5 font-mono text-xs font-bold transition-colors disabled:opacity-40',
-                janela === val
-                  ? 'border-dourado-400 bg-dourado-100 text-dourado-600'
-                  : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
-              )}
-            >
+            <button key={val} type="button" onClick={() => mudarJanela(val)} disabled={calculando || carregando}
+              className={cx('rounded-md border px-3 py-1.5 font-mono text-xs font-bold transition-colors disabled:opacity-40',
+                janela === val ? 'border-dourado-400 bg-dourado-100 text-dourado-600' : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100')}>
               {label}
             </button>
           ))}
         </div>
       </Card>
-
       <Card>
         <SubLabel>
           Preview — projeção atual
-          {totalRodadasFinalizadas > 0 && (
-            <span className="ml-1 normal-case">
-              ({totalRodadasFinalizadas} rodada{totalRodadasFinalizadas !== 1 ? 's' : ''} finalizada{totalRodadasFinalizadas !== 1 ? 's' : ''})
-            </span>
-          )}
+          {totalFinalizadas > 0 && <span className="ml-1 normal-case">({totalFinalizadas} rodada{totalFinalizadas !== 1 ? 's' : ''} finalizada{totalFinalizadas !== 1 ? 's' : ''})</span>}
         </SubLabel>
-
         {carregando || calculando ? (
           <p className="font-sans text-xs text-tinta-100">Calculando...</p>
         ) : projecoes.length === 0 ? (
           <p className="font-sans text-xs text-tinta-100">
-            {totalRodadasFinalizadas < 2
-              ? `Mínimo 2 rodadas finalizadas pra projetar. Faltam ${2 - totalRodadasFinalizadas}.`
-              : 'Sem dados suficientes.'}
+            {totalFinalizadas < 2 ? `Mínimo 2 rodadas finalizadas. Faltam ${2 - totalFinalizadas}.` : 'Sem dados suficientes.'}
           </p>
         ) : (
           <div className="space-y-2">
@@ -1008,10 +853,8 @@ function SecaoProjecao() {
                 <span className="w-4 font-mono text-[10px] text-tinta-100">{i + 1}º</span>
                 <span className="w-28 truncate font-sans text-xs text-tinta-300">{p.nome}</span>
                 <div className="flex-1 overflow-hidden rounded-full bg-papel-200">
-                  <div
-                    className="h-2 rounded-full bg-dourado-400 transition-all duration-500"
-                    style={{ width: `${Math.round((p.pct / maxPct) * 100)}%` }}
-                  />
+                  <div className="h-2 rounded-full bg-dourado-400 transition-all duration-500"
+                    style={{ width: `${Math.round((p.pct / maxPct) * 100)}%` }} />
                 </div>
                 <span className="w-8 text-right font-mono text-xs font-bold text-dourado-600">{p.pct}%</span>
               </div>
@@ -1026,11 +869,7 @@ function SecaoProjecao() {
 // ─── SEÇÃO: Gráfico de Evolução (REAL) ───────────────────────────────────────
 
 const OPCOES_EVOLUCAO: Array<[number, string]> = [
-  [1,  'Última'],
-  [3,  'Últ. 3'],
-  [5,  'Últ. 5'],
-  [10, 'Últ. 10'],
-  [0,  'Desde o início'],
+  [1, 'Última'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Desde o início'],
 ]
 
 function SecaoEvolucao() {
@@ -1046,52 +885,33 @@ function SecaoEvolucao() {
       .finally(() => setCarregando(false))
   }, [])
 
-  async function mudarJanela(novaJanela: number) {
-    if (novaJanela === janela || salvando) return
+  async function mudarJanela(j: number) {
+    if (j === janela || salvando) return
     setSalvando(true); setMensagem(null)
     try {
-      await salvarConfig('evolucao_janela', { rodadas: novaJanela })
-      setJanela(novaJanela)
-      setMensagem('Configuração salva.')
-    } catch (e) {
-      setMensagem(`Erro ao salvar: ${(e as Error).message}`)
-    } finally {
-      setSalvando(false)
-    }
+      await salvarConfig('evolucao_janela', { rodadas: j })
+      setJanela(j); setMensagem('Configuração salva.')
+    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
   }
 
   return (
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Controla quantas rodadas aparecem no gráfico "Evolução por Rodada" no Ranking.
-        </p>
-        {carregando ? (
-          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : (
+        <p className="mb-3 font-sans text-sm text-tinta-200">Controla quantas rodadas aparecem no gráfico "Evolução por Rodada" no Ranking.</p>
+        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
           <div className="flex flex-wrap gap-2">
             {OPCOES_EVOLUCAO.map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => mudarJanela(val)}
-                disabled={salvando}
-                className={cx(
-                  'rounded-md border px-3 py-1.5 font-mono text-xs font-bold transition-colors disabled:opacity-40',
-                  janela === val
-                    ? 'border-dourado-400 bg-dourado-100 text-dourado-600'
-                    : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
-                )}
-              >
+              <button key={val} type="button" onClick={() => mudarJanela(val)} disabled={salvando}
+                className={cx('rounded-md border px-3 py-1.5 font-mono text-xs font-bold transition-colors disabled:opacity-40',
+                  janela === val ? 'border-dourado-400 bg-dourado-100 text-dourado-600' : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100')}>
                 {label}
               </button>
             ))}
           </div>
         )}
-        <p className="mt-3 font-mono text-[10px] text-tinta-100">
-          O gráfico de evolução será implementado na tela de Ranking (próximo bloco).
-        </p>
+        <p className="mt-3 font-mono text-[10px] text-tinta-100">O gráfico será implementado na tela de Ranking.</p>
       </Card>
     </div>
   )
@@ -1102,8 +922,8 @@ function SecaoEvolucao() {
 function SecaoPontuacao() {
   const regras = [
     { desc: 'Placar exato (cravada)', pts: 5 },
-    { desc: 'Saldo de gols certo',    pts: 3 },
-    { desc: 'Vencedor certo',         pts: 1 },
+    { desc: 'Saldo de gols certo', pts: 3 },
+    { desc: 'Vencedor certo', pts: 1 },
   ]
   return (
     <Card>
@@ -1114,9 +934,7 @@ function SecaoPontuacao() {
           <span className="font-mono text-sm font-bold text-dourado-500">{r.pts} pts</span>
         </div>
       ))}
-      <p className="mt-3 font-mono text-[10px] text-tinta-100">
-        Edição dinâmica ficará pra Fase 5 (mexer aqui muda o cálculo histórico).
-      </p>
+      <p className="mt-3 font-mono text-[10px] text-tinta-100">Edição dinâmica ficará pra Fase 5.</p>
     </Card>
   )
 }
@@ -1149,8 +967,8 @@ function SecaoNovidades() {
     try {
       const { error } = await supabase.from('novidades').insert({ titulo: titulo.trim(), resumo: resumo.trim() || null })
       if (error) throw error
-      setTitulo(''); setResumo('')
-      setMensagem('Novidade publicada. 🆕')
+      await gravarLog('NOVIDADE_PUBLICADA', { titulo })
+      setTitulo(''); setResumo(''); setMensagem('Novidade publicada. 🆕')
       await carregar()
     } catch (e) { setMensagem(`Erro ao publicar: ${(e as Error).message}`) }
     finally { setSalvando(false) }
@@ -1171,9 +989,7 @@ function SecaoNovidades() {
     <div className="space-y-3">
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Publique uma novidade pra aparecer como pop-up quando os participantes entrarem no app.
-        </p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Publique uma novidade pra aparecer como pop-up quando os participantes entrarem no app.</p>
         <Row label="Título"><InputText value={titulo} onChange={setTitulo} placeholder="ex: Ranking disponível!" className="flex-1" /></Row>
         <Row label="Resumo">
           <textarea value={resumo} onChange={(e) => setResumo(e.target.value)} placeholder="Breve descrição..." rows={2}
@@ -1185,46 +1001,423 @@ function SecaoNovidades() {
       </Card>
       <Card>
         <SubLabel>Publicadas</SubLabel>
-        {carregando ? (
-          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : lista.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">Nenhuma novidade publicada.</p>
-        ) : (
-          lista.map((n) => (
+        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+          : lista.length === 0 ? <p className="font-sans text-xs text-tinta-100">Nenhuma novidade publicada.</p>
+          : lista.map((n) => (
             <div key={n.id} className="flex items-start gap-2 border-b border-papel-borda-200 py-2.5 last:border-0">
               <div className="flex-1">
                 <p className="font-sans text-sm font-semibold text-tinta-300">{n.titulo}</p>
                 {n.resumo && <p className="mt-0.5 font-sans text-xs text-tinta-200">{n.resumo}</p>}
-                <p className="mt-0.5 font-mono text-[10px] text-tinta-100">
-                  {n.data ? new Date(n.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''}
-                </p>
               </div>
               <button type="button" onClick={() => remover(n.id)} disabled={salvando}
                 className="font-mono text-[10px] text-raridade-frango-selo hover:underline disabled:opacity-40">Remover</button>
             </div>
-          ))
+          ))}
+      </Card>
+    </div>
+  )
+}
+
+// ─── SEÇÃO: Música Tema (placeholder) ────────────────────────────────────────
+
+function SecaoMusica() {
+  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
+}
+
+// ─── SEÇÃO: Conheça os Adms (REAL) ───────────────────────────────────────────
+
+const ADM_VAZIO: Omit<AdminProfile, 'id'> = { nome: '', vulgo: null, foto: null, descricao: null, ordem: 0 }
+
+function SecaoAdms() {
+  const [lista, setLista] = useState<AdminProfile[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+  const [editando, setEditando] = useState<(AdminProfile & { isNovo?: boolean }) | null>(null)
+
+  async function carregar() {
+    setCarregando(true)
+    try { setLista(await buscarAdmins()) }
+    catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    finally { setCarregando(false) }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  function abrirNovo() {
+    setEditando({ ...ADM_VAZIO, id: '', ordem: (lista[lista.length - 1]?.ordem ?? 0) + 1, isNovo: true })
+  }
+
+  function abrirEditar(adm: AdminProfile) { setEditando({ ...adm }) }
+
+  async function salvar() {
+    if (!editando || !editando.nome.trim()) return
+    setSalvando(true); setMensagem(null)
+    try {
+      await salvarAdmin({
+        id: editando.isNovo ? undefined : editando.id,
+        nome: editando.nome.trim(),
+        vulgo: editando.vulgo?.trim() || null,
+        foto: editando.foto?.trim() || null,
+        descricao: editando.descricao?.trim() || null,
+        ordem: editando.ordem,
+      })
+      await gravarLog(editando.isNovo ? 'ADM_ADICIONADO' : 'ADM_EDITADO', { nome: editando.nome })
+      setEditando(null); setMensagem('Salvo.')
+      await carregar()
+    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  async function remover(adm: AdminProfile) {
+    if (!confirm(`Remover ${adm.nome} da lista de adms?`)) return
+    setSalvando(true)
+    try {
+      await removerAdmin(adm.id)
+      await gravarLog('ADM_REMOVIDO', { nome: adm.nome })
+      setMensagem('Adm removido.')
+      await carregar()
+    } catch (e) { setMensagem(`Erro ao remover: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Gerencie os cards da seção "Conheça os Adms" — aparecem na tela inicial pra todos.
+        </p>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+        ) : lista.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhum adm cadastrado ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {lista.map((adm) => (
+              <div key={adm.id} className="flex items-center gap-3 rounded-lg border border-papel-borda-200 bg-papel-100 px-3 py-2.5">
+                {adm.foto ? (
+                  <img src={adm.foto} alt={adm.nome} className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-dourado-100 font-display text-lg font-bold text-dourado-600">
+                    {adm.nome[0]}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-sans text-sm font-semibold text-tinta-300 truncate">{adm.nome}</p>
+                  {adm.vulgo && <p className="font-mono text-[10px] text-tinta-100 truncate">"{adm.vulgo}"</p>}
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button type="button" onClick={() => abrirEditar(adm)}
+                    className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200">Editar</button>
+                  <button type="button" onClick={() => remover(adm)} disabled={salvando}
+                    className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40">Remover</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-3">
+          <Btn variant="gold" onClick={abrirNovo} disabled={salvando}>+ Adicionar Adm</Btn>
+        </div>
+      </Card>
+
+      {editando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
+          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+            <p className="mb-4 font-display text-lg font-bold text-tinta-300">
+              {editando.isNovo ? 'Novo Adm' : `Editar ${editando.nome}`}
+            </p>
+            <div className="space-y-2">
+              <Row label="Nome *">
+                <InputText value={editando.nome} onChange={(v) => setEditando((e) => e && ({ ...e, nome: v }))} placeholder="Nome real" className="flex-1" />
+              </Row>
+              <Row label="Vulgo">
+                <InputText value={editando.vulgo ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, vulgo: v || null }))} placeholder="Apelido" className="flex-1" />
+              </Row>
+              <Row label="Foto URL">
+                <InputText value={editando.foto ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, foto: v || null }))} placeholder="https://..." className="flex-1" />
+              </Row>
+              <Row label="Descrição">
+                <textarea value={editando.descricao ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, descricao: e.target.value || null }))}
+                  placeholder="Breve descrição..." rows={2}
+                  className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
+              </Row>
+              <Row label="Ordem">
+                <input type="number" min={1} value={editando.ordem}
+                  onChange={(e) => setEditando((ed) => ed && ({ ...ed, ordem: parseInt(e.target.value) || 1 }))}
+                  className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
+              </Row>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Btn variant="outline" onClick={() => setEditando(null)}>Cancelar</Btn>
+              <Btn variant="gold" onClick={salvar} disabled={salvando || !editando.nome.trim()}>{salvando ? '...' : '💾 Salvar'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── SEÇÃO: PINs dos Jogadores (REAL) ────────────────────────────────────────
+
+function SecaoPINs() {
+  const [participantes, setParticipantes] = useState<ParticipantePin[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState<string | null>(null) // id do participante sendo salvo
+  const [mensagem, setMensagem] = useState<string | null>(null)
+  const [buf, setBuf] = useState<Record<string, string>>({}) // id → novo pin digitado
+
+  useEffect(() => {
+    buscarParticipantesPins()
+      .then(setParticipantes)
+      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  async function handleSalvarPin(p: ParticipantePin) {
+    const novoPin = buf[p.id]?.trim()
+    if (!novoPin || novoPin === p.pin) return
+    if (novoPin.length < 4) { setMensagem('PIN deve ter pelo menos 4 caracteres.'); return }
+    setSalvando(p.id); setMensagem(null)
+    try {
+      await atualizarPin(p.id, novoPin)
+      await gravarLog('PIN_ATUALIZADO', { participante: p.name })
+      setParticipantes((ps) => ps.map((x) => x.id === p.id ? { ...x, pin: novoPin } : x))
+      setBuf((b) => { const next = { ...b }; delete next[p.id]; return next })
+      setMensagem(`PIN de ${p.name} atualizado.`)
+    } catch (e) { setMensagem(`Erro: ${(e as Error).message}`) }
+    finally { setSalvando(null) }
+  }
+
+  if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando...</p></Card>
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Altere o PIN de qualquer participante. O PIN atual é exibido — troque só quando necessário.
+        </p>
+        <div className="space-y-1">
+          {participantes.map((p) => (
+            <div key={p.id} className="flex items-center gap-2 border-b border-papel-borda-200/60 py-2 last:border-0">
+              <span className="w-32 truncate font-sans text-sm text-tinta-300">{p.name}</span>
+              <span className="font-mono text-xs text-tinta-100">atual: <b className="text-tinta-200">{p.pin}</b></span>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={8}
+                placeholder="novo PIN"
+                value={buf[p.id] ?? ''}
+                onChange={(e) => setBuf((b) => ({ ...b, [p.id]: e.target.value }))}
+                className="w-24 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-xs text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
+              />
+              <button
+                type="button"
+                disabled={!buf[p.id]?.trim() || salvando === p.id}
+                onClick={() => handleSalvarPin(p)}
+                className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40"
+              >
+                {salvando === p.id ? '...' : '✓'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ─── SEÇÃO: Log de Ações (REAL) ───────────────────────────────────────────────
+
+function SecaoLog() {
+  const [entradas, setEntradas] = useState<EntradaLog[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+
+  async function carregar() {
+    setCarregando(true)
+    try { setEntradas(await buscarLog(50)) }
+    catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    finally { setCarregando(false) }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  function formatarData(iso: string) {
+    const d = new Date(iso)
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const ICONES: Record<string, string> = {
+    RODADA_SALVA: '💾',
+    RODADA_FINALIZADA: '✅',
+    RODADA_REABERTA: '🔓',
+    PALPITES_LIMPOS: '🗑',
+    PONTOS_CALCULADOS: '⚡',
+    PONTOS_CORRIGIDOS_MANUAL: '✏️',
+    FRANGO_ATRIBUIDO: '🐔',
+    NOVIDADE_PUBLICADA: '🆕',
+    PIN_ATUALIZADO: '🔐',
+    ADM_ADICIONADO: '👑',
+    ADM_EDITADO: '✏️',
+    ADM_REMOVIDO: '🗑',
+    CAMPEONATO_FINALIZADO: '🏆',
+  }
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+      <div className="flex justify-end">
+        <Btn variant="outline" onClick={carregar} disabled={carregando}>
+          {carregando ? '...' : '↻ Atualizar'}
+        </Btn>
+      </div>
+      <Card>
+        <SubLabel>Últimas 50 ações</SubLabel>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+        ) : entradas.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma ação registrada ainda.</p>
+        ) : (
+          <div className="max-h-96 overflow-y-auto space-y-0">
+            {entradas.map((e) => (
+              <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
+                <div className="flex items-start gap-2">
+                  <span className="text-base leading-none mt-0.5">{ICONES[e.action] ?? '•'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
+                    {e.performed_by && (
+                      <p className="font-sans text-[10px] text-tinta-100">por {e.performed_by}</p>
+                    )}
+                    {e.payload && Object.keys(e.payload).length > 0 && (
+                      <p className="mt-0.5 font-mono text-[10px] text-tinta-100 truncate">
+                        {Object.entries(e.payload).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                  <span className="flex-shrink-0 font-mono text-[10px] text-tinta-100">{formatarData(e.created_at)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
     </div>
   )
 }
 
-// ─── SEÇÕES PLACEHOLDER ───────────────────────────────────────────────────────
+// ─── SEÇÃO: Finalizar Campeonato (REAL) ──────────────────────────────────────
 
-function SecaoMusica() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
-}
-function SecaoAdms() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco.</p></Card>
-}
-function SecaoPINs() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco.</p></Card>
-}
-function SecaoLog() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco.</p></Card>
-}
 function SecaoFinalizarCampeonato() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco.</p></Card>
+  const [nomecamp, setNomecamp] = useState('Brasileirão Série A 2026')
+  const [adminNome, setAdminNome] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [mensagem, setMensagem] = useState<string | null>(null)
+  const [confirmar, setConfirmar] = useState(false)
+  const [snapshots, setSnapshots] = useState<Array<{ id: string; nome: string; campeao: string; data_encerramento: string }>>([])
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('campeonatos_finalizados')
+      .select('id, nome, campeao, data_encerramento')
+      .order('data_encerramento', { ascending: false })
+      .then(({ data }) => setSnapshots(data ?? []))
+      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  async function handleFinalizar() {
+    setConfirmar(false); setSalvando(true); setMensagem(null)
+    try {
+      await finalizarCampeonato(nomecamp, adminNome || 'admin')
+      setMensagem('Campeonato finalizado e snapshot salvo. 🏆')
+      const { data } = await supabase
+        .from('campeonatos_finalizados')
+        .select('id, nome, campeao, data_encerramento')
+        .order('data_encerramento', { ascending: false })
+      setSnapshots(data ?? [])
+    } catch (e) { setMensagem(`Erro: ${(e as Error).message}`) }
+    finally { setSalvando(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
+
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Encerra o campeonato atual — salva um snapshot permanente do ranking final
+          em <b>campeonatos_finalizados</b>. O banco <b>não</b> é resetado automaticamente:
+          após finalizar, rode o SQL de reset manualmente no Supabase.
+        </p>
+        <Row label="Nome">
+          <InputText value={nomecamp} onChange={setNomecamp} placeholder="ex: Brasileirão 2026" className="flex-1" />
+        </Row>
+        <Row label="Seu nome">
+          <InputText value={adminNome} onChange={setAdminNome} placeholder="Quem está finalizando?" className="flex-1" />
+        </Row>
+        <div className="mt-4">
+          <Btn variant="danger" onClick={() => setConfirmar(true)} disabled={salvando || !nomecamp.trim()}>
+            🏆 Finalizar Campeonato
+          </Btn>
+        </div>
+      </Card>
+
+      <Card>
+        <SubLabel>SQL de reset (rode no Supabase após finalizar)</SubLabel>
+        <pre className="overflow-x-auto rounded bg-tinta-300 p-3 font-mono text-[10px] text-papel-100 leading-relaxed">
+{`-- ⚠ IRREVERSÍVEL — rode só após salvar o snapshot
+truncate table predictions restart identity cascade;
+truncate table rounds restart identity cascade;
+truncate table matches restart identity cascade;
+truncate table shame restart identity cascade;
+truncate table admin_log restart identity cascade;
+-- participants e admins_profile: NÃO truncar (mantém jogadores/adms)`}
+        </pre>
+      </Card>
+
+      {snapshots.length > 0 && (
+        <Card>
+          <SubLabel>Campeonatos encerrados</SubLabel>
+          {carregando ? (
+            <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+          ) : (
+            snapshots.map((s) => (
+              <div key={s.id} className="flex items-center justify-between border-b border-papel-borda-200 py-2 last:border-0">
+                <div>
+                  <p className="font-sans text-sm font-semibold text-tinta-300">{s.nome}</p>
+                  <p className="font-mono text-[10px] text-tinta-100">
+                    🏆 {s.campeao} · {new Date(s.data_encerramento).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+      )}
+
+      {confirmar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
+          <div className="w-full max-w-sm rounded-lg border-2 border-raridade-frango-selo bg-papel-50 p-5 shadow-xl">
+            <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tem certeza?</p>
+            <p className="mb-4 font-sans text-sm text-tinta-200">
+              Isso vai salvar o snapshot do ranking atual como <b>{nomecamp}</b>. O banco
+              <b> não</b> será resetado automaticamente — você vai precisar rodar o SQL manualmente.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
+              <Btn variant="danger" onClick={handleFinalizar}>🏆 Finalizar</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── TELA PRINCIPAL ───────────────────────────────────────────────────────────
@@ -1267,20 +1460,18 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
           <h1 className="font-display text-2xl font-bold text-tinta-300">⚙ Admin</h1>
           <p className="font-sans text-sm text-tinta-100">Área restrita — alterações afetam todos</p>
         </header>
-
         <div className="mb-4 rounded-lg border border-dourado-300 bg-dourado-50 px-4 py-2.5">
           <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-dourado-700">
             ⚠ Área restrita — alterações afetam todos os participantes em tempo real.
           </p>
         </div>
-
         <div className="flex flex-col gap-3">
           {SECOES.map((s) => (
             <Accordion key={s.key} titulo={s.titulo} storageKey={`admin-${s.key}`} defaultOpen={false}>
               {s.conteudo}
             </Accordion>
           ))}
-        </div>
+        div>
       </div>
     </main>
   )
