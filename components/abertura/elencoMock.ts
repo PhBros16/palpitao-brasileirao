@@ -159,3 +159,56 @@ const _default = gerarElenco('4-3-3')
 export const TITULARES = _default.TITULARES
 export const BANCO = _default.BANCO
 export const TECNICO = _default.TECNICO
+
+
+// ─── PIN lookup pra abertura ──────────────────────────────────────────────
+//
+// gerarElenco() cima devolve nome/posição/iniciais (dados de layout). Pra
+// validar PIN no clique do jogador, precisamos buscar o PIN real do Supabase
+// e casar pelo nome. Esta função faz esse enrich — devolve TITULARES com PIN
+// preenchido (procura por nome exato em participants.name).
+//
+// Retorna [] se der erro (o handler de click não abre modal se elenco vazio,
+// então quem consome trata como "clique não faz nada").
+
+import { supabase } from '@/lib/supabase'
+
+export interface JogadorComPin {
+  id: string           // id do participants (não o id local 'p1'..'p14')
+  nome: string
+  vulgo?: string
+  pin: string
+}
+
+const VULGO_MAP: Record<string, string> = {
+  'André':          'Paredão',
+  'Ramon':          'Xerife',
+  'Costa':          'Muralha',
+  'Giovanni':       'Zagueirão',
+  'Pedro Gaúcho':   'ComeGorda',
+  'Victor Simões':  'Analista',
+  'Pedro Frozza':   'Volante',
+  'Diniz':          'Camisa 10',
+  'PH':             'Bolado',
+  'Matheus Couto':  'Pistoleiro',
+  'Matheus Brito':  'Artilheiro',
+  'Victor Bahia':   'O Chefe',
+  'Samuel':         'Reserva',
+  'Damus':          'Novato',
+}
+
+/** Busca PIN + id real de um jogador da abertura, casando pelo nome exato. */
+export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | null> {
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, name, pin')
+    .eq('name', nome)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    id: data.id,
+    nome: data.name,
+    vulgo: VULGO_MAP[data.name],
+    pin: data.pin,
+  }
+}
