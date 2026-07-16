@@ -1,32 +1,48 @@
 'use client'
 
-// /ranking — Fase A do Ranking real.
+// /ranking — Fase A do Ranking real + Estatísticas Minhas.
 //
 // Busca dados reais do Supabase (via lib/rankingReal) e monta o DadosRanking
-// que o RankingScreen espera. Só a aba "Classificação" tem dados reais nesta
-// fase — Evolução, Estatísticas e Troféus vão com mock vazio até serem
-// implementadas em fases seguintes.
+// que o RankingScreen espera. A aba Estatísticas busca dados por conta
+// própria (via lib/statsReal) usando a sessão do localStorage.
+//
+// Se não houver sessão (ex: alguém digitou /ranking na barra sem passar
+// pela abertura), redireciona pra / — o único fluxo canônico de acesso.
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { RankingScreen } from '@/components/ranking/RankingScreen'
 import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 import { buscarRankingReal, type LinhaRanking } from '@/lib/rankingReal'
 import type { DadosRanking } from '@/components/ranking/tipos'
 
 export default function RankingPage() {
+  const router = useRouter()
   const [dados, setDados] = useState<DadosRanking | null>(null)
   const [linhasReais, setLinhasReais] = useState<LinhaRanking[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [frenteFrente, setFrenteFrente] = useState<{ a: LinhaRanking; b: LinhaRanking } | null>(null)
 
   useEffect(() => {
+    // Redirect defensivo: sem sessão → volta pra abertura
+    try {
+      const raw = localStorage.getItem('palpitao_sessao')
+      if (!raw) {
+        router.replace('/')
+        return
+      }
+    } catch {
+      router.replace('/')
+      return
+    }
+
     buscarRankingReal()
       .then((linhas) => {
         setLinhasReais(linhas)
         setDados(montarDadosRanking(linhas))
       })
       .catch((e) => setErro((e as Error).message))
-  }, [])
+  }, [router])
 
   function abrirFrenteFrenteReal(nome: string) {
     const clicada = linhasReais.find((l) => l.nome === nome)
@@ -90,6 +106,7 @@ function montarDadosRanking(linhasReais: LinhaRanking[]): DadosRanking {
     })),
     evolucao: [],
     totalRodadas: 0,
+    // Placeholder — Estatisticas.tsx busca dados reais por conta própria via localStorage
     estatisticas: {
       ptsPorRodada: [],
       cravadas: 0,
