@@ -23,7 +23,7 @@ const ABAS: [Sub, string][] = [
   ['trofeus', 'Troféus'],
 ]
 
-export function RankingScreen({ dados }: { dados: DadosRanking }) {
+export function RankingScreen({ dados, onClickLinha }: { dados: DadosRanking; onClickLinha?: (nome: string) => void }) {
   const [sub, setSub] = useState<Sub>('classificacao')
 
   return (
@@ -48,7 +48,7 @@ export function RankingScreen({ dados }: { dados: DadosRanking }) {
           ))}
         </div>
 
-        {sub === 'classificacao' && <Classificacao linhas={dados.classificacao} />}
+        {sub === 'classificacao' && <Classificacao linhas={dados.classificacao} onClickLinha={onClickLinha ? (l) => onClickLinha(l.nome) : undefined} />}
         {sub === 'evolucao' && <Evolucao series={dados.evolucao} totalRodadas={dados.totalRodadas} />}
         {sub === 'stats' && <Estatisticas e={dados.estatisticas} />}
         {sub === 'trofeus' && <SalaTrofeus trofeus={dados.trofeus} total={dados.totalTrofeus} />}
