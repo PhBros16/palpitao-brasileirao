@@ -1,6 +1,6 @@
 'use client'
 
-// RodadaAoVivo — tabela ao vivo da rodada em andamento.
+// RodadaAoVivo — tabela ao vivo da rodada em andamento !
 //
 // Layout: matriz participante × jogo, com coluna do nome fixa (sticky) e
 // scroll horizontal nos jogos. Célula de palpite colorida pela categoria
