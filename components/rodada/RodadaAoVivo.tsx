@@ -1,17 +1,6 @@
 'use client'
 
-// RodadaAoVivo — tabela ao vivo da rodada em andamento !
-//
-// Layout: matriz participante × jogo, com coluna do nome fixa (sticky) e
-// scroll horizontal nos jogos. Célula de palpite colorida pela categoria
-// (cravou/saldo/vencedor/errou/aguardando/NP). Ordenada pela parcial da
-// rodada, com o usuário logado destacado.
-//
-// Modal Frente a Frente ao clicar em qualquer linha — versão compacta,
-// apenas da rodada atual.
-//
-// Header engraçado se o usuário logado esqueceu de palpitar algum jogo
-// aberto (variação aleatória de zoação).
+// RodadaAoVivo — tabela ao vivo da rodada em andamento.
 
 import { useEffect, useMemo, useState } from 'react'
 import { buscarRodadaAoVivo, type RodadaAoVivoDados, type LinhaRodadaAoVivo, type PalpiteCelula, type JogoRodada } from '@/lib/rodadaAoVivo'
@@ -20,7 +9,6 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
-// ─── Zoações aleatórias pra quem esqueceu de palpitar ────────────────────────
 const ZOACOES_ESQUECEU = [
   'iii mané, esqueceu de palpitar foi?',
   'Vai palpitar ou vai deixar barato?',
@@ -33,7 +21,6 @@ function frasesZoacaoAleatoria(): string {
   return ZOACOES_ESQUECEU[Math.floor(Math.random() * ZOACOES_ESQUECEU.length)]
 }
 
-// ─── Cor da célula por categoria ─────────────────────────────────────────────
 function corCelula(cat: PalpiteCelula['categoria']): string {
   switch (cat) {
     case 'cravou': return 'bg-green-600 text-white'
@@ -45,17 +32,15 @@ function corCelula(cat: PalpiteCelula['categoria']): string {
   }
 }
 
-// ─── Cor de fundo da coluna PTS por faixa de pontuação ──────────────────────
 function corPts(pts: number | null): string {
-  if (pts === null) return 'bg-papel-100 text-tinta-100'      // NP
+  if (pts === null) return 'bg-papel-100 text-tinta-100'
   if (pts >= 20) return 'bg-green-100 text-green-800'
   if (pts >= 15) return 'bg-blue-100 text-blue-800'
   if (pts >= 10) return 'bg-yellow-100 text-yellow-800'
   if (pts >= 5) return 'bg-orange-100 text-orange-800'
-  return 'bg-red-100 text-red-800'                             // 0-4
+  return 'bg-red-100 text-red-800'
 }
 
-// ─── Cabeçalho do jogo (escudo + iniciais dos 2 times) ───────────────────────
 function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
   return (
     <div className="flex flex-col items-center gap-0.5 py-1">
@@ -82,7 +67,6 @@ function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
           />
         )}
       </div>
-      {/* Placar real, se lançado */}
       {jogo.temResultado && (
         <span className="mt-0.5 rounded bg-dourado-100 px-1 py-0.5 font-mono text-[9px] font-bold text-dourado-700">
           {jogo.home_score}×{jogo.away_score}
@@ -92,7 +76,6 @@ function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
   )
 }
 
-// ─── Célula de palpite ───────────────────────────────────────────────────────
 function CelulaPalpite({ celula }: { celula: PalpiteCelula }) {
   if (celula.categoria === 'np') {
     return (
@@ -115,7 +98,6 @@ function CelulaPalpite({ celula }: { celula: PalpiteCelula }) {
   )
 }
 
-// ─── Modal Frente a Frente (rodada atual) ────────────────────────────────────
 function FrenteFrenteRodadaModal({
   jogadorA,
   jogadorB,
@@ -133,7 +115,6 @@ function FrenteFrenteRodadaModal({
         className="w-full max-w-md overflow-hidden rounded-lg border-2 border-dourado-400 bg-papel-50 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b-2 border-dourado-300 bg-gradient-to-r from-dourado-100 to-dourado-50 px-4 py-3">
           <p className="font-display text-sm font-bold uppercase tracking-widest text-dourado-800">
             🥊 Frente a Frente — Rodada
@@ -143,7 +124,6 @@ function FrenteFrenteRodadaModal({
           </button>
         </div>
 
-        {/* Placar rodada */}
         <div className="grid grid-cols-3 items-center gap-2 border-b border-papel-borda-200 bg-papel-100 px-4 py-3">
           <div className="text-center">
             <p className="truncate font-display text-sm font-bold text-tinta-300">{jogadorA.nome}</p>
@@ -158,7 +138,6 @@ function FrenteFrenteRodadaModal({
           </div>
         </div>
 
-        {/* Jogo a jogo */}
         <div className="max-h-[50vh] overflow-y-auto">
           {jogos.map((j, i) => {
             const cA = jogadorA.celulas[i]
@@ -200,8 +179,6 @@ function FrenteFrenteRodadaModal({
     </div>
   )
 }
-
-// ─── Componente principal ────────────────────────────────────────────────────
 
 export function RodadaAoVivo() {
   const [dados, setDados] = useState<RodadaAoVivoDados | null>(null)
@@ -252,12 +229,10 @@ export function RodadaAoVivo() {
     }
   }
 
-  // Detecta se o usuário logado esqueceu de palpitar algum jogo
   const esqueceuAlgum = useMemo(() => {
     if (!dados || !meuId) return false
     const minhaLinha = dados.linhas.find((l) => l.participantId === meuId)
-    if (!minhaLinha) return true // não palpitou nenhum
-    // Se algum jogo sem resultado e sem palpite meu → esqueceu
+    if (!minhaLinha) return true
     return minhaLinha.celulas.some((c, i) => {
       const jogo = dados.jogos[i]
       return !jogo.temResultado && c.categoria === 'np'
@@ -268,7 +243,6 @@ export function RodadaAoVivo() {
     if (!dados) return
     let minhaLinha = dados.linhas.find((l) => l.participantId === meuId)
     if (!minhaLinha || minhaLinha.participantId === linha.participantId) {
-      // Fallback: usa o líder da rodada
       minhaLinha = dados.linhas[0]
     }
     if (!minhaLinha || minhaLinha.participantId === linha.participantId) return
@@ -298,7 +272,6 @@ export function RodadaAoVivo() {
   return (
     <main className="min-h-screen bg-papel-200 px-2 pb-10 pt-6 sm:px-4">
       <div className="mx-auto max-w-4xl space-y-3">
-        {/* Header */}
         <header className="flex items-center justify-between px-2">
           <div>
             <h1 className="font-display text-2xl font-bold text-tinta-300">Rodada</h1>
@@ -317,7 +290,6 @@ export function RodadaAoVivo() {
           </button>
         </header>
 
-        {/* Zoação se esqueceu de palpitar */}
         {esqueceuAlgum && (
           <div className="rounded-lg border-2 border-red-400 bg-red-50 px-4 py-3">
             <p className="font-sans text-sm font-semibold text-red-700">🚨 {zoacao}</p>
@@ -327,33 +299,27 @@ export function RodadaAoVivo() {
           </div>
         )}
 
-        {/* Ultima atualização */}
         {ultimaAtualizacao && (
           <p className="text-center font-mono text-[10px] text-tinta-100">
             Atualizado às {ultimaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
         )}
 
-        {/* Tabela */}
         <div className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-md scrollbar-tema">
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
-                {/* Coluna nome (sticky) */}
                 <th className="sticky left-0 z-20 border-b-2 border-dourado-400 bg-couro-300 px-2 py-2 text-left font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Participante
                 </th>
-                {/* Jogos */}
                 {dados.jogos.map((j) => (
                   <th key={j.matchId} className="min-w-[64px] border-b-2 border-dourado-400 bg-couro-300 px-1 py-1 text-center">
                     <CabecalhoJogo jogo={j} />
                   </th>
                 ))}
-                {/* Coluna pontos */}
                 <th className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Pts
                 </th>
-                {/* Coluna hora */}
                 <th className="border-b-2 border-dourado-400 bg-couro-300 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Hora
                 </th>
@@ -411,7 +377,6 @@ export function RodadaAoVivo() {
           </table>
         </div>
 
-        {/* Legenda */}
         <div className="flex flex-wrap items-center justify-center gap-3 rounded-lg border border-papel-borda-200 bg-papel-50 px-3 py-2 font-mono text-[10px] text-tinta-100">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-600" /> Cravou (+5)</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-blue-500" /> Saldo (+3)</span>
