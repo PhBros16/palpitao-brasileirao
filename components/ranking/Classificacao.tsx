@@ -1,4 +1,5 @@
 // Classificação — pódio top 3 + tabela completa.
+// Linhas clicáveis se onClickLinha for passado (abre Frente a Frente).
 
 import type { ClassificacaoLinha } from './tipos'
 
@@ -34,7 +35,15 @@ function ColunaPodio({
   )
 }
 
-export function Classificacao({ linhas }: { linhas: ClassificacaoLinha[] }) {
+export function Classificacao({
+  linhas,
+  onClickLinha,
+}: {
+  linhas: ClassificacaoLinha[]
+  /** Opcional. Se passado, cada linha da tabela vira clicável. */
+  onClickLinha?: (linha: ClassificacaoLinha) => void
+}) {
+  const clicavel = !!onClickLinha
   return (
     <div className="flex flex-col gap-4">
       {/* Pódio */}
@@ -50,9 +59,7 @@ export function Classificacao({ linhas }: { linhas: ClassificacaoLinha[] }) {
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
               <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-center">#</th>
-              <th className="sticky left-8 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left">
-                Nome
-              </th>
+              <th className="sticky left-8 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left">Nome</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-3 py-2 text-right">Pontos</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Crav.</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Venc.</th>
@@ -62,7 +69,11 @@ export function Classificacao({ linhas }: { linhas: ClassificacaoLinha[] }) {
           </thead>
           <tbody>
             {linhas.map((d, i) => (
-              <tr key={d.nome}>
+              <tr
+                key={d.nome}
+                onClick={clicavel ? () => onClickLinha!(d) : undefined}
+                className={clicavel ? 'cursor-pointer transition-colors hover:bg-papel-100' : undefined}
+              >
                 <td className="sticky left-0 z-10 border-b border-papel-borda-200/60 bg-papel-50 px-2 py-2 text-center font-mono text-xs text-tinta-200">
                   {i + 1}
                 </td>
@@ -88,6 +99,11 @@ export function Classificacao({ linhas }: { linhas: ClassificacaoLinha[] }) {
             ))}
           </tbody>
         </table>
+        {clicavel && (
+          <p className="border-t border-papel-borda-200 bg-papel-100 px-3 py-2 text-center font-mono text-[10px] italic text-tinta-100">
+            👆 Toque em qualquer participante pra ver o comparativo frente a frente
+          </p>
+        )}
       </div>
     </div>
   )
