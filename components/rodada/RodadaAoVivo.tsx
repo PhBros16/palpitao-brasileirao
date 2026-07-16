@@ -58,11 +58,11 @@ function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
         )}
-        <span className="font-mono text-[9px] font-bold text-tinta-300">{jogo.homeAbrev}</span>
+        <span className="font-mono text-[9px] font-bold text-dourado-50">{jogo.homeAbrev}</span>
       </div>
-      <span className="font-mono text-[7px] text-tinta-100">×</span>
+      <span className="font-mono text-[7px] text-dourado-50/60">×</span>
       <div className="flex items-center gap-0.5">
-        <span className="font-mono text-[9px] font-bold text-tinta-300">{jogo.awayAbrev}</span>
+        <span className="font-mono text-[9px] font-bold text-dourado-50">{jogo.awayAbrev}</span>
         {jogo.awayEscudo && (
           <img
             src={jogo.awayEscudo}
@@ -325,26 +325,26 @@ export function RodadaAoVivo() {
         )}
 
         {/* Tabela */}
-        <div className="overflow-x-auto rounded-lg border border-papel-borda-200 bg-papel-50 shadow-sm">
+        <div className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-md">
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
                 {/* Coluna nome (sticky) */}
-                <th className="sticky left-0 z-20 border-b-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left font-mono text-[10px] uppercase tracking-widest text-tinta-100">
+                <th className="sticky left-0 z-20 border-b-2 border-dourado-400 bg-couro-300 px-2 py-2 text-left font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Participante
                 </th>
                 {/* Jogos */}
                 {dados.jogos.map((j) => (
-                  <th key={j.matchId} className="min-w-[64px] border-b-2 border-papel-borda-300 bg-papel-200 px-1 py-1 text-center">
+                  <th key={j.matchId} className="min-w-[64px] border-b-2 border-dourado-400 bg-couro-300 px-1 py-1 text-center">
                     <CabecalhoJogo jogo={j} />
                   </th>
                 ))}
                 {/* Coluna pontos */}
-                <th className="sticky right-0 z-20 border-b-2 border-papel-borda-300 bg-dourado-100 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-700">
+                <th className="sticky right-0 z-20 border-b-2 border-dourado-400 bg-dourado-300 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Pts
                 </th>
                 {/* Coluna hora */}
-                <th className="border-b-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-tinta-100">
+                <th className="border-b-2 border-dourado-400 bg-couro-300 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Hora
                 </th>
               </tr>
@@ -363,13 +363,13 @@ export function RodadaAoVivo() {
                   >
                     <td
                       className={cx(
-                        'sticky left-0 z-10 border-b border-papel-borda-200/60 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold',
+                        'sticky left-0 z-10 whitespace-nowrap border-b border-papel-borda-200/60 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold',
                         ehMeu && 'border-l-4 border-l-dourado-500 bg-dourado-50 text-dourado-800',
                       )}
                     >
                       <span className="font-mono text-[9px] text-tinta-100">{i + 1}.</span>{' '}
                       <span className={ehMeu ? 'font-bold' : 'text-tinta-300'}>
-                        {linha.nome}{ehMeu && ' (você)'}
+                        {linha.nome}
                       </span>
                     </td>
                     {linha.celulas.map((c) => (
