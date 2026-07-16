@@ -340,7 +340,7 @@ export function RodadaAoVivo() {
                   </th>
                 ))}
                 {/* Coluna pontos */}
-                <th className="sticky right-0 z-20 border-b-2 border-dourado-400 bg-couro-300 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
+                <th className="border-b-2 border-dourado-400 border-l-2 border-l-dourado-500 bg-couro-300 px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Pts
                 </th>
                 {/* Coluna hora */}
