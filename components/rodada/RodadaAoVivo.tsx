@@ -340,7 +340,7 @@ export function RodadaAoVivo() {
                   </th>
                 ))}
                 {/* Coluna pontos */}
-                <th className="border-b-2 border-dourado-400 border-l-2 border-l-dourado-500 bg-couro-300 px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
+                <th className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-dourado-50">
                   Pts
                 </th>
                 {/* Coluna hora */}
@@ -377,7 +377,7 @@ export function RodadaAoVivo() {
                         <CelulaPalpite celula={c} />
                       </td>
                     ))}
-                    <td className="border-b border-papel-borda-200/60 border-l-2 border-l-dourado-500 bg-dourado-50 px-3 py-2 text-center font-mono text-sm font-bold text-dourado-700">
+                    <td className="border-b border-papel-borda-200/60 bg-papel-50 px-3 py-2 text-center font-mono text-sm font-bold text-dourado-700">
                       {linha.palpitouAlgo ? linha.ptsRodada : '—'}
                     </td>
                     <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-[10px] text-tinta-100">
