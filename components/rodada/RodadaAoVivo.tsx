@@ -325,7 +325,7 @@ export function RodadaAoVivo() {
         )}
 
         {/* Tabela */}
-        <div className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-md">
+        <div className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-md scrollbar-tema">
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
