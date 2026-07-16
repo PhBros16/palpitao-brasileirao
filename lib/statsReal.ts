@@ -23,8 +23,9 @@ export interface MinhasStatsReal {
   ptsPorRodada: Array<{
     roundId: string
     numero: number
+    label: string   // "R1", "R18", "E1", "E2" — etiqueta curta pra heatmap
     nome: string
-    pontos: number | null   // null = NP (não palpitou)
+    pontos: number | null
     cravadas: number
     saldos: number
     vencedores: number
@@ -80,10 +81,19 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
 
   // 3. Monta ptsPorRodada + agrega totais
   let cravadas = 0, vencedor = 0, saldo = 0, totalPts = 0, rodadas = 0, meuRecorde = 0
+  // Helper: rodadas 1-38 → "R1", "R38". Rodadas 100+ (extras) → "E1", "E2", etc.
+  // Padrão que escala sozinho conforme mais extras forem criadas (100, 101, 102...).
+  const rodadasExtras = roundList.filter((r) => r.number >= 100).sort((a, b) => a.number - b.number)
+  const mapaExtra = new Map(rodadasExtras.map((r, i) => [r.id, `E${i + 1}`]))
+  function montarLabel(r: { id: string; number: number }): string {
+    return mapaExtra.get(r.id) ?? `R${r.number}`
+  }
+
   const ptsPorRodada = roundList.map((r) => {
     const rr = rrByRound.get(r.id)
+    const label = montarLabel(r)
     if (!rr) {
-      return { roundId: r.id, numero: r.number, nome: r.name, pontos: null, cravadas: 0, saldos: 0, vencedores: 0 }
+      return { roundId: r.id, numero: r.number, label, nome: r.name, pontos: null, cravadas: 0, saldos: 0, vencedores: 0 }
     }
     const pts = rr.round_pts ?? 0
     cravadas += rr.exact_scores ?? 0
@@ -93,7 +103,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     rodadas++
     if (pts > meuRecorde) meuRecorde = pts
     return {
-      roundId: r.id, numero: r.number, nome: r.name,
+      roundId: r.id, numero: r.number, label, nome: r.name,
       pontos: pts,
       cravadas: rr.exact_scores ?? 0,
       saldos: rr.correct_saldo ?? 0,
