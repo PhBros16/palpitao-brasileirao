@@ -277,8 +277,7 @@ function SecaoConfiguracaoRodada() {
   const [modalFinalizar, setModalFinalizar] = useState<'fechado' | 'confirmar' | 'aviso'>('fechado')
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
 
-  useEffect(() => {
-      const [ehExtra, setEhExtra] = useState(false)
+  const [ehExtra, setEhExtra] = useState(false)
 
   // Sugere o próximo número disponível quando marca "É extra"
   async function toggleExtra(v: boolean) {
@@ -286,7 +285,6 @@ function SecaoConfiguracaoRodada() {
     if (v) {
       // Busca o maior number >= 100 já usado e sugere o próximo
       try {
-        const { supabase } = await import('@/lib/supabase')
         const { data } = await supabase
           .from('rounds')
           .select('number')
@@ -304,6 +302,8 @@ function SecaoConfiguracaoRodada() {
       if (numero >= 100) setNumero(20)
     }
   }
+
+  useEffect(() => {
     buscarRodadaAtiva()
       .then((r) => {
         setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
