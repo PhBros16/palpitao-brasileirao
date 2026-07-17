@@ -1,4 +1,4 @@
-# 🏆 EM CONSTRUÇÃO
+# 🏆 Brasileirão EM CONSTRUÇÃO
 
 > O bolão de Copa do Mundo mais completo que você já viu.
 
