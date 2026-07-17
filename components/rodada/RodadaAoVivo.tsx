@@ -291,9 +291,9 @@ export function RodadaAoVivo() {
         </header>
 
         {esqueceuAlgum && (
-          <div className="rounded-lg border-2 border-raridade-frango-selo bg-couro-50 px-4 py-3">
+          <div className="rounded-lg border-2 border-raridade-frango-selo bg-red-50/70 px-4 py-3">
             <p className="font-sans text-sm font-semibold text-raridade-frango-selo">🚨 {zoacao}</p>
-            <p className="mt-1 font-sans text-xs text-couro-400">
+            <p className="mt-1 font-sans text-xs text-raridade-frango-selo/80">
               Você tem palpites em aberto. Vai lá na aba <b>Palpites</b>.
             </p>
           </div>
