@@ -1,0 +1,62 @@
+'use client'
+
+// NavAbas — barra de navegação horizontal (mobile-first, scroll horizontal).
+//
+// 6 abas fixas + 1 condicional (Admin, se participants.is_admin=true).
+// Item ativo destacado com fundo couro + texto dourado.
+// Cada item vira Link do Next.js pra sua rota real.
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ')
+}
+
+interface Aba {
+  key: string
+  label: string
+  emoji: string
+  href: string
+  adminOnly?: boolean
+}
+
+const ABAS: Aba[] = [
+  { key: 'inicio',    label: 'Início',    emoji: '🏠', href: '/inicio' },
+  { key: 'palpites',  label: 'Palpites',  emoji: '✏️', href: '/palpites' },
+  { key: 'rodada',    label: 'Rodada',    emoji: '📊', href: '/rodada' },
+  { key: 'ranking',   label: 'Ranking',   emoji: '🏆', href: '/ranking' },
+  { key: 'historico', label: 'Histórico', emoji: '📅', href: '/historico' },
+  { key: 'guia',      label: 'Guia',      emoji: '📖', href: '/guia' },
+  { key: 'admin',     label: 'Admin',     emoji: '⚙️', href: '/admin', adminOnly: true },
+]
+
+export function NavAbas({ isAdmin }: { isAdmin: boolean }) {
+  const pathname = usePathname()
+  const abasVisiveis = ABAS.filter((a) => !a.adminOnly || isAdmin)
+
+  return (
+    <nav className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm scrollbar-tema">
+      <div className="flex gap-1 p-1.5">
+        {abasVisiveis.map((aba) => {
+          const ativa = pathname === aba.href || pathname.startsWith(aba.href + '/')
+          return (
+            <Link
+              key={aba.key}
+              href={aba.href}
+              className={cx(
+                'flex flex-shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors',
+                ativa
+                  ? 'bg-couro-300 text-dourado-50'
+                  : 'text-tinta-200 hover:bg-papel-200',
+              )}
+            >
+              <span className="text-sm">{aba.emoji}</span>
+              {aba.label}
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
