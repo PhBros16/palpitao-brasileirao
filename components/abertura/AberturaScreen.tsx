@@ -111,7 +111,9 @@ export function AberturaScreen() {
   const handleAbrir = useCallback(() => {
     if (iniciado.current) return
     iniciado.current = true
-    somKit.playTheme()
+    // Inicia música tema real (gesto do usuário libera autoplay do navegador).
+    // Silencioso se o mp3 ainda não existir.
+    import('@/components/home/PlayerMusica').then((m) => m.iniciarMusicaTema())
     setAberto(true)
     timers.current.push(setTimeout(() => setMostrarVerso(true), DUR_FLIP / 2))
 
