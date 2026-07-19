@@ -1,8 +1,12 @@
 // somKit — efeitos sonoros sintetizados via Web Audio API (sem arquivos de
-// áudio). Mantido como no protótipo original: tema de abertura, "clac" de
-// refletor e ruído de torcida. Só toca a partir de um gesto do usuário
-// (botão "Abrir o Álbum"), respeitando a trava de autoplay do navegador
-// (CLAUDE.md Seção 4 — "Sobre a música tema").
+// áudio). Mantém "clac" de refletor e ruído de torcida ambiente.
+//
+// A vinheta melódica de 7 notas (playTheme) foi SILENCIADA — o app agora
+// usa música tema real (mp3 do admin) na tela Home. Manter aqui uma
+// segunda música competindo com a real geraria conflito de áudio.
+//
+// A API pública continua idêntica (playTheme/playSpotlightClack/startCrowd)
+// pra não quebrar quem já chama. playTheme só não emite som mais.
 
 class SoundKit {
   private ctx: AudioContext | null = null
@@ -19,43 +23,15 @@ class SoundKit {
     return this.ctx
   }
 
+  /**
+   * SILENCIADO. Vinheta original de 7 notas removida — a música tema real
+   * (mp3 do admin) toca na Home, não faz sentido ter uma vinheta melódica
+   * competindo aqui. Mantemos a função pra não quebrar o AberturaScreen
+   * que ainda a chama.
+   */
   playTheme() {
-    const ctx = this.ensure()
-    const now = ctx.currentTime
-    const notes = [
-      { f: 466.16, t: 0.0, d: 0.35 },
-      { f: 587.33, t: 0.18, d: 0.35 },
-      { f: 698.46, t: 0.36, d: 0.35 },
-      { f: 932.33, t: 0.54, d: 0.6 },
-      { f: 698.46, t: 0.9, d: 0.35 },
-      { f: 587.33, t: 1.08, d: 0.35 },
-      { f: 466.16, t: 1.26, d: 0.9 },
-    ]
-    const master = ctx.createGain()
-    master.gain.value = 0.18
-    master.connect(ctx.destination)
-    notes.forEach((n) => {
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      o.type = 'triangle'
-      o.frequency.value = n.f
-      g.gain.setValueAtTime(0.0001, now + n.t)
-      g.gain.exponentialRampToValueAtTime(0.9, now + n.t + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d)
-      o.connect(g).connect(master)
-      o.start(now + n.t)
-      o.stop(now + n.t + n.d + 0.05)
-    })
-    const bass = ctx.createOscillator()
-    const bg = ctx.createGain()
-    bass.type = 'sine'
-    bass.frequency.value = 116.54
-    bg.gain.setValueAtTime(0.0001, now)
-    bg.gain.exponentialRampToValueAtTime(0.5, now + 0.05)
-    bg.gain.exponentialRampToValueAtTime(0.0001, now + 1.8)
-    bass.connect(bg).connect(master)
-    bass.start(now)
-    bass.stop(now + 1.9)
+    // no-op — a música real vive na Home
+    this.ensure() // garante contexto criado (pra não travar autoplay depois)
   }
 
   playSpotlightClack(delay = 0) {
