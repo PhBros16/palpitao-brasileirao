@@ -169,11 +169,11 @@ export function AberturaScreen() {
     }
   }, [buscandoPin, pinPlayer])
 
-  // PIN validado → grava sessão (mesma chave usada em /palpites) → navega.
+  // PIN validado → grava sessão → navega pra Home (/inicio).
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem('palpitao_sessao', JSON.stringify({ id: player.id, nome: player.nome }))
     setPinPlayer(null)
-    router.push('/palpites')
+    router.push('/inicio')
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
