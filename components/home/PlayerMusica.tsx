@@ -1,21 +1,17 @@
 'use client'
 
-// PlayerMusica — mini-player fixo na Home.
+// PlayerMusica — mini-player fixo com playlist expandível.
 //
-// Toca a música tema em loop por padrão. Se o usuário clicar em "próxima",
-// entra em modo playlist sequencial (sem loop). Volta pra loop se o usuário
-// clicar de novo na música tema (a primeira).
+// Arquivos ficam na raiz de public/ (não em public/musicas/).
+// Playlist atual: 1 tema Palpitão + 7 clássicas de Copa.
 //
-// A música precisa começar após um gesto do usuário (regra de autoplay dos
-// navegadores). O único gesto na abertura é "Abrir o Álbum". Como o áudio
-// persiste entre rotas via singleton no window, se o usuário já ativou lá,
-// aqui já toca. Se não, botão Play manual libera.
-//
-// Suporta múltiplos nomes de arquivo pra mesma faixa (fallback):
-//   /musicas/tema.mp3
-//   /musicas/tema.mp3.mpeg
-//   /musicas/tema.mpeg
-// O navegador tenta cada um em ordem.
+// Comportamento:
+//   - Ao entrar: tenta carregar o tema. Play automático só se o navegador
+//     tiver liberado (via gesto do usuário na abertura).
+//   - Loop: on por padrão (só na música tema, id='tema').
+//   - Playlist: se o usuário clica em ⏭ ou escolhe outra música, entra
+//     em modo playlist (sem loop). Toca todas em sequência.
+//   - Persiste entre navegações via singleton no window.
 
 import { useEffect, useRef, useState } from 'react'
 
@@ -23,17 +19,23 @@ interface Faixa {
   id: string
   titulo: string
   artista: string
-  fontes: string[]  // várias URLs de fallback
+  fontes: string[]  // várias URLs fallback (ex: .mp3, .mp3.mpeg, .mpeg)
 }
 
-// Playlist inicial (crescerá quando mais mp3s forem subidos)
 const PLAYLIST: Faixa[] = [
   {
     id: 'tema',
     titulo: 'Gold on the Pitch',
     artista: 'Tema Palpitão',
-    fontes: ['/musicas/tema.mp3', '/musicas/tema.mp3.mpeg', '/musicas/tema.mpeg'],
+    fontes: ['/tema.mp3', '/tema.mp3.mpeg', '/tema.mpeg', '/musicas/tema.mp3'],
   },
+  { id: 'waka_waka',        titulo: 'Waka Waka',            artista: 'Shakira',          fontes: ['/waka_waka.mp3'] },
+  { id: 'live_it_up',       titulo: 'Live It Up',           artista: 'Nicky Jam',        fontes: ['/live_it_up.mp3'] },
+  { id: 'the_cup_of_life',  titulo: 'The Cup of Life',      artista: 'Ricky Martin',     fontes: ['/the_cup_of_life.mp3'] },
+  { id: 'tunnel_vision',    titulo: 'Tunnel Vision',        artista: 'Justin Timberlake', fontes: ['/tunnel_vision.mp3'] },
+  { id: 'wavin_flag',       titulo: "Wavin' Flag",          artista: "K'naan",           fontes: ['/wavin_flag.mp3'] },
+  { id: 'we_are_one',       titulo: 'We Are One (Olé Olá)', artista: 'Pitbull',          fontes: ['/we_are_one.mp3'] },
+  { id: 'world_cup_champions', titulo: 'World Cup Champions', artista: 'FIFA',           fontes: ['/world_cup_champions.mp3'] },
 ]
 
 // Singleton do <audio> — persiste entre navegações
@@ -43,7 +45,6 @@ declare global {
     __palpitaoAudioState?: {
       faixaId: string
       modoPlaylist: boolean
-      tocando: boolean
     }
   }
 }
@@ -52,10 +53,10 @@ function getAudioSingleton(): HTMLAudioElement {
   if (typeof window === 'undefined') throw new Error('SSR')
   if (!window.__palpitaoAudio) {
     const audio = new Audio()
-    audio.loop = true   // padrão: loop na faixa atual
+    audio.loop = true
     audio.volume = 0.4
     window.__palpitaoAudio = audio
-    window.__palpitaoAudioState = { faixaId: PLAYLIST[0].id, modoPlaylist: false, tocando: false }
+    window.__palpitaoAudioState = { faixaId: PLAYLIST[0].id, modoPlaylist: false }
   }
   return window.__palpitaoAudio!
 }
@@ -63,7 +64,7 @@ function getAudioSingleton(): HTMLAudioElement {
 function trySrc(audio: HTMLAudioElement, fontes: string[], idx = 0): Promise<void> {
   return new Promise((resolve, reject) => {
     if (idx >= fontes.length) {
-      reject(new Error('Nenhuma fonte da música carregou.'))
+      reject(new Error('Nenhuma fonte carregou'))
       return
     }
     const src = fontes[idx]
@@ -84,38 +85,35 @@ function trySrc(audio: HTMLAudioElement, fontes: string[], idx = 0): Promise<voi
   })
 }
 
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ')
+}
+
 export function PlayerMusica() {
   const [faixaAtualIdx, setFaixaAtualIdx] = useState(0)
   const [tocando, setTocando] = useState(false)
-  const [carregado, setCarregado] = useState(false)
+  const [expandido, setExpandido] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const audio = getAudioSingleton()
     audioRef.current = audio
 
-    // Sincroniza estado inicial com o singleton
     const state = window.__palpitaoAudioState!
     const idx = PLAYLIST.findIndex((f) => f.id === state.faixaId)
     setFaixaAtualIdx(idx >= 0 ? idx : 0)
     setTocando(!audio.paused)
 
-    // Se ainda não carregou, tenta carregar a faixa atual
     if (!audio.src) {
-      trySrc(audio, PLAYLIST[idx >= 0 ? idx : 0].fontes)
-        .then(() => setCarregado(true))
-        .catch((e) => setErro((e as Error).message))
-    } else {
-      setCarregado(true)
+      trySrc(audio, PLAYLIST[idx >= 0 ? idx : 0].fontes).catch(() => {
+        setErro('Áudio não encontrado. Verifique o arquivo em /public.')
+      })
     }
 
-    // Handlers pra sincronizar UI com o singleton
     const onPlay = () => setTocando(true)
     const onPause = () => setTocando(false)
     const onEnded = () => {
-      // Ao terminar (só acontece em modo playlist, pois loop=true no modo tema)
       if (window.__palpitaoAudioState?.modoPlaylist) {
         proximaFaixa()
       }
@@ -137,9 +135,12 @@ export function PlayerMusica() {
     setErro(null)
     if (audio.paused) {
       try {
+        if (!audio.src) {
+          await trySrc(audio, PLAYLIST[faixaAtualIdx].fontes)
+        }
         await audio.play()
-      } catch (e) {
-        setErro('Não deu pra tocar. Toque de novo.')
+      } catch {
+        setErro('Não deu pra tocar. Confira se o arquivo existe.')
       }
     } else {
       audio.pause()
@@ -153,12 +154,12 @@ export function PlayerMusica() {
     setFaixaAtualIdx(idx)
     window.__palpitaoAudioState!.faixaId = PLAYLIST[idx].id
     window.__palpitaoAudioState!.modoPlaylist = modoPlaylist
-    audio.loop = !modoPlaylist  // playlist = sem loop; tema = loop
+    audio.loop = !modoPlaylist
     try {
       await trySrc(audio, PLAYLIST[idx].fontes)
       await audio.play()
-    } catch (e) {
-      setErro((e as Error).message)
+    } catch {
+      setErro('Arquivo não encontrado.')
     }
   }
 
@@ -175,57 +176,99 @@ export function PlayerMusica() {
   const faixa = PLAYLIST[faixaAtualIdx]
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border-2 border-dourado-300 bg-papel-50 px-3 py-2 shadow-sm">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-couro-300 text-lg">
-        🎵
+    <div className="overflow-hidden rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm">
+      {/* Barra principal */}
+      <div className="flex items-center gap-3 px-3 py-2">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-couro-300 text-lg">
+          🎵
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="truncate font-display text-xs font-bold uppercase tracking-widest text-dourado-800">
+            Música Tema
+          </p>
+          <p className="truncate font-sans text-[11px] text-tinta-200">
+            {faixa.titulo} · {faixa.artista}
+          </p>
+          {erro && (
+            <p className="mt-0.5 font-mono text-[9px] text-raridade-frango-selo">{erro}</p>
+          )}
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={faixaAnterior}
+            className="rounded-md border border-dourado-300 bg-papel-100 px-2 py-1 font-mono text-xs text-dourado-700 hover:bg-dourado-50"
+            aria-label="Anterior"
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="rounded-md border-2 border-dourado-500 bg-couro-300 px-3 py-1 font-mono text-sm text-dourado-50 hover:bg-couro-400"
+            aria-label={tocando ? 'Pausar' : 'Tocar'}
+          >
+            {tocando ? '⏸' : '▶️'}
+          </button>
+          <button
+            type="button"
+            onClick={proximaFaixa}
+            className="rounded-md border border-dourado-300 bg-papel-100 px-2 py-1 font-mono text-xs text-dourado-700 hover:bg-dourado-50"
+            aria-label="Próxima"
+          >
+            ⏭
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpandido((v) => !v)}
+            className="rounded-md border border-dourado-300 bg-papel-100 px-2 py-1 font-mono text-xs text-dourado-700 hover:bg-dourado-50"
+            aria-label={expandido ? 'Fechar lista' : 'Abrir lista'}
+          >
+            {expandido ? '▲' : '▼'}
+          </button>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="truncate font-display text-xs font-bold uppercase tracking-widest text-dourado-800">
-          Música Tema
-        </p>
-        <p className="truncate font-sans text-[11px] text-tinta-200">
-          {faixa.titulo} · {faixa.artista}
-        </p>
-        {erro && (
-          <p className="mt-0.5 font-mono text-[9px] text-raridade-frango-selo">{erro}</p>
-        )}
-      </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={faixaAnterior}
-          disabled={PLAYLIST.length <= 1}
-          className="rounded-md border border-dourado-300 bg-papel-100 px-2 py-1 font-mono text-xs text-dourado-700 hover:bg-dourado-50 disabled:opacity-30"
-          aria-label="Anterior"
-        >
-          ⏮
-        </button>
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="rounded-md border-2 border-dourado-500 bg-couro-300 px-3 py-1 font-mono text-sm text-dourado-50 hover:bg-couro-400"
-          aria-label={tocando ? 'Pausar' : 'Tocar'}
-        >
-          {tocando ? '⏸' : '▶️'}
-        </button>
-        <button
-          type="button"
-          onClick={proximaFaixa}
-          disabled={PLAYLIST.length <= 1}
-          className="rounded-md border border-dourado-300 bg-papel-100 px-2 py-1 font-mono text-xs text-dourado-700 hover:bg-dourado-50 disabled:opacity-30"
-          aria-label="Próxima"
-        >
-          ⏭
-        </button>
-      </div>
+
+      {/* Playlist expandida */}
+      {expandido && (
+        <div className="max-h-64 overflow-y-auto border-t border-dourado-300 bg-papel-100 scrollbar-tema">
+          {PLAYLIST.map((f, i) => {
+            const ativa = i === faixaAtualIdx
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => trocarPara(i, i !== 0)}
+                className={cx(
+                  'flex w-full items-center gap-2 border-b border-papel-borda-200/60 px-3 py-2 text-left last:border-0 transition-colors',
+                  ativa ? 'bg-dourado-100' : 'hover:bg-papel-200',
+                )}
+              >
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-couro-100 text-sm">
+                  {ativa && tocando ? '▶️' : '♪'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={cx('truncate font-sans text-xs font-semibold', ativa ? 'text-dourado-800' : 'text-tinta-300')}>
+                    {f.titulo}
+                  </p>
+                  <p className="truncate font-mono text-[10px] text-tinta-100">{f.artista}</p>
+                </div>
+                {ativa && (
+                  <span className="font-mono text-[9px] font-bold uppercase text-dourado-700">
+                    {tocando ? 'Tocando' : 'Pausada'}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Helper exportado pra outros componentes iniciarem a música ─────────────
 
-/** Chame no clique de "Abrir Álbum" (gesto do usuário libera autoplay).
- *  Se não conseguir, falha silenciosamente — o mp3 pode nem existir ainda. */
 export async function iniciarMusicaTema(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
@@ -238,6 +281,6 @@ export async function iniciarMusicaTema(): Promise<void> {
     window.__palpitaoAudioState!.faixaId = PLAYLIST[0].id
     await audio.play()
   } catch {
-    // silencioso — se o mp3 não existir, não faz nada
+    // silencioso — mp3 pode não existir ainda
   }
 }
