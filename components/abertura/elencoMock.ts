@@ -178,6 +178,7 @@ export interface JogadorComPin {
   nome: string
   vulgo?: string
   pin: string
+  avatar?: string | null
 }
 
 const VULGO_MAP: Record<string, string> = {
@@ -197,11 +198,11 @@ const VULGO_MAP: Record<string, string> = {
   'Damus':          'Novato',
 }
 
-/** Busca PIN + id real de um jogador da abertura, casando pelo nome exato. */
+/** Busca PIN + id real + avatar do jogador, casando pelo nome exato. */
 export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | null> {
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, pin')
+    .select('id, name, pin, avatar')
     .eq('name', nome)
     .maybeSingle()
   if (error || !data) return null
@@ -210,5 +211,6 @@ export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | nu
     nome: data.name,
     vulgo: VULGO_MAP[data.name],
     pin: data.pin,
+    avatar: data.avatar,
   }
 }
