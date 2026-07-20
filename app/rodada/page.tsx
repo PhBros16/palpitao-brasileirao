@@ -1,13 +1,11 @@
 'use client'
 
-// /rodada — Aba Rodada ao vivo.
-//
-// Sem sessão → redireciona pra / (abertura, único caminho canônico de acesso).
-// Com sessão → renderiza <RodadaAoVivo /> que busca dados por conta própria.
+// /rodada — envolvida no AppLayout.
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RodadaAoVivo } from '@/components/rodada/RodadaAoVivo'
+import { AppLayout } from '@/components/home/AppLayout'
 
 export default function RodadaPage() {
   const router = useRouter()
@@ -23,5 +21,9 @@ export default function RodadaPage() {
     }
   }, [router])
 
-  return <RodadaAoVivo />
+  return (
+    <AppLayout>
+      <RodadaAoVivo />
+    </AppLayout>
+  )
 }
