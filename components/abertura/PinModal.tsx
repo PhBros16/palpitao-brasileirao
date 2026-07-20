@@ -15,6 +15,7 @@ export interface PinPlayer {
   nome: string
   vulgo?: string
   pin: string
+  avatar?: string | null
 }
 
 function cx(...classes: Array<string | false | null | undefined>): string {
@@ -68,9 +69,14 @@ export function PinModal({
         className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-dourado-300 bg-papel-100 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Avatar do selecionado (grande, dourado) */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-dourado-400 bg-dourado-100">
-          <span className="font-display text-xl font-bold text-dourado-700">{getIniciais(player.nome)}</span>
+        {/* Avatar do selecionado (grande, dourado). Foto se existir, senão iniciais */}
+        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-4 border-dourado-400 bg-dourado-100">
+          {player.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={player.avatar} alt={player.nome} className="h-full w-full object-cover" />
+          ) : (
+            <span className="font-display text-xl font-bold text-dourado-700">{getIniciais(player.nome)}</span>
+          )}
         </div>
 
         <div className="text-center">
