@@ -1,11 +1,11 @@
 'use client'
 
-// Palpites real — Fase 4: rodada/jogos vêm do Supabase (palpites_open=true),
-// palpites gravados de verdade em `predictions`, ligados à sessão de /login.
+// Palpites real — envolvido no AppLayout pra ganhar Header + Nav + Player.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PalpitesRodada } from '@/components/palpites'
+import { AppLayout } from '@/components/home/AppLayout'
 import type { Palpite } from '@/components/palpites/CardJogo'
 import { buscarRodadaAtivaPalpites, buscarPalpitesExistentes, salvarPalpitesReais, type RodadaPalpites } from '@/lib/palpitesReais'
 
@@ -19,7 +19,7 @@ export default function PalpitesPage() {
   useEffect(() => {
     const sessaoRaw = localStorage.getItem('palpitao_sessao')
     if (!sessaoRaw) {
-      router.push('/login')
+      router.push('/')
       return
     }
     const sessao = JSON.parse(sessaoRaw) as { id: string; nome: string }
@@ -36,28 +36,31 @@ export default function PalpitesPage() {
       .catch((e) => setErro(`Não consegui carregar a rodada: ${e.message}`))
   }, [router])
 
-  if (erro) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-300">{erro}</main>
-  }
-
-  if (!participantId || !rodada) {
-    return <main className="min-h-screen bg-papel-200" />
-  }
-
-  if (!rodada.roundId) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-300">
-        Nenhuma rodada com palpites abertos no momento.
-      </main>
-    )
-  }
-
   return (
-    <PalpitesRodada
-      rodadaNome={rodada.nome}
-      jogos={rodada.jogos}
-      palpitesIniciais={palpitesIniciais}
-      onSalvar={(palpites) => salvarPalpitesReais(participantId, palpites)}
-    />
+    <AppLayout>
+      {erro && (
+        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
+          {erro}
+        </div>
+      )}
+      {!erro && !rodada && (
+        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
+          Carregando...
+        </div>
+      )}
+      {rodada && !rodada.roundId && (
+        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-200">
+          Nenhuma rodada com palpites abertos no momento.
+        </div>
+      )}
+      {rodada && rodada.roundId && participantId && (
+        <PalpitesRodada
+          rodadaNome={rodada.nome}
+          jogos={rodada.jogos}
+          palpitesIniciais={palpitesIniciais}
+          onSalvar={(palpites) => salvarPalpitesReais(participantId, palpites)}
+        />
+      )}
+    </AppLayout>
   )
 }
