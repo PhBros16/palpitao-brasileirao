@@ -186,12 +186,15 @@ function montarDadosRanking(linhasReais: LinhaRanking[]): DadosRanking {
   return {
     classificacao: linhasReais.map((l) => ({
       nome: l.nome,
+      avatar: l.avatar,
+      emoji: l.emoji,
       pontos: l.total,
       cravadas: l.cravadas,
       vencedor: l.vencedor,
       saldo: l.saldo,
       projecao: l.projecaoPct ?? 0,
     })),
+    ...
     evolucao: [],
     totalRodadas: 0,
     estatisticas: {
