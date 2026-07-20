@@ -7,6 +7,30 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
+function getIniciais(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+// Círculo de foto/iniciais 24×24 pra usar na tabela do ranking.
+function AvatarMini({ avatar, nome }: { avatar: string | null; nome: string }) {
+  if (avatar) {
+    return (
+      <span className="flex h-6 w-6 flex-shrink-0 overflow-hidden rounded-full border border-dourado-300 bg-papel-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={avatar} alt={nome} className="h-full w-full object-cover" />
+      </span>
+    )
+  }
+  return (
+    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-dourado-300 bg-dourado-100 font-mono text-[9px] font-bold text-dourado-700">
+      {getIniciais(nome)}
+    </span>
+  )
+}
+
 function ColunaPodio({
   linha,
   lugar,
@@ -53,18 +77,20 @@ export function Classificacao({
         <ColunaPodio linha={linhas[2]} lugar={3} altura="h-12" base="bg-bronze-100" medalha="🥉" />
       </div>
 
-      {/* Tabela (scroll horizontal quando necessário; # e Nome fixos) */}
+      {/* Tabela — # e Nome fixos na esquerda; PTS/CRAV/etc. livres */}
       <div className="rounded-lg border border-papel-borda-200">
         <table className="w-full table-fixed border-separate border-spacing-0">
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
               <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-center">#</th>
-              <th className="sticky left-8 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left">Nome</th>
+              <th className="sticky left-8 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left">
+                Nome
+              </th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-3 py-2 text-right">Pontos</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Crav.</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Venc.</th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Saldo</th>
-              <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-right">Proj.%</th>
+              <th className="border-b border-papel-borda-200 bg-papel-200 py-2 pl-2 pr-4 text-right">Proj.%</th>
             </tr>
           </thead>
           <tbody>
@@ -78,7 +104,11 @@ export function Classificacao({
                   {i + 1}
                 </td>
                 <td className="sticky left-8 z-10 border-b border-r-2 border-papel-borda-300 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
-                  {d.nome}
+                  <div className="flex items-center gap-1.5">
+                    <AvatarMini avatar={d.avatar} nome={d.nome} />
+                    {d.emoji && <span className="text-sm leading-none">{d.emoji}</span>}
+                    <span className="truncate">{d.nome}</span>
+                  </div>
                 </td>
                 <td className="border-b border-papel-borda-200/60 px-3 py-2 text-right font-mono text-xs font-bold text-tinta-300">
                   {d.pontos}
@@ -92,7 +122,7 @@ export function Classificacao({
                 <td className="border-b border-papel-borda-200/60 px-2 py-2 text-right font-mono text-xs text-tinta-200">
                   {d.saldo}
                 </td>
-                <td className="border-b border-papel-borda-200/60 px-2 py-2 text-right font-mono text-xs font-bold text-dourado-600">
+                <td className="border-b border-papel-borda-200/60 py-2 pl-2 pr-4 text-right font-mono text-xs font-bold text-dourado-600">
                   {d.projecao}%
                 </td>
               </tr>
