@@ -78,12 +78,12 @@ export function Classificacao({
       </div>
 
       {/* Tabela — # e Nome fixos na esquerda; PTS/CRAV/etc. livres */}
-      <div className="rounded-lg border border-papel-borda-200">
-        <table className="w-full table-fixed border-separate border-spacing-0">
+      <div className="rounded-lg border border-papel-borda-200 overflow-hidden">
+        <table className="w-full table-auto border-separate border-spacing-0">
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
-              <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 px-2 py-2 text-center">#</th>
-              <th className="sticky left-8 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left">
+              <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 w-10 px-1 py-2 text-center">#</th>
+              <th className="sticky left-10 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left min-w-[120px]">
                 Nome
               </th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-3 py-2 text-right">Pontos</th>
@@ -100,14 +100,14 @@ export function Classificacao({
                 onClick={clicavel ? () => onClickLinha!(d) : undefined}
                 className={clicavel ? 'cursor-pointer transition-colors hover:bg-papel-100' : undefined}
               >
-                <td className="sticky left-0 z-10 border-b border-papel-borda-200/60 bg-papel-50 px-2 py-2 text-center font-mono text-xs text-tinta-200">
+                <td className="sticky left-0 z-10 border-b border-papel-borda-200/60 bg-papel-50 w-10 px-1 py-2 text-center font-mono text-xs text-tinta-200">
                   {i + 1}
                 </td>
-                <td className="sticky left-8 z-10 border-b border-r-2 border-papel-borda-300 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
-                  <div className="flex items-center gap-1.5">
+                <td className="sticky left-10 z-10 border-b border-r-2 border-papel-borda-300 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
+                  <div className="flex items-center gap-1">
                     <AvatarMini avatar={d.avatar} nome={d.nome} />
                     {d.emoji && <span className="text-sm leading-none">{d.emoji}</span>}
-                    <span className="truncate">{d.nome}</span>
+                    <span className="whitespace-nowrap">{d.nome}</span>
                   </div>
                 </td>
                 <td className="border-b border-papel-borda-200/60 px-3 py-2 text-right font-mono text-xs font-bold text-tinta-300">
