@@ -58,7 +58,7 @@ export interface FrenteFrenteRodada {
 export async function buscarRankingReal(): Promise<LinhaRanking[]> {
   const { data: participants, error: pErr } = await supabase
     .from('participants')
-    .select('id, name')
+    .select('id, name, emoji, avatar')
     .eq('is_admin', false)
     .order('name')
   if (pErr) throw pErr
@@ -73,9 +73,13 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
 
   if (roundIds.length === 0) {
     return participants.map((p, i) => ({
-      participantId: p.id, nome: p.name,
+      participantId: p.id,
+      nome: p.name,
+      emoji: p.emoji ?? null,
+      avatar: p.avatar ?? null,
       total: 0, cravadas: 0, vencedor: 0, saldo: 0,
-      projecaoPct: null, posicao: i + 1,
+      projecaoPct: null,
+      posicao: i + 1,
     }))
   }
 
@@ -108,6 +112,8 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     return {
       participantId: p.id,
       nome: p.name,
+      emoji: p.emoji ?? null,
+      avatar: p.avatar ?? null,
       total: agg.total,
       cravadas: agg.cravadas,
       vencedor: agg.vencedor,
