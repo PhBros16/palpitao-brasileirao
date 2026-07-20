@@ -1,8 +1,15 @@
-// Conferência visual do Admin. Rota: /admin-teste.
-// isAdmin=true para ver a tela completa. Trocar para false para ver a tela de acesso restrito.
+'use client'
 
-import { AdminScreen } from '@/components/admin'
+// /admin-teste — versão de desenvolvimento (isAdmin hardcoded).
+// Envolvida no AppLayout pra ganhar Header + Nav + Player.
+
+import { AdminScreen } from '@/components/admin/AdminScreen'
+import { AppLayout } from '@/components/home/AppLayout'
 
 export default function AdminTestePage() {
-  return <AdminScreen isAdmin={true} />
+  return (
+    <AppLayout>
+      <AdminScreen isAdmin={true} />
+    </AppLayout>
+  )
 }
