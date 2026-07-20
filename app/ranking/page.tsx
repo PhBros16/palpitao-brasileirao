@@ -1,16 +1,6 @@
 'use client'
 
-// /ranking — Fase completa do Ranking.
-//
-// Busca dados reais do Supabase (via lib/rankingReal) e monta o DadosRanking.
-// Aba Estatísticas + Sala de Troféus buscam dados por conta própria (via
-// lib/statsReal / lib/trofeusReal) usando a sessão do localStorage.
-//
-// Notificação de novo troféu: ao carregar, detecta troféus desbloqueados
-// desde a última visita (comparando com localStorage 'palpitao_trofeus_vistos')
-// e mostra um toast animado no canto. Auto-fecha em 6s.
-//
-// Sem sessão → redireciona pra /.
+// /ranking — envolvida no AppLayout.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -18,6 +8,7 @@ import { RankingScreen } from '@/components/ranking/RankingScreen'
 import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 import { buscarRankingReal, type LinhaRanking } from '@/lib/rankingReal'
 import { buscarTrofeusJogador, type TrofeuReal } from '@/lib/trofeusReal'
+import { AppLayout } from '@/components/home/AppLayout'
 import type { DadosRanking } from '@/components/ranking/tipos'
 
 const CHAVE_TROFEUS_VISTOS = 'palpitao_trofeus_vistos'
@@ -31,7 +22,6 @@ export default function RankingPage() {
   const [novosTrofeus, setNovosTrofeus] = useState<TrofeuReal[]>([])
 
   useEffect(() => {
-    // Redirect defensivo: sem sessão → volta pra abertura
     let sessao: { id: string; nome: string } | null = null
     try {
       const raw = localStorage.getItem('palpitao_sessao')
@@ -45,7 +35,6 @@ export default function RankingPage() {
       return
     }
 
-    // Carrega ranking
     buscarRankingReal()
       .then((linhas) => {
         setLinhasReais(linhas)
@@ -53,7 +42,6 @@ export default function RankingPage() {
       })
       .catch((e) => setErro((e as Error).message))
 
-    // Verifica troféus novos (silencioso, não bloqueia se falhar)
     if (sessao?.id) {
       buscarTrofeusJogador(sessao.id)
         .then((res) => {
@@ -84,42 +72,41 @@ export default function RankingPage() {
     setFrenteFrente({ a: jogadorA, b: clicada })
   }
 
-  if (erro) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-raridade-frango-selo">
-        {erro}
-      </main>
-    )
-  }
-  if (!dados) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">
-        Carregando ranking...
-      </main>
-    )
-  }
-
   return (
-    <>
-      <RankingScreen dados={dados} onClickLinha={abrirFrenteFrenteReal} />
-      {frenteFrente && (
-        <FrenteFrenteModal
-          jogadorA={{ participantId: frenteFrente.a.participantId, nome: frenteFrente.a.nome }}
-          jogadorB={{ participantId: frenteFrente.b.participantId, nome: frenteFrente.b.nome }}
-          onFechar={() => setFrenteFrente(null)}
-        />
+    <AppLayout>
+      {erro && (
+        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
+          {erro}
+        </div>
       )}
-      {novosTrofeus.length > 0 && (
-        <ToastNovoTrofeu
-          trofeus={novosTrofeus}
-          onFechar={() => setNovosTrofeus([])}
-        />
+      {!dados && !erro && (
+        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
+          Carregando ranking...
+        </div>
       )}
-    </>
+      {dados && (
+        <>
+          <RankingScreen dados={dados} onClickLinha={abrirFrenteFrenteReal} />
+          {frenteFrente && (
+            <FrenteFrenteModal
+              jogadorA={{ participantId: frenteFrente.a.participantId, nome: frenteFrente.a.nome }}
+              jogadorB={{ participantId: frenteFrente.b.participantId, nome: frenteFrente.b.nome }}
+              onFechar={() => setFrenteFrente(null)}
+            />
+          )}
+          {novosTrofeus.length > 0 && (
+            <ToastNovoTrofeu
+              trofeus={novosTrofeus}
+              onFechar={() => setNovosTrofeus([])}
+            />
+          )}
+        </>
+      )}
+    </AppLayout>
   )
 }
 
-// ─── Detecção de troféus novos ───────────────────────────────────────────────
+// ─── Helpers (mantidos do arquivo original) ─────────────────────────────────
 
 function detectarNovosTrofeus(
   participantId: string,
@@ -136,27 +123,19 @@ function detectarNovosTrofeus(
   const desbloqueados = trofeus.filter((t) => t.unlocked)
   const novos = desbloqueados.filter((t) => !vistosIds.includes(t.id))
 
-  // Atualiza a lista de vistos ANTES de notificar — evita repetir se o
-  // usuário navegar de volta pra /ranking na mesma sessão.
   const novosIds = desbloqueados.map((t) => t.id)
   try {
     localStorage.setItem(chave, JSON.stringify(novosIds))
   } catch { /* ignora */ }
 
-  // Só notifica se realmente há novos E se não é a primeira visita
-  // (primeira visita = vistosIds vazio → considera tudo como "já visto"
-  // pra não bombardear com 20 troféus de uma vez).
   if (vistosIds.length > 0 && novos.length > 0) {
     onNovos(novos)
   }
 }
 
-// ─── Toast de novo troféu ────────────────────────────────────────────────────
-
 function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFechar: () => void }) {
   const [indice, setIndice] = useState(0)
 
-  // Auto-avanço a cada 4s; fecha depois do último
   useEffect(() => {
     const timer = setTimeout(() => {
       if (indice + 1 >= trofeus.length) {
@@ -174,21 +153,14 @@ function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFecha
   return (
     <div className="fixed bottom-4 right-4 z-[60] w-full max-w-xs animate-in slide-in-from-right duration-500">
       <div className="overflow-hidden rounded-lg border-2 border-dourado-500 bg-gradient-to-br from-dourado-100 to-dourado-50 shadow-2xl">
-        {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b border-dourado-300 bg-dourado-200 px-3 py-1.5">
           <p className="font-display text-[11px] font-bold uppercase tracking-widest text-dourado-800">
             🏆 Troféu Desbloqueado!
           </p>
-          <button
-            type="button"
-            onClick={onFechar}
-            className="font-mono text-xs text-dourado-700 hover:text-dourado-900"
-          >
+          <button type="button" onClick={onFechar} className="font-mono text-xs text-dourado-700 hover:text-dourado-900">
             ✕
           </button>
         </div>
-
-        {/* Conteúdo */}
         <div className="flex items-center gap-3 p-4">
           <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-dourado-300 to-dourado-500 text-3xl shadow-inner">
             {t.icon}
@@ -198,8 +170,6 @@ function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFecha
             <p className="mt-0.5 font-sans text-[11px] leading-tight text-tinta-200">{t.desc}</p>
           </div>
         </div>
-
-        {/* Indicador de progresso (se tem mais de 1) */}
         {trofeus.length > 1 && (
           <div className="flex items-center justify-center gap-1 border-t border-dourado-300 bg-dourado-100 px-3 py-1.5">
             <span className="font-mono text-[9px] uppercase tracking-widest text-dourado-700">
@@ -211,8 +181,6 @@ function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFecha
     </div>
   )
 }
-
-// ─── Adaptador ───────────────────────────────────────────────────────────────
 
 function montarDadosRanking(linhasReais: LinhaRanking[]): DadosRanking {
   return {
