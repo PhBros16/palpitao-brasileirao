@@ -1,24 +1,20 @@
 'use client'
 
-// HomeReal — tela principal pós-login (/inicio).
+// HomeReal — conteúdo específico da tela /inicio.
 //
-// 9 blocos empilhados verticalmente:
-//   1. Header do usuário (avatar + nome + botões atualizar/sair)
-//   2. Nav de abas horizontal
-//   3. Player de música tema
-//   4. Card da rodada atual (nome, cards de stats, countdown)
-//   5. Parcial da rodada (tabela ordenada)
-//   6. Frango da rodada anterior
-//   7. Por Placar (placares mais apostados por jogo)
-//   8. Distribuição de palpites (pizza por jogo)
-//   9. Pódio atual (top 3 do ranking geral)
+// Header, Nav e Player agora vêm do AppLayout que envolve esta tela.
+// Aqui fica só o conteúdo próprio da Home:
+//   1. Card da rodada atual
+//   2. Parcial da rodada (sem foto — só emoji ao lado do nome)
+//   3. Frango da rodada anterior
+//   4. Por Placar
+//   5. Distribuição de palpites
+//   6. Pódio atual
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo, type PodioLinha } from '@/lib/homeReal'
-import { HeaderUsuario, AvatarCirculo } from './HeaderUsuario'
-import { NavAbas } from './NavAbas'
-import { PlayerMusica } from './PlayerMusica'
+import { AvatarCirculo } from './HeaderUsuario'
+import { AppLayout } from './AppLayout'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -39,10 +35,8 @@ function formatarCountdown(ms: number): string {
 export function HomeReal() {
   const [dados, setDados] = useState<HomeCompleta | null>(null)
   const [participantId, setParticipantId] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [carregando, setCarregando] = useState(true)
-  const [atualizando, setAtualizando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [atualizando, setAtualizando] = useState(false)
 
   useEffect(() => {
     let pid: string | null = null
@@ -54,33 +48,18 @@ export function HomeReal() {
       }
     } catch { /* ignora */ }
 
-    if (!pid) {
-      setErro('Sessão não encontrada.')
-      setCarregando(false)
-      return
-    }
+    if (!pid) return
     setParticipantId(pid)
     carregar(pid)
-
-    // Verifica se é admin
-    supabase
-      .from('participants')
-      .select('is_admin')
-      .eq('id', pid)
-      .maybeSingle()
-      .then(({ data }) => setIsAdmin(data?.is_admin ?? false))
   }, [])
 
   async function carregar(pid: string) {
-    setCarregando(true)
     setErro(null)
     try {
       const d = await buscarHomeCompleta(pid)
       setDados(d)
     } catch (e) {
       setErro((e as Error).message)
-    } finally {
-      setCarregando(false)
     }
   }
 
@@ -97,77 +76,56 @@ export function HomeReal() {
     }
   }
 
-  if (carregando) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">Carregando...</main>
-  }
-  if (erro) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-raridade-frango-selo">{erro}</main>
-  }
-  if (!dados || !participantId) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">Sem dados.</main>
-  }
-
   return (
-    <main className="min-h-screen bg-papel-200 px-3 pb-10 pt-4">
-      <div className="mx-auto max-w-md space-y-3">
-        {/* 1. Header */}
-        <HeaderUsuario
-          participantId={participantId}
-          nome={dados.usuarioNome}
-          avatar={dados.usuarioAvatar}
-          emoji={dados.usuarioEmoji}
-          onAtualizar={atualizar}
-          atualizando={atualizando}
-          onPerfilAlterado={() => carregar(participantId)}
-        />
+    <AppLayout onAtualizar={atualizar} atualizando={atualizando}>
+      {erro && (
+        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
+          {erro}
+        </div>
+      )}
 
-        {/* 2. Nav */}
-        <NavAbas isAdmin={isAdmin} />
+      {!dados && !erro && (
+        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
+          Carregando dados da rodada...
+        </div>
+      )}
 
-        {/* 3. Player */}
-        <PlayerMusica />
+      {dados && (
+        <>
+          {/* Card da rodada */}
+          {dados.rodada ? (
+            <CardRodada rodada={dados.rodada} stats={dados.stats} />
+          ) : (
+            <div className="rounded-lg border-2 border-dourado-300 bg-papel-50 p-6 text-center shadow-sm">
+              <p className="mb-2 text-4xl">😴</p>
+              <p className="font-display text-base font-bold text-tinta-300">Sem rodada em andamento</p>
+              <p className="mt-1 font-sans text-xs text-tinta-200">Aguarde o admin abrir a próxima rodada.</p>
+            </div>
+          )}
 
-        {/* 4. Card da rodada */}
-        {dados.rodada ? (
-          <CardRodada rodada={dados.rodada} stats={dados.stats} />
-        ) : (
-          <div className="rounded-lg border-2 border-dourado-300 bg-papel-50 p-6 text-center shadow-sm">
-            <p className="mb-2 text-4xl">😴</p>
-            <p className="font-display text-base font-bold text-tinta-300">Sem rodada em andamento</p>
-            <p className="mt-1 font-sans text-xs text-tinta-200">Aguarde o admin abrir a próxima rodada.</p>
-          </div>
-        )}
+          {/* Parcial */}
+          {dados.parcial.length > 0 && participantId && (
+            <BlocoParcial linhas={dados.parcial} meuId={participantId} isDouble={dados.rodada?.isDouble ?? false} />
+          )}
 
-        {/* 5. Parcial */}
-        {dados.parcial.length > 0 && (
-          <BlocoParcial linhas={dados.parcial} meuId={participantId} isDouble={dados.rodada?.isDouble ?? false} />
-        )}
+          {/* Frango */}
+          {dados.frango && <BlocoFrango frango={dados.frango} />}
 
-        {/* 6. Frango */}
-        {dados.frango && (
-          <BlocoFrango frango={dados.frango} />
-        )}
+          {/* Por Placar */}
+          {dados.placares.length > 0 && <BlocoPorPlacar placares={dados.placares} />}
 
-        {/* 7. Por Placar */}
-        {dados.placares.length > 0 && (
-          <BlocoPorPlacar placares={dados.placares} />
-        )}
+          {/* Distribuição */}
+          {dados.distribuicao.length > 0 && <BlocoDistribuicao distribuicao={dados.distribuicao} />}
 
-        {/* 8. Distribuição */}
-        {dados.distribuicao.length > 0 && (
-          <BlocoDistribuicao distribuicao={dados.distribuicao} />
-        )}
-
-        {/* 9. Pódio */}
-        {dados.podio.length > 0 && (
-          <BlocoPodio podio={dados.podio} />
-        )}
-      </div>
-    </main>
+          {/* Pódio */}
+          {dados.podio.length > 0 && <BlocoPodio podio={dados.podio} />}
+        </>
+      )}
+    </AppLayout>
   )
 }
 
-// ─── Bloco: Card da Rodada ───────────────────────────────────────────────────
+// ─── Card da Rodada ─────────────────────────────────────────────────────────
 
 function CardRodada({ rodada, stats }: { rodada: NonNullable<HomeCompleta['rodada']>; stats: HomeCompleta['stats'] }) {
   return (
@@ -183,7 +141,6 @@ function CardRodada({ rodada, stats }: { rodada: NonNullable<HomeCompleta['rodad
         )}
       </div>
 
-      {/* Cards de stats do usuário */}
       {stats && (
         <div className="mb-3 grid grid-cols-2 gap-2">
           <CardBig label="Na rodada" valor={stats.ptsRodada ?? 0} sub="pts acumulados" />
@@ -196,14 +153,12 @@ function CardRodada({ rodada, stats }: { rodada: NonNullable<HomeCompleta['rodad
         </div>
       )}
 
-      {/* 3 mini-cards */}
       <div className="grid grid-cols-3 gap-2">
         <MiniCard label="Jogos totais" valor={rodada.jogosTotais} />
         <MiniCard label="Jogos abertos" valor={rodada.jogosAbertos} />
         <MiniCard label="Cravei quantos" valor={stats?.cravadasRodada ?? 0} destaque="verde" />
       </div>
 
-      {/* Countdown */}
       {rodada.proximoJogoFechaEm !== null && (
         <p className="mt-3 text-center font-mono text-xs text-tinta-200">
           ⏱ Próximo fecha em <b className="text-dourado-700">{formatarCountdown(rodada.proximoJogoFechaEm)}</b>
@@ -236,7 +191,7 @@ function MiniCard({ label, valor, destaque }: { label: string; valor: number; de
   )
 }
 
-// ─── Bloco: Parcial ──────────────────────────────────────────────────────────
+// ─── Parcial (SEM foto — só emoji ao lado do nome) ──────────────────────────
 
 function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meuId: string; isDouble: boolean }) {
   return (
@@ -276,7 +231,7 @@ function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meu
                 </td>
                 <td className={cx('border-b border-papel-borda-200/60 px-2 py-1.5 font-sans text-xs font-semibold', ehMeu ? 'text-dourado-800' : 'text-tinta-300')}>
                   <div className="flex items-center gap-1.5">
-                    <AvatarCirculo avatar={l.avatar} emoji={l.emoji} nome={l.nome} tamanho="pequeno" />
+                    {l.emoji && <span className="text-sm leading-none">{l.emoji}</span>}
                     <span className="truncate">{l.nome}</span>
                   </div>
                 </td>
@@ -299,7 +254,7 @@ function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meu
   )
 }
 
-// ─── Bloco: Frango ───────────────────────────────────────────────────────────
+// ─── Frango ─────────────────────────────────────────────────────────────────
 
 function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }) {
   return (
@@ -333,7 +288,7 @@ function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }
   )
 }
 
-// ─── Bloco: Por Placar ───────────────────────────────────────────────────────
+// ─── Por Placar ─────────────────────────────────────────────────────────────
 
 function BlocoPorPlacar({ placares }: { placares: PlacaresJogo[] }) {
   return (
@@ -367,7 +322,7 @@ function BlocoPorPlacar({ placares }: { placares: PlacaresJogo[] }) {
   )
 }
 
-// ─── Bloco: Distribuição ─────────────────────────────────────────────────────
+// ─── Distribuição ───────────────────────────────────────────────────────────
 
 function BlocoDistribuicao({ distribuicao }: { distribuicao: DistribuicaoJogo[] }) {
   return (
@@ -394,7 +349,6 @@ function PizzaJogo({ d }: { d: DistribuicaoJogo }) {
   const pctEmpate = Math.round((d.empate / d.totalPalpites) * 100)
   const pctVisitante = 100 - pctMandante - pctEmpate
 
-  // Ângulos pra pizza SVG
   const anguloMandante = (d.mandante / d.totalPalpites) * 360
   const anguloEmpate = (d.empate / d.totalPalpites) * 360
 
@@ -429,7 +383,6 @@ function LinhaLegenda({ cor, nome, pct, qtd }: { cor: string; nome: string; pct:
 }
 
 function PizzaSvg({ anguloMandante, anguloEmpate, total }: { anguloMandante: number; anguloEmpate: number; total: number }) {
-  // Coordenadas polares → cartesianas pra desenhar os arcos
   const cx = 40, cy = 40, r = 35
   function ponto(anguloDeg: number) {
     const rad = ((anguloDeg - 90) * Math.PI) / 180
@@ -441,7 +394,6 @@ function PizzaSvg({ anguloMandante, anguloEmpate, total }: { anguloMandante: num
     const [x2, y2] = ponto(fim)
     const large = fim - inicio > 180 ? 1 : 0
     if (fim - inicio >= 359.99) {
-      // Círculo completo
       return <circle cx={cx} cy={cy} r={r} fill={cor} />
     }
     const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`
@@ -469,7 +421,7 @@ function PizzaSvg({ anguloMandante, anguloEmpate, total }: { anguloMandante: num
   )
 }
 
-// ─── Bloco: Pódio ────────────────────────────────────────────────────────────
+// ─── Pódio ──────────────────────────────────────────────────────────────────
 
 function BlocoPodio({ podio }: { podio: PodioLinha[] }) {
   const seq = [
