@@ -194,7 +194,6 @@ function montarDadosRanking(linhasReais: LinhaRanking[]): DadosRanking {
       saldo: l.saldo,
       projecao: l.projecaoPct ?? 0,
     })),
-    ...
     evolucao: [],
     totalRodadas: 0,
     estatisticas: {
