@@ -16,6 +16,8 @@ import { lerConfig } from './appSettings'
 export interface LinhaRanking {
   participantId: string
   nome: string
+  emoji: string | null
+  avatar: string | null
   total: number
   cravadas: number
   vencedor: number
