@@ -5,11 +5,15 @@
 // Renderiza sempre: Header do usuário + Nav de abas.
 // Player de música só aparece na aba "Início" (/inicio).
 // O conteúdo específico da página vai como children.
+//
+// Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
+// background. Isso elimina o "trava/carrega" ao trocar de aba.
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { buscarAvatarEmoji } from '@/lib/avatarUpload'
+import { lerPerfilCache, salvarPerfilCache } from '@/lib/perfilCache'
 import { HeaderUsuario } from './HeaderUsuario'
 import { NavAbas } from './NavAbas'
 import { PlayerMusica } from './PlayerMusica'
@@ -34,7 +38,7 @@ export function AppLayout({
   const [isAdmin, setIsAdmin] = useState(false)
   const [avatar, setAvatar] = useState<string | null>(null)
   const [emoji, setEmoji] = useState<string | null>(null)
-  const [carregando, setCarregando] = useState(true)
+  const [prontoParaRenderizar, setProntoParaRenderizar] = useState(false)
 
   useEffect(() => {
     let s: Sessao | null = null
@@ -48,25 +52,74 @@ export function AppLayout({
       return
     }
     setSessao(s)
-    carregarPerfil(s.id)
+
+    // 1. Tenta carregar do cache (instantâneo)
+    const cache = lerPerfilCache(s.id)
+    if (cache) {
+      setIsAdmin(cache.isAdmin)
+      setAvatar(cache.avatar)
+      setEmoji(cache.emoji)
+      setProntoParaRenderizar(true)
+      // 2. Revalida em background (não bloqueia render)
+      revalidarPerfil(s.id, s.nome)
+    } else {
+      // Sem cache: busca síncrono e só então libera render
+      carregarPerfilInicial(s.id, s.nome)
+    }
   }, [])
 
-  async function carregarPerfil(pid: string) {
-    setCarregando(true)
+  async function carregarPerfilInicial(pid: string, nome: string) {
     try {
       const [{ data: part }, ae] = await Promise.all([
         supabase.from('participants').select('is_admin').eq('id', pid).maybeSingle(),
         buscarAvatarEmoji(pid),
       ])
-      setIsAdmin(part?.is_admin ?? false)
+      const isAdminNovo = part?.is_admin ?? false
+      setIsAdmin(isAdminNovo)
       setAvatar(ae.avatar)
       setEmoji(ae.emoji)
+      salvarPerfilCache({
+        participantId: pid,
+        nome,
+        isAdmin: isAdminNovo,
+        avatar: ae.avatar,
+        emoji: ae.emoji,
+      })
     } catch { /* silencioso */ }
-    finally { setCarregando(false) }
+    finally { setProntoParaRenderizar(true) }
   }
 
-  if (!sessao || carregando) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">Carregando...</main>
+  async function revalidarPerfil(pid: string, nome: string) {
+    try {
+      const [{ data: part }, ae] = await Promise.all([
+        supabase.from('participants').select('is_admin').eq('id', pid).maybeSingle(),
+        buscarAvatarEmoji(pid),
+      ])
+      const isAdminNovo = part?.is_admin ?? false
+      setIsAdmin(isAdminNovo)
+      setAvatar(ae.avatar)
+      setEmoji(ae.emoji)
+      salvarPerfilCache({
+        participantId: pid,
+        nome,
+        isAdmin: isAdminNovo,
+        avatar: ae.avatar,
+        emoji: ae.emoji,
+      })
+    } catch { /* silencioso — se falhar, mantém o cache */ }
+  }
+
+  function recarregarAposEdicao() {
+    if (!sessao) return
+    revalidarPerfil(sessao.id, sessao.nome)
+  }
+
+  if (!sessao || !prontoParaRenderizar) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">
+        Carregando...
+      </main>
+    )
   }
 
   const mostrarPlayer = pathname === '/inicio'
@@ -81,7 +134,7 @@ export function AppLayout({
           emoji={emoji}
           onAtualizar={onAtualizar ?? (() => {})}
           atualizando={atualizando}
-          onPerfilAlterado={() => carregarPerfil(sessao.id)}
+          onPerfilAlterado={recarregarAposEdicao}
         />
         <NavAbas isAdmin={isAdmin} />
         {mostrarPlayer && <PlayerMusica />}
