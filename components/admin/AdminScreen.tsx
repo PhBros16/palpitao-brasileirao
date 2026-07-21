@@ -1161,6 +1161,9 @@ const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
   stat_zoa: null,
   stat_res: null,
   stat_cra: null,
+  foto_scale: 1.0,
+  foto_pos_x: 0,
+  foto_pos_y: 0,
 }
 
 function SecaoAdms() {
@@ -1204,6 +1207,9 @@ function SecaoAdms() {
         stat_zoa: editando.stat_zoa,
         stat_res: editando.stat_res,
         stat_cra: editando.stat_cra,
+        foto_scale: editando.foto_scale,
+        foto_pos_x: editando.foto_pos_x,
+        foto_pos_y: editando.foto_pos_y,
       })
       await gravarLog(editando.isNovo ? 'ADM_ADICIONADO' : 'ADM_EDITADO', { nome: editando.nome })
       setEditando(null); setMensagem('Salvo.')
@@ -1337,6 +1343,80 @@ function SecaoAdms() {
                     <span className="font-sans text-[10px] italic text-tinta-100">{s.desc}</span>
                   </div>
                 ))}
+                              {/* Ajuste fino da foto */}
+              {editando.foto && (
+                <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
+                  <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
+                    🖼 Ajuste da Foto no Card
+                  </p>
+
+                  {/* Preview mini */}
+                  <div
+                    className="mx-auto mb-2 relative overflow-hidden border-2 border-dourado-400 bg-blue-900"
+                    style={{ width: 120, height: 140 }}
+                  >
+                    <img
+                      src={editando.foto}
+                      alt="preview"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        objectPosition: 'center bottom',
+                        transform: `translate(${editando.foto_pos_x ?? 0}%, ${editando.foto_pos_y ?? 0}%) scale(${editando.foto_scale ?? 1})`,
+                        transformOrigin: 'center bottom',
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 py-1">
+                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Escala</span>
+                    <input
+                      type="range" min="0.5" max="1.5" step="0.05"
+                      value={editando.foto_scale ?? 1}
+                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_scale: parseFloat(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
+                      {(editando.foto_scale ?? 1).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 py-1">
+                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Pos X</span>
+                    <input
+                      type="range" min="-30" max="30" step="1"
+                      value={editando.foto_pos_x ?? 0}
+                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_pos_x: parseFloat(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
+                      {(editando.foto_pos_x ?? 0).toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 py-1">
+                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Pos Y</span>
+                    <input
+                      type="range" min="-30" max="30" step="1"
+                      value={editando.foto_pos_y ?? 0}
+                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_pos_y: parseFloat(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
+                      {(editando.foto_pos_y ?? 0).toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditando((ed) => ed && ({ ...ed, foto_scale: 1, foto_pos_x: 0, foto_pos_y: 0 }))}
+                    className="mt-1 w-full rounded border border-papel-borda-300 bg-papel-100 py-1 font-mono text-[9px] uppercase tracking-wider text-tinta-200 hover:bg-papel-200"
+                  >
+                    ↺ Resetar
+                  </button>
+                </div>
+              )}
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
