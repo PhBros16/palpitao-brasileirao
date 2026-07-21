@@ -3,11 +3,12 @@
 // NavAbas — barra de navegação horizontal (mobile-first, scroll horizontal).
 //
 // 6 abas fixas + 1 condicional (Admin, se participants.is_admin=true).
-// Item ativo destacado com fundo couro + texto dourado.
-// Cada item vira Link do Next.js pra sua rota real.
+// Indicador ativo (fundo couro) desliza suavemente entre as abas usando
+// layoutId do Framer Motion. Press-down feedback ao tocar.
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -44,15 +45,33 @@ export function NavAbas({ isAdmin }: { isAdmin: boolean }) {
             <Link
               key={aba.key}
               href={aba.href}
-              className={cx(
-                'flex flex-shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors',
-                ativa
-                  ? 'bg-couro-300 text-dourado-50'
-                  : 'text-tinta-200 hover:bg-papel-200',
-              )}
+              className="relative flex-shrink-0"
             >
-              <span className="text-sm">{aba.emoji}</span>
-              {aba.label}
+              <motion.div
+                whileTap={{ scale: 0.94 }}
+                transition={{ duration: 0.15, ease: [0.32, 0.72, 0, 1] }}
+                className={cx(
+                  'relative flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors duration-200',
+                  ativa
+                    ? 'text-dourado-50'
+                    : 'text-tinta-200 hover:bg-papel-200',
+                )}
+              >
+                {/* Indicador ativo — desliza suavemente entre abas */}
+                {ativa && (
+                  <motion.span
+                    layoutId="nav-indicator"
+                    className="absolute inset-0 rounded-md bg-couro-300"
+                    transition={{
+                      type: 'spring',
+                      stiffness: 380,
+                      damping: 32,
+                    }}
+                  />
+                )}
+                <span className="relative z-10 text-sm">{aba.emoji}</span>
+                <span className="relative z-10">{aba.label}</span>
+              </motion.div>
             </Link>
           )
         })}
