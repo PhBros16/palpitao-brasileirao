@@ -361,8 +361,6 @@ export interface EntradaLog {
   created_at: string
 }
 
-/** Grava uma entrada no log de ações do admin.
- *  Falha silenciosa — nunca deve bloquear a ação principal. */
 export async function gravarLog(
   action: string,
   payload?: Record<string, any>,
@@ -379,7 +377,6 @@ export async function gravarLog(
   }
 }
 
-/** Busca as últimas N entradas do log, ordenadas da mais recente pra mais antiga. */
 export async function buscarLog(limite = 50): Promise<EntradaLog[]> {
   const { data, error } = await supabase
     .from('admin_log')
@@ -490,6 +487,11 @@ export async function salvarAdmin(adm: {
     const { error } = await supabase.from('admins_profile').insert(payload)
     if (error) throw error
   }
+}
+
+export async function removerAdmin(id: string): Promise<void> {
+  const { error } = await supabase.from('admins_profile').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ─── Finalizar Campeonato ─────────────────────────────────────────────────────
