@@ -203,15 +203,18 @@ const VULGO_MAP: Record<string, string> = {
 export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | null> {
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, pin, avatar')
+    .select('id, name, pin, avatar, is_admin')
     .eq('name', nome)
     .maybeSingle()
+
   if (error || !data) return null
+
   return {
     id: data.id,
     nome: data.name,
     vulgo: VULGO_MAP[data.name],
     pin: data.pin,
     avatar: data.avatar,
+    isAdmin: data.is_admin ?? false,
   }
 }
