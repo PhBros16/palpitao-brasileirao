@@ -1343,14 +1343,15 @@ function SecaoAdms() {
                     <span className="font-sans text-[10px] italic text-tinta-100">{s.desc}</span>
                   </div>
                 ))}
-                              {/* Ajuste fino da foto */}
+              </div>
+
+              {/* Ajuste fino da foto */}
               {editando.foto && (
                 <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
                   <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
                     🖼 Ajuste da Foto no Card
                   </p>
 
-                  {/* Preview mini */}
                   <div
                     className="mx-auto mb-2 relative overflow-hidden border-2 border-dourado-400 bg-blue-900"
                     style={{ width: 120, height: 140 }}
@@ -1417,7 +1418,6 @@ function SecaoAdms() {
                   </button>
                 </div>
               )}
-              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="outline" onClick={() => setEditando(null)}>Cancelar</Btn>
