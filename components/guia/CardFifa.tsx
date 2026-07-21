@@ -1,7 +1,7 @@
 'use client'
 
-// CardFifa v8 — foto grande, ornamentos no topo, paleta refinada,
-// tipografia melhorada, nome centralizado dentro do SVG.
+// CardFifa v9 — usa ajustes de foto salvos por adm (scale + pos X/Y).
+// Tipografia refinada: números Georgia mas peso 600, labels menores.
 
 import type { AdminProfile } from '@/lib/rodadaAdmin'
 
@@ -23,22 +23,15 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
   const rating = adm.rating ?? '—'
   const posicao = adm.posicao ?? 'ADM'
 
+  const fotoScale = adm.foto_scale ?? 1
+  const fotoX = adm.foto_pos_x ?? 0
+  const fotoY = adm.foto_pos_y ?? 0
+
   const cardPath = `
-    M 160 2
-    L 200 12
-    L 300 22
-    Q 316 24 316 40
-    V 420
-    Q 316 440 300 448
-    L 250 462
-    Q 210 476 160 478
-    Q 110 476 70 462
-    L 20 448
-    Q 4 440 4 420
-    V 40
-    Q 4 24 20 22
-    L 120 12
-    Z
+    M 160 2 L 200 12 L 300 22 Q 316 24 316 40 V 420
+    Q 316 440 300 448 L 250 462 Q 210 476 160 478
+    Q 110 476 70 462 L 20 448 Q 4 440 4 420 V 40
+    Q 4 24 20 22 L 120 12 Z
   `.trim().replace(/\s+/g, ' ')
 
   return (
@@ -51,7 +44,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            {/* Dourado mais rico (mais camadas) */}
             <linearGradient id={`${uid}-gold`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#faf1c8" />
               <stop offset="12%" stopColor="#e3c268" />
@@ -82,7 +74,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               <stop offset="100%" stopColor="#7a5716" />
             </radialGradient>
 
-            {/* Placa dourada com mais profundidade */}
             <linearGradient id={`${uid}-nameplate`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#d4a544" />
               <stop offset="20%" stopColor="#f5dc82" />
@@ -129,18 +120,9 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             </linearGradient>
 
             <filter id={`${uid}-num-shadow`} x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0.8" dy="1" stdDeviation="0.5" floodColor="#000" floodOpacity="0.35" />
+              <feDropShadow dx="0.7" dy="0.9" stdDeviation="0.4" floodColor="#000" floodOpacity="0.3" />
             </filter>
 
-            <filter id={`${uid}-inner-shadow`}>
-              <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
-              <feOffset dx="0" dy="1" result="offsetblur" />
-              <feFlood floodColor="#5a4415" floodOpacity="0.5" />
-              <feComposite in2="offsetblur" operator="in" />
-              <feComposite in2="SourceGraphic" operator="over" />
-            </filter>
-
-            {/* Filigrana de canto ornamental */}
             <symbol id={`${uid}-corner`} viewBox="0 0 40 40" overflow="visible">
               <g fill="none" stroke={`url(#${uid}-gold-h)`} strokeWidth="1" strokeLinecap="round">
                 <path d="M 2 20 Q 6 10, 20 8" />
@@ -167,7 +149,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
           <g clipPath={`url(#${uid}-clip)`}>
             <rect x="0" y="0" width="320" height="490" fill={`url(#${uid}-cream)`} />
 
-            {/* Feixes cristal — continuam do topo até base */}
             <polygon points="60,10 260,10 300,480 20,480" fill={`url(#${uid}-navy-flow)`} />
             <polygon points="90,10 240,10 280,480 40,480" fill={`url(#${uid}-blue-flow)`} />
             <polygon points="130,10 220,10 250,480 70,480" fill={`url(#${uid}-lightblue-flow)`} />
@@ -177,11 +158,10 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             <polygon points="200,10 235,10 245,480 205,480" fill={`url(#${uid}-white-flow)`} opacity="0.7" />
             <polygon points="185,10 195,10 155,480 145,480" fill={`url(#${uid}-white-bright)`} />
 
-            {/* ORNAMENTOS NO TOPO — cantos + centro */}
+            {/* Ornamentos topo */}
             <use href={`#${uid}-corner`} x="12" y="15" />
             <use href={`#${uid}-corner`} x="308" y="15" transform="scale(-1 1) translate(-620 0)" />
 
-            {/* Filigrana central no topo */}
             <g transform="translate(160 18)">
               <use href={`#${uid}-flourish`} x="-20" y="0" />
               <use href={`#${uid}-flourish`} x="20" y="0" transform="rotate(180 20 0)" />
@@ -189,45 +169,23 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               <circle r="1.5" fill="#5a4415" />
             </g>
 
-            {/* Estrelinhas decorativas laterais no topo */}
-            <g fill="#dcb057" opacity="0.7">
-              <polygon points="80,32 82,36 86,36 83,39 84,43 80,41 76,43 77,39 74,36 78,36" transform="scale(0.5) translate(80 30)" />
-              <polygon points="240,32 242,36 246,36 243,39 244,43 240,41 236,43 237,39 234,36 238,36" transform="scale(0.5) translate(240 30)" />
-            </g>
+            {/* Placa unificada */}
+            <rect x="22" y="290" width="276" height="150" rx="10" fill={`url(#${uid}-nameplate)`} stroke="#7a5716" strokeWidth="1.5" />
+            <rect x="26" y="294" width="268" height="142" rx="8" fill="none" stroke="#fff5c8" strokeWidth="0.7" opacity="0.85" />
 
-            {/* PLACA UNIFICADA */}
-            <rect
-              x="22" y="290" width="276" height="150" rx="10"
-              fill={`url(#${uid}-nameplate)`}
-              stroke="#7a5716" strokeWidth="1.5"
-            />
-            <rect
-              x="26" y="294" width="268" height="142" rx="8"
-              fill="none" stroke="#fff5c8" strokeWidth="0.7" opacity="0.85"
-            />
-            {/* Sombra interna sutil */}
-            <rect
-              x="24" y="292" width="272" height="146" rx="9"
-              fill="none" stroke="#000" strokeWidth="0.5" opacity="0.2"
-            />
-
-            {/* Faixa do nome — mais escura pra dar destaque */}
-            <rect
-              x="26" y="294" width="268" height="36" rx="6"
-              fill="#8a6428" fillOpacity="0.28"
-            />
+            <rect x="26" y="294" width="268" height="36" rx="6" fill="#8a6428" fillOpacity="0.28" />
             <line x1="42" y1="331" x2="278" y2="331" stroke="#7a5716" strokeWidth="1.2" />
             <line x1="42" y1="333" x2="278" y2="333" stroke="#fff5c8" strokeWidth="0.5" opacity="0.8" />
 
-            {/* NOME — dentro do SVG, centralizado perfeitamente */}
+            {/* Nome */}
             <text
               x="160" y="318"
               textAnchor="middle"
               fontFamily="Georgia, 'Times New Roman', serif"
-              fontSize={adm.nome.length > 12 ? 15 : 18}
-              fontWeight="700"
+              fontSize={adm.nome.length > 12 ? 14 : 17}
+              fontWeight="600"
               fill="#1a1408"
-              letterSpacing="1.5"
+              letterSpacing="1.2"
               style={{ textTransform: 'uppercase' }}
             >
               {adm.nome}
@@ -245,7 +203,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               <line x1="170" y1="372" x2="280" y2="372" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" opacity="0.55" />
               <line x1="170" y1="400" x2="280" y2="400" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" opacity="0.55" />
 
-              {/* Números — font serifada, peso 700 */}
               {STATS_LEFT.map((s, i) => {
                 const y = 362 + i * 28
                 const val = (adm as any)[s.key] as number | null
@@ -254,8 +211,8 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
                     <text
                       x="58" y={y}
                       fontFamily="Georgia, 'Times New Roman', serif"
-                      fontSize="19"
-                      fontWeight="700"
+                      fontSize="17"
+                      fontWeight="600"
                       textAnchor="middle"
                       fill="#1a1408"
                     >
@@ -271,9 +228,9 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
                     key={`${s.key}-label`}
                     x="115" y={y}
                     fontFamily="Georgia, 'Times New Roman', serif"
-                    fontSize="12"
+                    fontSize="10.5"
                     fontWeight="400"
-                    letterSpacing="1.8"
+                    letterSpacing="1.6"
                     textAnchor="middle"
                     fill="#5a4415"
                     style={{ textTransform: 'uppercase' }}
@@ -291,8 +248,8 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
                     <text
                       x="215" y={y}
                       fontFamily="Georgia, 'Times New Roman', serif"
-                      fontSize="19"
-                      fontWeight="700"
+                      fontSize="17"
+                      fontWeight="600"
                       textAnchor="middle"
                       fill="#1a1408"
                     >
@@ -308,9 +265,9 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
                     key={`${s.key}-label`}
                     x="262" y={y}
                     fontFamily="Georgia, 'Times New Roman', serif"
-                    fontSize="12"
+                    fontSize="10.5"
                     fontWeight="400"
-                    letterSpacing="1.8"
+                    letterSpacing="1.6"
                     textAnchor="middle"
                     fill="#5a4415"
                     style={{ textTransform: 'uppercase' }}
@@ -321,7 +278,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               })}
             </g>
 
-            {/* Crest inferior */}
             <g transform="translate(160 458)">
               <g fill="none" stroke={`url(#${uid}-gold-h)`} strokeWidth="1" strokeLinecap="round">
                 <path d="M-42 0 C -32 -6, -22 -8, -14 -5" />
@@ -333,41 +289,27 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             </g>
           </g>
 
-          {/* Borda dourada dupla — mais rica */}
           <g fill="none" stroke={`url(#${uid}-gold)`} strokeLinejoin="round">
             <path d={cardPath} strokeWidth="5.5" />
             <path
               d="M 160 10 L 198 18 L 296 28 Q 308 30 308 42 V 418 Q 308 436 296 442 L 250 454 Q 208 468 160 470 Q 112 468 70 454 L 24 442 Q 12 436 12 418 V 42 Q 12 30 24 28 L 122 18 Z"
               strokeWidth="1.2"
             />
-            {/* Hairline extra interna */}
-            <path
-              d="M 160 18 L 195 24 L 290 32 Q 302 34 302 46 V 416 Q 302 432 290 438 L 248 450 Q 206 464 160 466 Q 114 464 72 450 L 30 438 Q 18 432 18 416 V 46 Q 18 34 30 32 L 125 24 Z"
-              strokeWidth="0.4"
-              opacity="0.5"
-            />
           </g>
         </svg>
 
         {/* Overlay HTML */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Rating */}
-          <div
-            className="absolute flex flex-col items-center"
-            style={{ left: '6%', top: '7%' }}
-          >
+          <div className="absolute flex flex-col items-center" style={{ left: '6%', top: '7%' }}>
             <span
               style={{
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: width * 0.17,
-                fontWeight: 700,
+                fontSize: width * 0.16,
+                fontWeight: 600,
                 color: '#1a1408',
                 letterSpacing: '-1px',
                 lineHeight: '1',
-                textShadow: `
-                  1px 1px 0 rgba(255,255,255,0.9),
-                  2px 3px 4px rgba(0,0,0,0.5)
-                `,
+                textShadow: `1px 1px 0 rgba(255,255,255,0.9), 2px 3px 4px rgba(0,0,0,0.5)`,
               }}
             >
               {rating}
@@ -375,10 +317,10 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             <span
               style={{
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: width * 0.038,
+                fontSize: width * 0.036,
                 fontWeight: 400,
                 color: '#1a1408',
-                letterSpacing: '3px',
+                letterSpacing: '2.5px',
                 marginTop: '3px',
                 textShadow: '0 1px 0 rgba(255,255,255,0.9)',
                 background: 'rgba(255,240,180,0.55)',
@@ -411,15 +353,15 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             </div>
           </div>
 
-          {/* Foto — MUITO grande */}
+          {/* Foto com ajustes salvos */}
           {adm.foto && (
             <div
               className="absolute overflow-hidden"
               style={{
                 left: '50%',
-                top: '8%',
-                width: '88%',
-                height: '58%',
+                top: '6%',
+                width: '90%',
+                height: '60%',
                 transform: 'translateX(-50%)',
               }}
             >
@@ -432,6 +374,8 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
                   height: '100%',
                   objectFit: 'contain',
                   objectPosition: 'center bottom',
+                  transform: `translate(${fotoX}%, ${fotoY}%) scale(${fotoScale})`,
+                  transformOrigin: 'center bottom',
                   filter: 'drop-shadow(2px 4px 8px rgba(0,0,0,0.55))',
                 }}
               />
@@ -452,7 +396,7 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             className="text-center italic truncate"
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: width * 0.048,
+              fontSize: width * 0.046,
               fontWeight: 500,
               color: '#5a4415',
               letterSpacing: '0.5px',
@@ -475,7 +419,7 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             style={{
               fontFamily: "Georgia, serif",
               position: 'absolute',
-              fontSize: width * 0.16,
+              fontSize: width * 0.15,
               fontWeight: 700,
               lineHeight: '1',
               top: '-6px',
@@ -490,10 +434,10 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             style={{
               fontFamily: "Georgia, serif",
               position: 'absolute',
-              fontSize: width * 0.16,
+              fontSize: width * 0.15,
               fontWeight: 700,
               lineHeight: '1',
-              bottom: '-24px',
+              bottom: '-22px',
               right: '6px',
               opacity: 0.55,
               color: '#B8860B',
@@ -505,7 +449,7 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             className="text-center italic leading-snug px-4"
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: width * 0.052,
+              fontSize: width * 0.05,
               fontWeight: 400,
               color: '#3a2c12',
             }}
