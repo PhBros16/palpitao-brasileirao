@@ -424,28 +424,64 @@ export interface AdminProfile {
   foto: string | null
   descricao: string | null
   ordem: number
+  rating: number | null
+  posicao: string | null
+  stat_pal: number | null
+  stat_ges: number | null
+  stat_jus: number | null
+  stat_zoa: number | null
+  stat_res: number | null
+  stat_cra: number | null
 }
 
 export async function buscarAdmins(): Promise<AdminProfile[]> {
   const { data, error } = await supabase
     .from('admins_profile')
-    .select('id, nome, vulgo, foto, descricao, ordem')
+    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra')
     .order('ordem', { ascending: true })
   if (error) throw error
   return data ?? []
 }
 
-export async function salvarAdmin(admin: Omit<AdminProfile, 'id'> & { id?: string }): Promise<void> {
-  if (admin.id) {
-    const { error } = await supabase
-      .from('admins_profile')
-      .update({
-        nome: admin.nome,
-        vulgo: admin.vulgo,
-        foto: admin.foto,
-        descricao: admin.descricao,
-        ordem: admin.ordem,
-      })
+export async function salvarAdmin(adm: {
+  id?: string
+  nome: string
+  vulgo: string | null
+  foto: string | null
+  descricao: string | null
+  ordem: number
+  rating?: number | null
+  posicao?: string | null
+  stat_pal?: number | null
+  stat_ges?: number | null
+  stat_jus?: number | null
+  stat_zoa?: number | null
+  stat_res?: number | null
+  stat_cra?: number | null
+}): Promise<void> {
+  const payload: any = {
+    nome: adm.nome,
+    vulgo: adm.vulgo,
+    foto: adm.foto,
+    descricao: adm.descricao,
+    ordem: adm.ordem,
+    rating: adm.rating ?? null,
+    posicao: adm.posicao ?? null,
+    stat_pal: adm.stat_pal ?? null,
+    stat_ges: adm.stat_ges ?? null,
+    stat_jus: adm.stat_jus ?? null,
+    stat_zoa: adm.stat_zoa ?? null,
+    stat_res: adm.stat_res ?? null,
+    stat_cra: adm.stat_cra ?? null,
+  }
+  if (adm.id) {
+    const { error } = await supabase.from('admins_profile').update(payload).eq('id', adm.id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase.from('admins_profile').insert(payload)
+    if (error) throw error
+  }
+}
       .eq('id', admin.id)
     if (error) throw error
   } else {
