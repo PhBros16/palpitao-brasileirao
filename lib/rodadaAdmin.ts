@@ -432,12 +432,15 @@ export interface AdminProfile {
   stat_zoa: number | null
   stat_res: number | null
   stat_cra: number | null
+  foto_scale: number | null
+  foto_pos_x: number | null
+  foto_pos_y: number | null
 }
 
 export async function buscarAdmins(): Promise<AdminProfile[]> {
   const { data, error } = await supabase
     .from('admins_profile')
-    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra')
+    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra, foto_scale, foto_pos_x, foto_pos_y')
     .order('ordem', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -458,6 +461,9 @@ export async function salvarAdmin(adm: {
   stat_zoa?: number | null
   stat_res?: number | null
   stat_cra?: number | null
+  foto_scale?: number | null
+  foto_pos_x?: number | null
+  foto_pos_y?: number | null
 }): Promise<void> {
   const payload: any = {
     nome: adm.nome,
@@ -473,6 +479,9 @@ export async function salvarAdmin(adm: {
     stat_zoa: adm.stat_zoa ?? null,
     stat_res: adm.stat_res ?? null,
     stat_cra: adm.stat_cra ?? null,
+    foto_scale: adm.foto_scale ?? 1.0,
+    foto_pos_x: adm.foto_pos_x ?? 0,
+    foto_pos_y: adm.foto_pos_y ?? 0,
   }
   if (adm.id) {
     const { error } = await supabase.from('admins_profile').update(payload).eq('id', adm.id)
@@ -481,11 +490,6 @@ export async function salvarAdmin(adm: {
     const { error } = await supabase.from('admins_profile').insert(payload)
     if (error) throw error
   }
-}
-
-export async function removerAdmin(id: string): Promise<void> {
-  const { error } = await supabase.from('admins_profile').delete().eq('id', id)
-  if (error) throw error
 }
 
 // ─── Finalizar Campeonato ─────────────────────────────────────────────────────
