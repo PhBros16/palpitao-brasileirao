@@ -482,21 +482,6 @@ export async function salvarAdmin(adm: {
     if (error) throw error
   }
 }
-      .eq('id', admin.id)
-    if (error) throw error
-  } else {
-    const { error } = await supabase
-      .from('admins_profile')
-      .insert({
-        nome: admin.nome,
-        vulgo: admin.vulgo,
-        foto: admin.foto,
-        descricao: admin.descricao,
-        ordem: admin.ordem,
-      })
-    if (error) throw error
-  }
-}
 
 export async function removerAdmin(id: string): Promise<void> {
   const { error } = await supabase.from('admins_profile').delete().eq('id', id)
@@ -512,7 +497,6 @@ export interface SnapshotCampeonato {
 }
 
 export async function finalizarCampeonato(nome: string, adminNome: string): Promise<void> {
-  // 1. Monta snapshot do ranking atual
   const { data: parts } = await supabase.from('participants').select('id, name')
   const { data: preds } = await supabase
     .from('predictions')
@@ -532,7 +516,6 @@ export async function finalizarCampeonato(nome: string, adminNome: string): Prom
   const campeao = ranking[0]?.nome ?? '?'
   const dataEncerramento = new Date().toISOString()
 
-  // 2. Grava snapshot
   const { error } = await supabase.from('campeonatos_finalizados').insert({
     nome,
     campeao,
@@ -541,6 +524,5 @@ export async function finalizarCampeonato(nome: string, adminNome: string): Prom
   })
   if (error) throw error
 
-  // 3. Grava log
   await gravarLog('CAMPEONATO_FINALIZADO', { nome, campeao, totalJogadores: ranking.length }, adminNome)
 }
