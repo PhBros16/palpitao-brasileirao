@@ -17,6 +17,9 @@
 // PIN validado contra Supabase (participants.name → participants.pin) via
 // buscarPinPorNome() do elencoMock.ts. Sessão gravada em localStorage
 // (chave 'palpitao_sessao') igual ao fluxo já usado por /palpites.
+//
+// Admin: chip ADM do banco abre o mesmo PinModal com o participante
+// "Administração". PIN correto navega pra /admin em vez de /inicio.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -165,20 +168,19 @@ export function AberturaScreen() {
     try {
       const player = await buscarPinPorNome(j.nome)
       if (player) setPinPlayer(player)
-// Clique no chip ADM do banco → abre o PIN do participante Administração.
-  const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer) return
-
-    setBuscandoPin(true)
-    try {
-      const admin = await buscarPinPorNome('Administração')
-      if (admin) setPinPlayer(admin)
+      // Se não achou (nome não bate com nenhum participant), não faz nada silenciosamente.
     } finally {
       setBuscandoPin(false)
     }
   }, [buscandoPin, pinPlayer])
-      
-      // Se não achou (nome não bate com nenhum participant), não faz nada silenciosamente.
+
+  // Clique no chip ADM do banco → abre o PIN do participante Administração.
+  const handleClickAdmin = useCallback(async () => {
+    if (buscandoPin || pinPlayer) return
+    setBuscandoPin(true)
+    try {
+      const admin = await buscarPinPorNome('Administração')
+      if (admin) setPinPlayer(admin)
     } finally {
       setBuscandoPin(false)
     }
@@ -193,7 +195,6 @@ export function AberturaScreen() {
         nome: player.nome,
       }),
     )
-
     setPinPlayer(null)
     router.push(player.isAdmin ? '/admin' : '/inicio')
   }, [router])
@@ -253,6 +254,7 @@ export function AberturaScreen() {
             tecnico={tecnicoComEntrada}
             onEntrarAdmin={handleClickAdmin}
           />
+
           <div
             className="pointer-events-none absolute bottom-0 left-0 top-0"
             style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
