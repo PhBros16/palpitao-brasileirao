@@ -7,7 +7,7 @@ import type { AdminProfile } from './rodadaAdmin'
 export async function buscarAdmsGuia(): Promise<AdminProfile[]> {
   const { data, error } = await supabase
     .from('admins_profile')
-    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra')
+    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra, foto_scale, foto_pos_x, foto_pos_y')
     .order('ordem', { ascending: true })
   if (error) throw error
   return data ?? []
