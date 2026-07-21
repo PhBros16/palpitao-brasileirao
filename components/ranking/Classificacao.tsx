@@ -1,6 +1,10 @@
+'use client'
+
 // Classificação — pódio top 3 + tabela completa.
 // Linhas clicáveis se onClickLinha for passado (abre Frente a Frente).
+// Linhas da tabela + colunas do pódio entram em cascata (stagger).
 
+import { motion } from 'framer-motion'
 import type { ClassificacaoLinha } from './tipos'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
@@ -12,6 +16,52 @@ function getIniciais(nome: string): string {
   if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.1,
+    },
+  },
+}
+
+const linhaVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.32,
+      ease: [0.32, 0.72, 0, 1] as const,
+    },
+  },
+}
+
+const podioContainerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.05,
+    },
+  },
+}
+
+const podioColunaVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.45,
+      ease: [0.32, 0.72, 0, 1] as const,
+    },
+  },
 }
 
 // Círculo de foto/iniciais 24×24 pra usar na tabela do ranking.
@@ -46,7 +96,10 @@ function ColunaPodio({
 }) {
   if (!linha) return <div className="flex-1" />
   return (
-    <div className="flex flex-1 flex-col items-center justify-end gap-1">
+    <motion.div
+      variants={podioColunaVariants}
+      className="flex flex-1 flex-col items-center justify-end gap-1"
+    >
       <span className="text-xl leading-none">{medalha}</span>
       <span className="max-w-full truncate text-center font-sans text-xs font-semibold text-tinta-300">
         {linha.nome}
@@ -55,7 +108,7 @@ function ColunaPodio({
         <span className="font-display text-lg font-bold leading-none text-tinta-300">{lugar}º</span>
         <span className="mt-0.5 font-mono text-[10px] font-bold text-tinta-200">{linha.pontos}</span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -70,12 +123,17 @@ export function Classificacao({
   const clicavel = !!onClickLinha
   return (
     <div className="flex flex-col gap-4">
-      {/* Pódio */}
-      <div className="flex items-end gap-2 px-2 pt-2">
+      {/* Pódio com stagger */}
+      <motion.div
+        variants={podioContainerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex items-end gap-2 px-2 pt-2"
+      >
         <ColunaPodio linha={linhas[1]} lugar={2} altura="h-16" base="bg-prata-100" medalha="🥈" />
         <ColunaPodio linha={linhas[0]} lugar={1} altura="h-24" base="bg-dourado-300" medalha="🥇" />
         <ColunaPodio linha={linhas[2]} lugar={3} altura="h-12" base="bg-bronze-100" medalha="🥉" />
-      </div>
+      </motion.div>
 
       {/* Tabela — # e Nome fixos na esquerda; PTS/CRAV/etc. livres */}
       <div className="rounded-lg border border-papel-borda-200 overflow-hidden">
@@ -93,10 +151,15 @@ export function Classificacao({
               <th className="border-b border-papel-borda-200 bg-papel-200 py-2 pl-2 pr-4 text-right">Proj.%</th>
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {linhas.map((d, i) => (
-              <tr
+              <motion.tr
                 key={d.nome}
+                variants={linhaVariants}
                 onClick={clicavel ? () => onClickLinha!(d) : undefined}
                 className={clicavel ? 'cursor-pointer transition-colors hover:bg-papel-100' : undefined}
               >
@@ -125,9 +188,9 @@ export function Classificacao({
                 <td className="border-b border-papel-borda-200/60 py-2 pl-2 pr-4 text-right font-mono text-xs font-bold text-dourado-600">
                   {d.projecao}%
                 </td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
         {clicavel && (
           <p className="border-t border-papel-borda-200 bg-papel-100 px-3 py-2 text-center font-mono text-[10px] italic text-tinta-100">
