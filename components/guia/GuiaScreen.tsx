@@ -40,7 +40,7 @@ export function GuiaScreen() {
           <>
             {/* Container com fundo contrastado */}
             <div
-              className="-mx-4 -mt-4 px-4 py-6 space-y-8 rounded-b-none"
+              className="-mx-4 -mt-4 px-4 py-6 space-y-8"
               style={{
                 background: `
                   linear-gradient(180deg,
