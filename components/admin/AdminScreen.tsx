@@ -1159,8 +1159,21 @@ function SecaoMusica() {
 
 // ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
 
-const ADM_VAZIO: Omit<AdminProfile, 'id'> = { nome: '', vulgo: null, foto: null, descricao: null, ordem: 0 }
-
+const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
+  nome: '',
+  vulgo: null,
+  foto: null,
+  descricao: null,
+  ordem: 0,
+  rating: null,
+  posicao: null,
+  stat_pal: null,
+  stat_ges: null,
+  stat_jus: null,
+  stat_zoa: null,
+  stat_res: null,
+  stat_cra: null,
+}
 function SecaoAdms() {
   const [lista, setLista] = useState<AdminProfile[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -1183,10 +1196,6 @@ function SecaoAdms() {
 
   function abrirEditar(adm: AdminProfile) { setEditando({ ...adm }) }
 
-  async function salvar() {
-    if (!editando || !editando.nome.trim()) return
-    setSalvando(true); setMensagem(null)
-    try {
       await salvarAdmin({
         id: editando.isNovo ? undefined : editando.id,
         nome: editando.nome.trim(),
@@ -1194,6 +1203,14 @@ function SecaoAdms() {
         foto: editando.foto?.trim() || null,
         descricao: editando.descricao?.trim() || null,
         ordem: editando.ordem,
+        rating: editando.rating,
+        posicao: editando.posicao?.trim() || null,
+        stat_pal: editando.stat_pal,
+        stat_ges: editando.stat_ges,
+        stat_jus: editando.stat_jus,
+        stat_zoa: editando.stat_zoa,
+        stat_res: editando.stat_res,
+        stat_cra: editando.stat_cra,
       })
       await gravarLog(editando.isNovo ? 'ADM_ADICIONADO' : 'ADM_EDITADO', { nome: editando.nome })
       setEditando(null); setMensagem('Salvo.')
@@ -1275,12 +1292,58 @@ function SecaoAdms() {
                 <textarea value={editando.descricao ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, descricao: e.target.value || null }))}
                   placeholder="Breve descrição..." rows={2}
                   className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
-              </Row>
               <Row label="Ordem">
                 <input type="number" min={1} value={editando.ordem}
                   onChange={(e) => setEditando((ed) => ed && ({ ...ed, ordem: parseInt(e.target.value) || 1 }))}
                   className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
               </Row>
+
+              {/* Card FIFA — atributos */}
+              <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
+                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
+                  🃏 Card FIFA (opcional)
+                </p>
+
+                <Row label="Rating">
+                  <input type="number" min={1} max={99} value={editando.rating ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value === '' ? null : parseInt(e.target.value)
+                      setEditando((ed) => ed && ({ ...ed, rating: v }))
+                    }}
+                    placeholder="99"
+                    className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
+                  <span className="font-mono text-[10px] text-tinta-100">1 a 99</span>
+                </Row>
+
+                <Row label="Posição">
+                  <InputText value={editando.posicao ?? ''}
+                    onChange={(v) => setEditando((ed) => ed && ({ ...ed, posicao: v || null }))}
+                    placeholder="ex: ADM, SUB-ADM"
+                    className="flex-1" />
+                </Row>
+
+                {[
+                  { key: 'stat_pal', label: 'PAL', desc: 'Palpiteiro' },
+                  { key: 'stat_ges', label: 'GES', desc: 'Gestão' },
+                  { key: 'stat_jus', label: 'JUS', desc: 'Justiça' },
+                  { key: 'stat_zoa', label: 'ZOA', desc: 'Zoação' },
+                  { key: 'stat_res', label: 'RES', desc: 'Resenha' },
+                  { key: 'stat_cra', label: 'CRA', desc: 'Craque' },
+                ].map((s) => (
+                  <div key={s.key} className="flex items-center gap-2 py-1">
+                    <span className="w-12 font-mono text-[10px] font-bold text-dourado-700">{s.label}</span>
+                    <input type="number" min={1} max={99}
+                      value={(editando as any)[s.key] ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value === '' ? null : parseInt(e.target.value)
+                        setEditando((ed) => ed && ({ ...ed, [s.key]: v }) as any)
+                      }}
+                      placeholder="—"
+                      className="w-14 rounded border border-papel-borda-300 bg-papel-50 px-1 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none" />
+                    <span className="font-sans text-[10px] italic text-tinta-100">{s.desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="outline" onClick={() => setEditando(null)}>Cancelar</Btn>
