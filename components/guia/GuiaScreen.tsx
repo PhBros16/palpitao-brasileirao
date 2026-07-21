@@ -37,11 +37,54 @@ export function GuiaScreen() {
         ) : adms.length === 0 ? (
           <p className="font-sans text-sm text-tinta-100">Nenhum adm cadastrado ainda. Peça pra alguém montar o card na aba Admin.</p>
         ) : (
-          <div className="space-y-6">
-            {adms.map((adm) => (
-              <CardFifa key={adm.id} adm={adm} />
-            ))}
-          </div>
+          <>
+            {/* Container com fundo contrastado */}
+            <div
+              className="-mx-4 -mt-4 px-4 py-6 space-y-8 rounded-b-none"
+              style={{
+                background: `
+                  linear-gradient(180deg,
+                    #1a2f5c 0%,
+                    #2c4a80 40%,
+                    #3a5ea0 100%
+                  )
+                `,
+              }}
+            >
+              {adms.map((adm) => (
+                <CardFifa key={adm.id} adm={adm} />
+              ))}
+            </div>
+
+            {/* Legenda das siglas */}
+            <div className="mt-4 rounded-lg border border-dourado-300 bg-gradient-to-br from-dourado-50 to-couro-50 p-3">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dourado-700 text-center">
+                📖 Legenda dos Atributos
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {[
+                  { sigla: 'PAL', desc: 'Palpiteiro' },
+                  { sigla: 'ZOA', desc: 'Zoação' },
+                  { sigla: 'GES', desc: 'Gestão' },
+                  { sigla: 'RES', desc: 'Resenha' },
+                  { sigla: 'JUS', desc: 'Justiça' },
+                  { sigla: 'CRA', desc: 'Craque' },
+                ].map((item) => (
+                  <div key={item.sigla} className="flex items-center gap-2">
+                    <span
+                      className="font-mono text-xs font-bold text-couro-900"
+                      style={{ minWidth: '32px' }}
+                    >
+                      {item.sigla}
+                    </span>
+                    <span className="font-sans text-xs text-tinta-300">
+                      = {item.desc}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </SecaoAccordion>
 
