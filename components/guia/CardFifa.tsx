@@ -1,7 +1,6 @@
 'use client'
 
 // CardFifa v9 — usa ajustes de foto salvos por adm (scale + pos X/Y).
-// Tipografia refinada: números Georgia mas peso 600, labels menores.
 
 import type { AdminProfile } from '@/lib/rodadaAdmin'
 
@@ -158,7 +157,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             <polygon points="200,10 235,10 245,480 205,480" fill={`url(#${uid}-white-flow)`} opacity="0.7" />
             <polygon points="185,10 195,10 155,480 145,480" fill={`url(#${uid}-white-bright)`} />
 
-            {/* Ornamentos topo */}
             <use href={`#${uid}-corner`} x="12" y="15" />
             <use href={`#${uid}-corner`} x="308" y="15" transform="scale(-1 1) translate(-620 0)" />
 
@@ -169,7 +167,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               <circle r="1.5" fill="#5a4415" />
             </g>
 
-            {/* Placa unificada */}
             <rect x="22" y="290" width="276" height="150" rx="10" fill={`url(#${uid}-nameplate)`} stroke="#7a5716" strokeWidth="1.5" />
             <rect x="26" y="294" width="268" height="142" rx="8" fill="none" stroke="#fff5c8" strokeWidth="0.7" opacity="0.85" />
 
@@ -177,7 +174,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             <line x1="42" y1="331" x2="278" y2="331" stroke="#7a5716" strokeWidth="1.2" />
             <line x1="42" y1="333" x2="278" y2="333" stroke="#fff5c8" strokeWidth="0.5" opacity="0.8" />
 
-            {/* Nome */}
             <text
               x="160" y="318"
               textAnchor="middle"
@@ -191,7 +187,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
               {adm.nome}
             </text>
 
-            {/* Stats */}
             <g>
               <line x1="160" y1="348" x2="160" y2="428" stroke="#7a5716" strokeWidth="1.4" />
               <line x1="156" y1="353" x2="156" y2="423" stroke="#e8d4a0" strokeWidth="0.5" />
@@ -298,7 +293,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
           </g>
         </svg>
 
-        {/* Overlay HTML */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute flex flex-col items-center" style={{ left: '6%', top: '7%' }}>
             <span
@@ -353,7 +347,6 @@ export function CardFifa({ adm, width = 240 }: { adm: AdminProfile; width?: numb
             </div>
           </div>
 
-          {/* Foto com ajustes salvos */}
           {adm.foto && (
             <div
               className="absolute overflow-hidden"
