@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Accordion } from '@/components/home/Accordion'
+import { Modal } from '@/components/home/Modal'
 import {
   buscarRodadaAtiva,
   salvarRodada,
@@ -424,43 +425,43 @@ function SecaoConfiguracaoRodada() {
         <Btn variant="danger" onClick={handleLimparPalpites} disabled={salvando || !roundId}>🗑 Limpar Palpites</Btn>
       </div>
 
-      {modalFinalizar === 'confirmar' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
-          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
-            <p className="mb-2 font-display text-lg font-bold text-tinta-300">Finalizar rodada?</p>
-            <p className="mb-4 font-sans text-sm text-tinta-200">
-              Isso é <b>definitivo</b> e lança tudo no <b>Ranking</b>. Se precisar corrigir depois, use <i>Reabrir Rodada</i>.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Cancelar</Btn>
-              <Btn variant="green" onClick={confirmarFinalizar}>✔ Finalizar</Btn>
-            </div>
-          </div>
+      <Modal
+        aberto={modalFinalizar === 'confirmar'}
+        onFechar={() => setModalFinalizar('fechado')}
+        borda="border-dourado-300"
+      >
+        <p className="mb-2 font-display text-lg font-bold text-tinta-300">Finalizar rodada?</p>
+        <p className="mb-4 font-sans text-sm text-tinta-200">
+          Isso é <b>definitivo</b> e lança tudo no <b>Ranking</b>. Se precisar corrigir depois, use <i>Reabrir Rodada</i>.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Cancelar</Btn>
+          <Btn variant="green" onClick={confirmarFinalizar}>✔ Finalizar</Btn>
         </div>
-      )}
+      </Modal>
 
-      {modalFinalizar === 'aviso' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
-          <div className="w-full max-w-sm rounded-lg border-2 border-raridade-frango-selo bg-papel-50 p-5 shadow-xl">
-            <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tá doido é?</p>
-            <p className="mb-3 font-sans text-sm text-tinta-200">Faltou lançar o resultado desses jogos Pai:</p>
-            <ul className="mb-4 max-h-48 overflow-y-auto rounded border border-papel-borda-200 bg-papel-100 px-3 py-2">
-              {jogosSemPlacar.map((j) => (
-                <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">
-                  {j.home} × {j.away}
-                </li>
-              ))}
-            </ul>
-            <p className="mb-4 font-mono text-[10px] text-tinta-100">
-              Se algum jogo foi adiado, dá pra finalizar mesmo assim (esses ficam sem pontuação).
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Voltar</Btn>
-              <Btn variant="danger" onClick={confirmarFinalizar}>Finalizar mesmo assim</Btn>
-            </div>
-          </div>
+      <Modal
+        aberto={modalFinalizar === 'aviso'}
+        onFechar={() => setModalFinalizar('fechado')}
+        borda="border-raridade-frango-selo"
+      >
+        <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tá doido é?</p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Faltou lançar o resultado desses jogos Pai:</p>
+        <ul className="mb-4 max-h-48 overflow-y-auto rounded border border-papel-borda-200 bg-papel-100 px-3 py-2">
+          {jogosSemPlacar.map((j) => (
+            <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">
+              {j.home} × {j.away}
+            </li>
+          ))}
+        </ul>
+        <p className="mb-4 font-mono text-[10px] text-tinta-100">
+          Se algum jogo foi adiado, dá pra finalizar mesmo assim (esses ficam sem pontuação).
+        </p>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Voltar</Btn>
+          <Btn variant="danger" onClick={confirmarFinalizar}>Finalizar mesmo assim</Btn>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }
@@ -757,9 +758,14 @@ function SecaoReabrirRodada() {
           </>
         )}
       </Card>
-      {confirmar && rodadaSel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
-          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+
+      <Modal
+        aberto={confirmar && !!rodadaSel}
+        onFechar={() => setConfirmar(false)}
+        borda="border-dourado-300"
+      >
+        {rodadaSel && (
+          <>
             <p className="mb-2 font-display text-lg font-bold text-tinta-300">Reabrir {rodadaSel.name}?</p>
             <p className="mb-4 font-sans text-sm text-tinta-200">
               Ela sai do Ranking oficial e volta pro estado "em andamento". Pontos calculados permanecem.
@@ -768,9 +774,9 @@ function SecaoReabrirRodada() {
               <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
               <Btn variant="gold" onClick={handleReabrir}>🔓 Reabrir</Btn>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }
@@ -1271,9 +1277,14 @@ function SecaoAdms() {
         </div>
       </Card>
 
-      {editando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4 overflow-y-auto">
-          <div className="my-4 w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+      <Modal
+        aberto={!!editando}
+        onFechar={() => setEditando(null)}
+        borda="border-dourado-300"
+        className="max-h-[90vh] overflow-y-auto"
+      >
+        {editando && (
+          <>
             <p className="mb-4 font-display text-lg font-bold text-tinta-300">
               {editando.isNovo ? 'Novo Adm' : `Editar ${editando.nome}`}
             </p>
@@ -1298,7 +1309,6 @@ function SecaoAdms() {
                   className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
               </Row>
 
-              {/* Card FIFA — atributos */}
               <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
                 <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
                   🃏 Card FIFA (opcional)
@@ -1345,7 +1355,6 @@ function SecaoAdms() {
                 ))}
               </div>
 
-              {/* Ajuste fino da foto */}
               {editando.foto && (
                 <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
                   <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
@@ -1423,9 +1432,9 @@ function SecaoAdms() {
               <Btn variant="outline" onClick={() => setEditando(null)}>Cancelar</Btn>
               <Btn variant="gold" onClick={salvar} disabled={salvando || !editando.nome.trim()}>{salvando ? '...' : '💾 Salvar'}</Btn>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }
@@ -1641,13 +1650,13 @@ function SecaoFinalizarCampeonato() {
       <Card>
         <SubLabel>SQL de reset (rode no Supabase após finalizar)</SubLabel>
         <pre className="overflow-x-auto rounded bg-tinta-300 p-3 font-mono text-[10px] text-papel-100 leading-relaxed">
-{`-- ⚠ IRREVERSÍVEL — rode só após salvar o snapshot
+{`-- IRREVERSIVEL — rode so apos salvar o snapshot
 truncate table predictions restart identity cascade;
 truncate table rounds restart identity cascade;
 truncate table matches restart identity cascade;
 truncate table shame restart identity cascade;
 truncate table admin_log restart identity cascade;
--- participants e admins_profile: NÃO truncar (mantém jogadores/adms)`}
+-- participants e admins_profile: NAO truncar (mantem jogadores/adms)`}
         </pre>
       </Card>
 
@@ -1671,21 +1680,21 @@ truncate table admin_log restart identity cascade;
         </Card>
       )}
 
-      {confirmar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
-          <div className="w-full max-w-sm rounded-lg border-2 border-raridade-frango-selo bg-papel-50 p-5 shadow-xl">
-            <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tem certeza?</p>
-            <p className="mb-4 font-sans text-sm text-tinta-200">
-              Isso vai salvar o snapshot do ranking atual como <b>{nomecamp}</b>. O banco
-              <b> não</b> será resetado automaticamente — você vai precisar rodar o SQL manualmente.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
-              <Btn variant="danger" onClick={handleFinalizar}>🏆 Finalizar</Btn>
-            </div>
-          </div>
+      <Modal
+        aberto={confirmar}
+        onFechar={() => setConfirmar(false)}
+        borda="border-raridade-frango-selo"
+      >
+        <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tem certeza?</p>
+        <p className="mb-4 font-sans text-sm text-tinta-200">
+          Isso vai salvar o snapshot do ranking atual como <b>{nomecamp}</b>. O banco
+          <b> não</b> será resetado automaticamente — você vai precisar rodar o SQL manualmente.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
+          <Btn variant="danger" onClick={handleFinalizar}>🏆 Finalizar</Btn>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }
