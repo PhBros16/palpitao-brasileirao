@@ -4,7 +4,7 @@
 //
 // Renderiza sempre: Header do usuário + Nav de abas.
 // Player de música só aparece na aba "Início" (/inicio).
-// O conteúdo específico da página vai como children.
+// O conteúdo específico da página vai como children, envolvido em PageTransition.
 //
 // Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
 // background. Isso elimina o "trava/carrega" ao trocar de aba.
@@ -17,6 +17,7 @@ import { lerPerfilCache, salvarPerfilCache } from '@/lib/perfilCache'
 import { HeaderUsuario } from './HeaderUsuario'
 import { NavAbas } from './NavAbas'
 import { PlayerMusica } from './PlayerMusica'
+import { PageTransition } from './PageTransition'
 
 interface Sessao {
   id: string
@@ -139,7 +140,7 @@ export function AppLayout({
         <NavAbas isAdmin={isAdmin} />
         {mostrarPlayer && <PlayerMusica />}
 
-        {children}
+        <PageTransition>{children}</PageTransition>
       </div>
     </main>
   )
