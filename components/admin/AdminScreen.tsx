@@ -41,8 +41,6 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
-// ─── SHARED PRIMITIVES ────────────────────────────────────────────────────────
-
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2 py-1.5">
@@ -276,29 +274,20 @@ function SecaoConfiguracaoRodada() {
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [modalFinalizar, setModalFinalizar] = useState<'fechado' | 'confirmar' | 'aviso'>('fechado')
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
-
   const [ehExtra, setEhExtra] = useState(false)
 
-  // Sugere o próximo número disponível quando marca "É extra"
   async function toggleExtra(v: boolean) {
     setEhExtra(v)
     if (v) {
-      // Busca o maior number >= 100 já usado e sugere o próximo
       try {
         const { data } = await supabase
-          .from('rounds')
-          .select('number')
-          .gte('number', 100)
-          .order('number', { ascending: false })
-          .limit(1)
+          .from('rounds').select('number').gte('number', 100)
+          .order('number', { ascending: false }).limit(1)
         const proximo = data && data.length > 0 ? data[0].number + 1 : 100
         setNumero(proximo)
-        if (!nome.toLowerCase().startsWith('extra')) {
-          setNome(`Extra ${proximo - 99}`)
-        }
+        if (!nome.toLowerCase().startsWith('extra')) setNome(`Extra ${proximo - 99}`)
       } catch { /* silencioso */ }
     } else {
-      // Voltou pra rodada normal — sugere número entre 1 e 38
       if (numero >= 100) setNumero(20)
     }
   }
@@ -475,7 +464,6 @@ function SecaoConfiguracaoRodada() {
     </div>
   )
 }
-
 // ─── SEÇÃO: Resultado & Correção ─────────────────────────────────────────────
 
 type Placar = { h: string; a: string }
@@ -710,6 +698,7 @@ function SecaoFrango() {
     </div>
   )
 }
+
 // ─── SEÇÃO: Reabrir Rodada ────────────────────────────────────────────────────
 
 function SecaoReabrirRodada() {
@@ -1156,7 +1145,6 @@ function SecaoNovidades() {
 function SecaoMusica() {
   return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
 }
-
 // ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
 
 const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
@@ -1174,6 +1162,7 @@ const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
   stat_res: null,
   stat_cra: null,
 }
+
 function SecaoAdms() {
   const [lista, setLista] = useState<AdminProfile[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -1196,6 +1185,10 @@ function SecaoAdms() {
 
   function abrirEditar(adm: AdminProfile) { setEditando({ ...adm }) }
 
+  async function salvar() {
+    if (!editando || !editando.nome.trim()) return
+    setSalvando(true); setMensagem(null)
+    try {
       await salvarAdmin({
         id: editando.isNovo ? undefined : editando.id,
         nome: editando.nome.trim(),
@@ -1236,7 +1229,7 @@ function SecaoAdms() {
       {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">
-          Gerencie os cards da seção "Conheça os Adms" — aparecem na tela inicial pra todos.
+          Gerencie os cards da seção "Conheça os Adms" — aparecem na aba Guia pra todos.
         </p>
         {carregando ? (
           <p className="font-sans text-xs text-tinta-100">Carregando...</p>
@@ -1273,8 +1266,8 @@ function SecaoAdms() {
       </Card>
 
       {editando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4">
-          <div className="w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta-300/70 p-4 overflow-y-auto">
+          <div className="my-4 w-full max-w-sm rounded-lg border-2 border-dourado-300 bg-papel-50 p-5 shadow-xl">
             <p className="mb-4 font-display text-lg font-bold text-tinta-300">
               {editando.isNovo ? 'Novo Adm' : `Editar ${editando.nome}`}
             </p>
@@ -1292,6 +1285,7 @@ function SecaoAdms() {
                 <textarea value={editando.descricao ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, descricao: e.target.value || null }))}
                   placeholder="Breve descrição..." rows={2}
                   className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
+              </Row>
               <Row label="Ordem">
                 <input type="number" min={1} value={editando.ordem}
                   onChange={(e) => setEditando((ed) => ed && ({ ...ed, ordem: parseInt(e.target.value) || 1 }))}
@@ -1650,25 +1644,23 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
   }
 
   return (
-    <main className="min-h-screen bg-papel-200 px-4 pb-10 pt-6">
-      <div className="mx-auto max-w-md">
-        <header className="mb-4">
-          <h1 className="font-display text-2xl font-bold text-tinta-300">⚙ Admin</h1>
-          <p className="font-sans text-sm text-tinta-100">Área restrita — alterações afetam todos</p>
-        </header>
-        <div className="mb-4 rounded-lg border border-dourado-300 bg-dourado-50 px-4 py-2.5">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-dourado-700">
-            ⚠ Área restrita — alterações afetam todos os participantes em tempo real.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3">
-          {SECOES.map((s) => (
-            <Accordion key={s.key} titulo={s.titulo} storageKey={`admin-${s.key}`} defaultOpen={false}>
-              {s.conteudo}
-            </Accordion>
-          ))}
-        </div>
+    <div className="space-y-3">
+      <header className="mb-2">
+        <h1 className="font-display text-2xl font-bold text-tinta-300">⚙ Admin</h1>
+        <p className="font-sans text-sm text-tinta-100">Área restrita — alterações afetam todos</p>
+      </header>
+      <div className="rounded-lg border border-dourado-300 bg-dourado-50 px-4 py-2.5">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-dourado-700">
+          ⚠ Área restrita — alterações afetam todos os participantes em tempo real.
+        </p>
       </div>
-    </main>
+      <div className="flex flex-col gap-3">
+        {SECOES.map((s) => (
+          <Accordion key={s.key} titulo={s.titulo} storageKey={`admin-${s.key}`} defaultOpen={false}>
+            {s.conteudo}
+          </Accordion>
+        ))}
+      </div>
+    </div>
   )
 }
