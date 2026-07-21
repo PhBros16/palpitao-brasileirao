@@ -1,9 +1,11 @@
 'use client'
 
 // HistoricoScreen — lista de rodadas finalizadas + busca + expansão de detalhes.
+// Cards entram em cascata (stagger).
 // Ligado ao Supabase via lib/historicoReal.ts
 
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import {
   buscarRodadasFinalizadasHistorico,
   buscarDetalheRodada,
@@ -11,6 +13,29 @@ import {
   type DetalheRodadaHistorico,
 } from '@/lib/historicoReal'
 import { CardRodadaHistorico } from './CardRodadaHistorico'
+
+const container = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+}
+
+const item = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.35,
+      ease: [0.32, 0.72, 0, 1] as const,
+    },
+  },
+}
 
 export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string | null }) {
   const [rodadas, setRodadas] = useState<RodadaHistorico[]>([])
@@ -105,19 +130,27 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
         </div>
       )}
 
-      <div className="space-y-3">
-        {rodadas.map((r) => (
-          <CardRodadaHistorico
-            key={r.id}
-            rodada={r}
-            expandida={expandida === r.id}
-            detalhe={detalheCache[r.id] ?? null}
-            carregandoDetalhe={carregandoDetalhe === r.id}
-            meuParticipantId={meuParticipantId}
-            onToggle={() => toggleExpandir(r.id)}
-          />
-        ))}
-      </div>
+      {!carregando && rodadas.length > 0 && (
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="visible"
+          className="space-y-3"
+        >
+          {rodadas.map((r) => (
+            <motion.div key={r.id} variants={item}>
+              <CardRodadaHistorico
+                rodada={r}
+                expandida={expandida === r.id}
+                detalhe={detalheCache[r.id] ?? null}
+                carregandoDetalhe={carregandoDetalhe === r.id}
+                meuParticipantId={meuParticipantId}
+                onToggle={() => toggleExpandir(r.id)}
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
     </section>
   )
 }
