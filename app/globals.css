@@ -43,3 +43,11 @@
 .scrollbar-tema::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgb(200 160 100), rgb(160 120 70));
 }
+
+
+/* ─── Skeleton loader (shimmer) ─────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
