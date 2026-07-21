@@ -365,15 +365,16 @@ export function CardFifa({ adm, width = 230 }: { adm: AdminProfile; width?: numb
             </div>
           </div>
 
-          {/* Foto — MAIOR, ocupa quase toda a metade direita */}
+          {/* Foto — centralizada horizontalmente, ocupando ~75% da largura */}
           {adm.foto && (
             <div
               className="absolute overflow-hidden"
               style={{
-                right: '2%',
+                left: '50%',
                 top: '2%',
-                width: '62%',
-                height: '58%',
+                width: '75%',
+                height: '60%',
+                transform: 'translateX(-50%)',
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
