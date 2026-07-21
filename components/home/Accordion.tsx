@@ -1,16 +1,10 @@
 'use client'
 
 // Accordion — header clicável (título + chevron) e conteúdo com abertura suave.
-//
-// Sem Framer Motion (não está no projeto): a animação usa a técnica CSS de
-// grid-template-rows 1fr↔0fr, que anima altura "auto" sem medir o conteúdo.
-// Cada seção lembra seu estado no sessionStorage pela `storageKey`.
+// Agora com Framer Motion: altura animada + fade do conteúdo + chevron rotação spring.
 
 import { useEffect, useState, type ReactNode } from 'react'
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(' ')
-}
+import { motion, AnimatePresence } from 'framer-motion'
 
 export function Accordion({
   titulo,
@@ -39,33 +33,46 @@ export function Accordion({
 
   return (
     <section className="overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50">
-      <button
+      <motion.button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        whileTap={{ scale: 0.995 }}
+        transition={{ duration: 0.12 }}
         className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-papel-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
       >
         <span className="font-display text-base font-bold text-tinta-300">{titulo}</span>
-        <span
-          className={cx(
-            'font-mono text-xs text-tinta-100 transition-transform duration-300',
-            open && 'rotate-180',
-          )}
+        <motion.span
+          className="font-mono text-xs text-tinta-100"
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{
+            type: 'spring',
+            stiffness: 260,
+            damping: 22,
+          }}
           aria-hidden
         >
           ▼
-        </span>
-      </button>
-      <div
-        className={cx(
-          'grid transition-all duration-300 ease-out',
-          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        </motion.span>
+      </motion.button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{
+              height: { duration: 0.32, ease: [0.32, 0.72, 0, 1] },
+              opacity: { duration: 0.25, ease: [0.32, 0.72, 0, 1] },
+            }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="px-4 pb-4 pt-1">{children}</div>
+          </motion.div>
         )}
-      >
-        <div className="overflow-hidden">
-          <div className="px-4 pb-4 pt-1">{children}</div>
-        </div>
-      </div>
+      </AnimatePresence>
     </section>
   )
 }
