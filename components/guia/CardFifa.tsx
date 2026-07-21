@@ -1,8 +1,8 @@
 'use client'
 
-// CardFifa v4 — trading card FIFA-style.
-// Correções: feixes atravessam todo o card, fonts mais leves, ADM legível,
-// foto centralizada.
+// CardFifa v5 — feixes cristal contínuos (topo cheio → gradual fade até rodapé).
+// Layout ajustado: placa do nome logo após feixes (sem gap).
+// Números/labels com stroke + drop-shadow SVG real.
 
 import type { AdminProfile } from '@/lib/rodadaAdmin'
 
@@ -50,12 +50,6 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
               <stop offset="100%" stopColor="#e6d29a" />
             </linearGradient>
 
-            <radialGradient id={`${uid}-cream-vignette`} cx="50%" cy="70%" r="70%">
-              <stop offset="0%" stopColor="#fff5d6" stopOpacity="0.6" />
-              <stop offset="55%" stopColor="#efe1b8" stopOpacity="0" />
-              <stop offset="100%" stopColor="#8a6a22" stopOpacity="0.3" />
-            </radialGradient>
-
             <linearGradient id={`${uid}-gold-h`} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#8a6a22" stopOpacity="0" />
               <stop offset="20%" stopColor="#b58433" />
@@ -76,46 +70,53 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
               <stop offset="100%" stopColor="#b58433" />
             </linearGradient>
 
-            {/* Feixes cristal */}
-            <linearGradient id={`${uid}-blue1`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#0f1e4a" />
-              <stop offset="100%" stopColor="#1f3a8a" />
-            </linearGradient>
-            <linearGradient id={`${uid}-blue2`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#274bbd" />
-              <stop offset="100%" stopColor="#5a7fe0" />
-            </linearGradient>
-            <linearGradient id={`${uid}-white`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#d9e2f3" />
-            </linearGradient>
-            <linearGradient id={`${uid}-lightblue`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#c5d3ee" />
-              <stop offset="100%" stopColor="#8ea6d5" />
+            {/* GRADIENTES DE FEIXES — agora com fade vertical embutido no próprio gradient */}
+            {/* Azul escuro que vai do topo (opaco) até o rodapé (transparente) */}
+            <linearGradient id={`${uid}-navy-flow`} x1="0" y1="0.02" x2="0" y2="0.98">
+              <stop offset="0%" stopColor="#0f1e4a" stopOpacity="1" />
+              <stop offset="45%" stopColor="#1f3a8a" stopOpacity="0.75" />
+              <stop offset="70%" stopColor="#1f3a8a" stopOpacity="0.35" />
+              <stop offset="90%" stopColor="#274bbd" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#274bbd" stopOpacity="0" />
             </linearGradient>
 
-            {/* Fade vertical bem longo — feixes atravessam todo o card */}
-            <linearGradient id={`${uid}-full-fade-white`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-              <stop offset="35%" stopColor="#ffffff" stopOpacity="0.7" />
-              <stop offset="60%" stopColor="#e8f0ff" stopOpacity="0.4" />
-              <stop offset="85%" stopColor="#c5d3ee" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#8ea6d5" stopOpacity="0" />
-            </linearGradient>
-
-            <linearGradient id={`${uid}-full-fade-blue`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#274bbd" stopOpacity="0.9" />
-              <stop offset="40%" stopColor="#274bbd" stopOpacity="0.55" />
-              <stop offset="70%" stopColor="#5a7fe0" stopOpacity="0.25" />
+            <linearGradient id={`${uid}-blue-flow`} x1="0" y1="0.02" x2="0" y2="0.98">
+              <stop offset="0%" stopColor="#274bbd" stopOpacity="0.95" />
+              <stop offset="40%" stopColor="#5a7fe0" stopOpacity="0.65" />
+              <stop offset="70%" stopColor="#5a7fe0" stopOpacity="0.28" />
               <stop offset="100%" stopColor="#5a7fe0" stopOpacity="0" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-full-fade-navy`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0f1e4a" stopOpacity="0.8" />
-              <stop offset="45%" stopColor="#1f3a8a" stopOpacity="0.4" />
-              <stop offset="80%" stopColor="#1f3a8a" stopOpacity="0.1" />
-              <stop offset="100%" stopColor="#1f3a8a" stopOpacity="0" />
+            <linearGradient id={`${uid}-lightblue-flow`} x1="0" y1="0.02" x2="0" y2="0.98">
+              <stop offset="0%" stopColor="#c5d3ee" stopOpacity="0.85" />
+              <stop offset="45%" stopColor="#8ea6d5" stopOpacity="0.5" />
+              <stop offset="80%" stopColor="#8ea6d5" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#8ea6d5" stopOpacity="0" />
             </linearGradient>
+
+            <linearGradient id={`${uid}-white-flow`} x1="0" y1="0.02" x2="0" y2="0.98">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="35%" stopColor="#ffffff" stopOpacity="0.7" />
+              <stop offset="65%" stopColor="#e8f0ff" stopOpacity="0.4" />
+              <stop offset="90%" stopColor="#c5d3ee" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#c5d3ee" stopOpacity="0" />
+            </linearGradient>
+
+            <linearGradient id={`${uid}-white-bright`} x1="0" y1="0.02" x2="0" y2="0.98">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="45%" stopColor="#ffffff" stopOpacity="0.8" />
+              <stop offset="75%" stopColor="#ffffff" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </linearGradient>
+
+            {/* Filtro drop-shadow real pros números */}
+            <filter id={`${uid}-num-shadow`} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="1" dy="1.5" stdDeviation="0.8" floodColor="#000" floodOpacity="0.5" />
+            </filter>
+
+            <filter id={`${uid}-label-shadow`} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0.5" dy="1" stdDeviation="0.5" floodColor="#000" floodOpacity="0.35" />
+            </filter>
 
             <symbol id={`${uid}-flourish`} viewBox="-40 -10 80 20" overflow="visible">
               <g fill="none" stroke={`url(#${uid}-gold-h)`} strokeWidth="1.1" strokeLinecap="round">
@@ -131,135 +132,180 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
             </clipPath>
           </defs>
 
-          {/* Corpo bege */}
           <g clipPath={`url(#${uid}-clip)`}>
+            {/* Base bege */}
             <rect x="0" y="0" width="320" height="460" fill={`url(#${uid}-cream)`} />
 
-            {/* FEIXES CRISTAL — agora percorrem TODO o card com fade suave */}
-            {/* Fundo cristal no topo (opacidade cheia) */}
-            <g>
-              <polygon points="60,10 260,10 300,120 260,240 40,240 20,150" fill={`url(#${uid}-blue1)`} />
-              <polygon points="90,10 240,10 280,140 200,240 60,240 40,120" fill={`url(#${uid}-blue2)`} opacity="0.92" />
-              <polygon points="130,10 220,10 250,120 190,240 100,240 90,110" fill={`url(#${uid}-lightblue)`} opacity="0.75" />
-              <polygon points="30,10 70,10 40,180 15,140" fill={`url(#${uid}-blue1)`} opacity="0.8" />
-              <polygon points="260,10 300,10 305,120 270,220" fill={`url(#${uid}-blue1)`} opacity="0.7" />
-            </g>
+            {/* FEIXES CRISTAL — todos com fade vertical embutido, indo do topo até o rodapé */}
+            {/* Cada polígono agora vai de y=10 até y=450, e o gradiente cuida do fade */}
 
-            {/* Feixes brancos que atravessam o card TODO */}
-            <g>
-              {/* Feixe principal central — vai do topo até quase o rodapé */}
-              <polygon
-                points="185,10 195,10 155,450 145,450"
-                fill={`url(#${uid}-full-fade-white)`}
-              />
-              {/* Feixe branco largo esquerda */}
-              <polygon
-                points="140,10 175,10 100,450 65,450"
-                fill={`url(#${uid}-full-fade-white)`}
-              />
-              {/* Feixe branco direita */}
-              <polygon
-                points="200,10 235,10 245,450 205,450"
-                fill={`url(#${uid}-full-fade-white)`}
-                opacity="0.75"
-              />
+            {/* Fundo navy escuro (mais largo, atrás de tudo) */}
+            <polygon
+              points="60,10 260,10 300,450 20,450"
+              fill={`url(#${uid}-navy-flow)`}
+            />
 
-              {/* Feixes azuis (dão profundidade) */}
-              <polygon
-                points="30,10 65,10 20,450 5,450"
-                fill={`url(#${uid}-full-fade-navy)`}
-              />
-              <polygon
-                points="255,10 290,10 300,450 280,450"
-                fill={`url(#${uid}-full-fade-navy)`}
-              />
-              <polygon
-                points="90,10 130,10 60,450 30,450"
-                fill={`url(#${uid}-full-fade-blue)`}
-                opacity="0.6"
-              />
-              <polygon
-                points="220,10 255,10 275,450 250,450"
-                fill={`url(#${uid}-full-fade-blue)`}
-                opacity="0.5"
-              />
-            </g>
+            {/* Camada intermediária azul */}
+            <polygon
+              points="90,10 240,10 280,450 40,450"
+              fill={`url(#${uid}-blue-flow)`}
+            />
 
-            {/* Vignette suave (dá foco no centro sem cortar) */}
-            <rect x="0" y="0" width="320" height="460" fill={`url(#${uid}-cream-vignette)`} />
+            {/* Camada light blue */}
+            <polygon
+              points="130,10 220,10 250,450 70,450"
+              fill={`url(#${uid}-lightblue-flow)`}
+            />
 
-            {/* Divisor ornamental (visual apenas — não bloqueia feixes) */}
-            <line x1="40" y1="260" x2="280" y2="260" stroke={`url(#${uid}-gold-h)`} strokeWidth="1" opacity="0.7" />
-            <use href={`#${uid}-flourish`} x="90" y="278" />
-            <use href={`#${uid}-flourish`} x="230" y="278" transform="rotate(180 230 278)" />
-            <g transform="translate(160 278)">
+            {/* Splinters navy laterais */}
+            <polygon
+              points="30,10 70,10 40,450 5,450"
+              fill={`url(#${uid}-navy-flow)`}
+              opacity="0.75"
+            />
+            <polygon
+              points="260,10 300,10 315,450 280,450"
+              fill={`url(#${uid}-navy-flow)`}
+              opacity="0.7"
+            />
+
+            {/* Feixes brancos brilhantes */}
+            <polygon
+              points="140,10 175,10 100,450 65,450"
+              fill={`url(#${uid}-white-flow)`}
+            />
+            <polygon
+              points="200,10 235,10 245,450 205,450"
+              fill={`url(#${uid}-white-flow)`}
+              opacity="0.7"
+            />
+            <polygon
+              points="185,10 195,10 155,450 145,450"
+              fill={`url(#${uid}-white-bright)`}
+            />
+
+            {/* ==== DIVISOR ORNAMENTAL bem no meio ==== */}
+            <line x1="40" y1="255" x2="280" y2="255" stroke={`url(#${uid}-gold-h)`} strokeWidth="1" opacity="0.6" />
+            <use href={`#${uid}-flourish`} x="90" y="273" />
+            <use href={`#${uid}-flourish`} x="230" y="273" transform="rotate(180 230 273)" />
+            <g transform="translate(160 273)">
               <circle r="10" fill={`url(#${uid}-gold-r)`} stroke="#5a4415" strokeWidth="0.8" />
               <circle r="6.5" fill="none" stroke="#f7e7a8" strokeWidth="0.6" />
               <polygon points="0,-4 3.5,0 0,4 -3.5,0" fill="#5a4415" />
             </g>
 
-            {/* Placa dourada do nome */}
+            {/* Placa dourada do nome — imediatamente após o divisor (sem gap) */}
             <rect
-              x="45" y="292" width="230" height="26" rx="4"
+              x="45" y="285" width="230" height="26" rx="4"
               fill={`url(#${uid}-nameplate)`}
               stroke="#5a4415" strokeWidth="0.8"
             />
             <rect
-              x="48" y="295" width="224" height="20" rx="2"
-              fill="none" stroke="#f7e7a8" strokeWidth="0.5" opacity="0.6"
+              x="48" y="288" width="224" height="20" rx="2"
+              fill="none" stroke="#f7e7a8" strokeWidth="0.5" opacity="0.7"
             />
 
-            {/* Placa dos stats com fundo mais opaco pra legibilidade */}
+            {/* Placa dos stats — logo abaixo, também sem gap */}
             <rect
-              x="26" y="330" width="268" height="80" rx="6"
-              fill="#f8ecc4" fillOpacity="0.92"
+              x="26" y="322" width="268" height="86" rx="6"
+              fill="#f8ecc4" fillOpacity="0.95"
               stroke="#c9ad5f" strokeWidth="0.8"
             />
             <rect
-              x="30" y="334" width="260" height="72" rx="4"
+              x="30" y="326" width="260" height="78" rx="4"
               fill="none" stroke="#e2cd88" strokeWidth="0.5"
             />
 
-            <line x1="34" y1="328" x2="286" y2="328" stroke={`url(#${uid}-gold-h)`} strokeWidth="1.4" />
-            <polygon points="30,328 34,324 38,328 34,332" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
-            <polygon points="282,328 286,324 290,328 286,332" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
+            <line x1="34" y1="320" x2="286" y2="320" stroke={`url(#${uid}-gold-h)`} strokeWidth="1.4" />
+            <polygon points="30,320 34,316 38,320 34,324" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
+            <polygon points="282,320 286,316 290,320 286,324" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
 
-            {/* Stats — sem filtro pesado, cor bem escura */}
-            <g fontFamily="'Inter', system-ui, sans-serif" fontWeight="700" fill="#2d1f08">
-              <line x1="160" y1="338" x2="160" y2="402" stroke="#8a6a22" strokeWidth="1.4" />
-              <line x1="156" y1="344" x2="156" y2="396" stroke="#d8c48a" strokeWidth="0.5" />
-              <line x1="164" y1="344" x2="164" y2="396" stroke="#d8c48a" strokeWidth="0.5" />
-              <polygon points="160,368 165,374 160,380 155,374" fill={`url(#${uid}-gold-r)`} stroke="#5a4415" strokeWidth="0.5" />
+            {/* STATS — números grandes com stroke + drop-shadow real */}
+            <g fontFamily="'Inter', system-ui, sans-serif">
+              {/* Divisor central com losango */}
+              <line x1="160" y1="330" x2="160" y2="400" stroke="#8a6a22" strokeWidth="1.4" />
+              <line x1="156" y1="336" x2="156" y2="394" stroke="#d8c48a" strokeWidth="0.5" />
+              <line x1="164" y1="336" x2="164" y2="394" stroke="#d8c48a" strokeWidth="0.5" />
+              <polygon points="160,362 165,368 160,374 155,368" fill={`url(#${uid}-gold-r)`} stroke="#5a4415" strokeWidth="0.5" />
 
-              <line x1="40" y1="362" x2="150" y2="362" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
-              <line x1="40" y1="388" x2="150" y2="388" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
-              <line x1="170" y1="362" x2="280" y2="362" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
-              <line x1="170" y1="388" x2="280" y2="388" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
+              {/* Separadores horizontais */}
+              <line x1="40" y1="355" x2="150" y2="355" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
+              <line x1="40" y1="380" x2="150" y2="380" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
+              <line x1="170" y1="355" x2="280" y2="355" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
+              <line x1="170" y1="380" x2="280" y2="380" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.5" />
 
+              {/* Números da esquerda (com sombra) */}
               {STATS_LEFT.map((s, i) => {
-                const y = 351 + i * 26
+                const y = 345 + i * 25
                 const val = (adm as any)[s.key] as number | null
                 return (
-                  <g key={s.key}>
-                    <text x="58" y={y} fontSize="16" letterSpacing="0.5" textAnchor="middle">
+                  <g key={s.key} filter={`url(#${uid}-num-shadow)`}>
+                    <text
+                      x="58" y={y}
+                      fontSize="18"
+                      fontWeight="800"
+                      letterSpacing="0"
+                      textAnchor="middle"
+                      fill="#1a1408"
+                      stroke="#5a4415"
+                      strokeWidth="0.3"
+                    >
                       {val ?? '—'}
                     </text>
-                    <text x="110" y={y} fontSize="13" letterSpacing="1.4" textAnchor="middle" fill="#4a3510" fontWeight="600">
+                  </g>
+                )
+              })}
+              {STATS_LEFT.map((s, i) => {
+                const y = 345 + i * 25
+                return (
+                  <g key={`${s.key}-label`} filter={`url(#${uid}-label-shadow)`}>
+                    <text
+                      x="115" y={y}
+                      fontSize="14"
+                      fontWeight="700"
+                      letterSpacing="1.2"
+                      textAnchor="middle"
+                      fill="#3a2a08"
+                    >
                       {s.label}
                     </text>
                   </g>
                 )
               })}
 
+              {/* Números da direita */}
               {STATS_RIGHT.map((s, i) => {
-                const y = 351 + i * 26
+                const y = 345 + i * 25
                 const val = (adm as any)[s.key] as number | null
                 return (
-                  <g key={s.key}>
-                    <text x="215" y={y} fontSize="16" letterSpacing="0.5" textAnchor="middle">
+                  <g key={s.key} filter={`url(#${uid}-num-shadow)`}>
+                    <text
+                      x="215" y={y}
+                      fontSize="18"
+                      fontWeight="800"
+                      letterSpacing="0"
+                      textAnchor="middle"
+                      fill="#1a1408"
+                      stroke="#5a4415"
+                      strokeWidth="0.3"
+                    >
                       {val ?? '—'}
                     </text>
-                    <text x="265" y={y} fontSize="13" letterSpacing="1.4" textAnchor="middle" fill="#4a3510" fontWeight="600">
+                  </g>
+                )
+              })}
+              {STATS_RIGHT.map((s, i) => {
+                const y = 345 + i * 25
+                return (
+                  <g key={`${s.key}-label`} filter={`url(#${uid}-label-shadow)`}>
+                    <text
+                      x="262" y={y}
+                      fontSize="14"
+                      fontWeight="700"
+                      letterSpacing="1.2"
+                      textAnchor="middle"
+                      fill="#3a2a08"
+                    >
                       {s.label}
                     </text>
                   </g>
@@ -267,11 +313,13 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
               })}
             </g>
 
-            <line x1="34" y1="414" x2="286" y2="414" stroke={`url(#${uid}-gold-h)`} strokeWidth="1.2" />
-            <polygon points="30,414 34,410 38,414 34,418" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
-            <polygon points="282,414 286,410 290,414 286,418" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
+            {/* Rail bottom */}
+            <line x1="34" y1="412" x2="286" y2="412" stroke={`url(#${uid}-gold-h)`} strokeWidth="1.2" />
+            <polygon points="30,412 34,408 38,412 34,416" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
+            <polygon points="282,412 286,408 290,412 286,416" fill="#dcb057" stroke="#5a4415" strokeWidth="0.4" />
 
-            <g transform="translate(160 435)">
+            {/* Crest inferior */}
+            <g transform="translate(160 434)">
               <g fill="none" stroke={`url(#${uid}-gold-h)`} strokeWidth="1" strokeLinecap="round">
                 <path d="M-52 0 C -40 -8, -28 -10, -18 -6" />
                 <path d="M-46 4 C -34 6, -24 4, -18 -2" />
@@ -284,10 +332,10 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
             </g>
 
             <g fill="none" stroke={`url(#${uid}-gold-h)`} strokeWidth="0.8" strokeLinecap="round">
-              <path d="M20 260 C 32 260, 36 268, 40 276" />
-              <path d="M300 260 C 288 260, 284 268, 280 276" />
-              <path d="M20 425 C 32 425, 40 430, 44 436" />
-              <path d="M300 425 C 288 425, 280 430, 276 436" />
+              <path d="M20 255 C 32 255, 36 263, 40 271" />
+              <path d="M300 255 C 288 255, 284 263, 280 271" />
+              <path d="M20 423 C 32 423, 40 428, 44 434" />
+              <path d="M300 423 C 288 423, 280 428, 276 434" />
             </g>
 
             <g transform="translate(160 16)" fill="#b58433">
@@ -314,7 +362,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
 
         {/* Overlay HTML */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Rating (esquerda superior) — mais leve */}
+          {/* Rating */}
           <div
             className="absolute flex flex-col items-center"
             style={{ left: '7%', top: '5%' }}
@@ -327,8 +375,8 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
                 color: '#1a1408',
                 letterSpacing: '-2px',
                 textShadow: `
-                  1px 1px 0 rgba(255,255,255,0.8),
-                  2px 2px 3px rgba(0,0,0,0.35)
+                  1px 1px 0 rgba(255,255,255,0.85),
+                  2px 3px 4px rgba(0,0,0,0.45)
                 `,
               }}
             >
@@ -344,17 +392,18 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
                 marginTop: '4px',
                 textShadow: `
                   0 1px 0 rgba(255,255,255,0.9),
-                  0 0 4px rgba(255,255,255,0.6)
+                  0 0 4px rgba(255,255,255,0.7)
                 `,
-                background: 'rgba(255,240,180,0.35)',
+                background: 'rgba(255,240,180,0.45)',
                 padding: '1px 6px',
                 borderRadius: '2px',
+                border: '1px solid rgba(184,132,51,0.3)',
               }}
             >
               {posicao}
             </span>
 
-            {/* Bandeira Brasil */}
+            {/* Bandeira */}
             <div
               style={{
                 marginTop: width * 0.03,
@@ -363,7 +412,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
                 boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
                 borderRadius: '1px',
                 overflow: 'hidden',
-                border: '1px solid rgba(0,0,0,0.2)',
+                border: '1px solid rgba(0,0,0,0.25)',
               }}
             >
               <svg viewBox="0 0 720 504" width="100%" height="100%">
@@ -380,7 +429,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
             </div>
           </div>
 
-          {/* Foto do adm (direita) — centralizada, contain */}
+          {/* Foto */}
           {adm.foto && (
             <div
               className="absolute flex items-center justify-center overflow-hidden"
@@ -388,7 +437,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
                 right: '4%',
                 top: '4%',
                 width: '52%',
-                height: '50%',
+                height: '48%',
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -399,26 +448,26 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
                   maxHeight: '100%',
                   maxWidth: '100%',
                   objectFit: 'contain',
-                  filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.45))',
+                  filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
                 }}
               />
             </div>
           )}
 
-          {/* Nome (na placa dourada) — mais leve */}
+          {/* Nome (placa dourada) — posição corrigida pra bater com y=285-311 */}
           <div
             className="absolute inset-x-0 text-center"
-            style={{ top: '63.5%', padding: '0 12%' }}
+            style={{ top: '62%', padding: '0 12%' }}
           >
             <p
               className="font-display uppercase truncate"
               style={{
-                fontSize: adm.nome.length > 12 ? width * 0.055 : width * 0.065,
+                fontSize: adm.nome.length > 12 ? width * 0.055 : width * 0.068,
                 fontWeight: 700,
                 color: '#1a1408',
                 letterSpacing: '1px',
                 lineHeight: '1',
-                textShadow: '0 1px 0 rgba(255,240,180,0.7)',
+                textShadow: '0 1px 0 rgba(255,240,180,0.8), 0 -0.5px 0 rgba(90,68,21,0.3)',
               }}
             >
               {adm.nome}
@@ -427,7 +476,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
         </div>
       </div>
 
-      {/* Vulgo — faixa oval leve */}
+      {/* Vulgo */}
       {adm.vulgo && (
         <div
           className="mt-2 rounded-full border border-couro-500 bg-gradient-to-r from-couro-100 via-dourado-100 to-couro-100 px-4 py-1 shadow-sm"
@@ -447,7 +496,7 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
         </div>
       )}
 
-      {/* Frase — card decorativo */}
+      {/* Frase */}
       {adm.descricao && (
         <div
           className="mt-3 relative rounded-lg border-2 border-dourado-300 px-4 py-3 shadow-md"
@@ -482,7 +531,6 @@ export function CardFifa({ adm, width = 260 }: { adm: AdminProfile; width?: numb
           >
             &rdquo;
           </span>
-
           <p
             className="text-center italic leading-snug px-4"
             style={{
