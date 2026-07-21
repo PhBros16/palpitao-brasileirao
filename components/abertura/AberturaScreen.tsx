@@ -165,17 +165,37 @@ export function AberturaScreen() {
     try {
       const player = await buscarPinPorNome(j.nome)
       if (player) setPinPlayer(player)
+// Clique no chip ADM do banco → abre o PIN do participante Administração.
+  const handleClickAdmin = useCallback(async () => {
+    if (buscandoPin || pinPlayer) return
+
+    setBuscandoPin(true)
+    try {
+      const admin = await buscarPinPorNome('Administração')
+      if (admin) setPinPlayer(admin)
+    } finally {
+      setBuscandoPin(false)
+    }
+  }, [buscandoPin, pinPlayer])
+      
       // Se não achou (nome não bate com nenhum participant), não faz nada silenciosamente.
     } finally {
       setBuscandoPin(false)
     }
   }, [buscandoPin, pinPlayer])
 
-  // PIN validado → grava sessão → navega pra Home (/inicio).
+  // PIN validado → grava sessão e navega conforme o tipo de conta.
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
-    localStorage.setItem('palpitao_sessao', JSON.stringify({ id: player.id, nome: player.nome }))
+    localStorage.setItem(
+      'palpitao_sessao',
+      JSON.stringify({
+        id: player.id,
+        nome: player.nome,
+      }),
+    )
+
     setPinPlayer(null)
-    router.push('/inicio')
+    router.push(player.isAdmin ? '/admin' : '/inicio')
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -226,8 +246,13 @@ export function AberturaScreen() {
         {/* Interior — campo, banco e poeira, revelados por trás da capa */}
         <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
           <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
-          <BancoReservas revelado={revelado} reservas={reservasComEntrada} admin={adminComEntrada} tecnico={tecnicoComEntrada} />
-
+          <BancoReservas
+            revelado={revelado}
+            reservas={reservasComEntrada}
+            admin={adminComEntrada}
+            tecnico={tecnicoComEntrada}
+            onEntrarAdmin={handleClickAdmin}
+          />
           <div
             className="pointer-events-none absolute bottom-0 left-0 top-0"
             style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
