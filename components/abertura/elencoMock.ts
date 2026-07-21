@@ -174,11 +174,12 @@ export const TECNICO = _default.TECNICO
 import { supabase } from '@/lib/supabase'
 
 export interface JogadorComPin {
-  id: string           // id do participants (não o id local 'p1'..'p14')
+  id: string
   nome: string
   vulgo?: string
   pin: string
   avatar?: string | null
+  isAdmin: boolean
 }
 
 const VULGO_MAP: Record<string, string> = {
