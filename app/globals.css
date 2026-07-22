@@ -51,3 +51,14 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* ─── Cor de fundo global ─────────────────────────────────────────────── */
+
+body {
+  background-color: rgb(239 225 184); /* papel-200 */
+  background-image:
+    radial-gradient(ellipse at 20% 15%, rgba(139, 90, 43, 0.15), transparent 55%),
+    radial-gradient(ellipse at 80% 85%, rgba(184, 134, 11, 0.12), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
