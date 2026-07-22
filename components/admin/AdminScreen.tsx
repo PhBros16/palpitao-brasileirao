@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Accordion } from '@/components/home/Accordion'
 import { Modal } from '@/components/home/Modal'
+import { showToast } from '@/components/home/Toast'
+import { vibrar } from '@/lib/haptic'
 import {
   buscarRodadaAtiva,
   salvarRodada,
@@ -35,8 +37,6 @@ import { FORMACOES, getFormacao, type Formacao } from '@/lib/formacoes'
 import { lerConfig, salvarConfig, lerFormacaoId, salvarFormacaoId } from '@/lib/appSettings'
 import { supabase } from '@/lib/supabase'
 import { calcProjecaoPct } from '@/lib/domain/projecao'
-import { showToast } from '@/components/home/Toast'
-import { vibrar } from '@/lib/haptic'
 
 const URL_APP = 'https://palpitao-brasileirao-iota.vercel.app'
 
@@ -146,7 +146,6 @@ function SubLabel({ children }: { children: React.ReactNode }) {
 
 function SecaoWhatsApp() {
   const [carregando, setCarregando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   const MEDALHAS = ['🥇', '🥈', '🥉']
   function posEmoji(i: number): string {
@@ -231,12 +230,15 @@ function SecaoWhatsApp() {
   }
 
   async function share(tipo: 'geral' | 'parcial') {
-    setCarregando(true); setMensagem(null)
+    setCarregando(true)
+    vibrar('leve')
     try {
       const texto = tipo === 'geral' ? await montarTextoGeral() : await montarTextoParcial()
       window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+      showToast('Abrindo WhatsApp...', 'info', 2000)
     } catch (e) {
-      setMensagem(`Erro: ${(e as Error).message}`)
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
     } finally {
       setCarregando(false)
     }
@@ -247,7 +249,6 @@ function SecaoWhatsApp() {
       <p className="mb-4 font-sans text-sm text-tinta-200">
         Envie um resumo direto no WhatsApp — top 5 com dados reais do Supabase.
       </p>
-      {mensagem && <p className="mb-3 font-sans text-xs text-raridade-frango-selo">{mensagem}</p>}
       <div className="flex flex-wrap gap-3">
         <Btn variant="whatsapp" onClick={() => share('geral')} disabled={carregando}>
           {carregando ? '...' : '📊 Ranking Geral'}
@@ -274,7 +275,6 @@ function SecaoConfiguracaoRodada() {
   const [idsOriginais, setIdsOriginais] = useState<string[]>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [modalFinalizar, setModalFinalizar] = useState<'fechado' | 'confirmar' | 'aviso'>('fechado')
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
   const [ehExtra, setEhExtra] = useState(false)
@@ -302,27 +302,36 @@ function SecaoConfiguracaoRodada() {
         setAberta(r.aberta); setValeDobro(r.valeDobro)
         setJogos(r.jogos); setIdsOriginais(r.jogos.map((j) => j.id))
       })
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => {
+        showToast(`Erro ao carregar: ${e.message}`, 'erro')
+      })
       .finally(() => setCarregando(false))
   }, [])
 
   function addJogo() {
+    vibrar('leve')
     setJogos((js) => [...js, { id: 'j' + Date.now(), home: '', away: '', date: '', time: '', locked: false }])
   }
-  function removeJogo(id: string) { setJogos((js) => js.filter((j) => j.id !== id)) }
+  function removeJogo(id: string) {
+    vibrar('leve')
+    setJogos((js) => js.filter((j) => j.id !== id))
+  }
   function patch(id: string, p: Partial<Jogo>) { setJogos((js) => js.map((j) => (j.id === id ? { ...j, ...p } : j))) }
 
   async function handleSalvar() {
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais)
       setRoundId(idFinal)
       const atualizado = await buscarRodadaAtiva()
       setJogos(atualizado.jogos); setIdsOriginais(atualizado.jogos.map((j) => j.id))
-      setMensagem('Rodada salva.')
+      vibrar('sucesso')
+      showToast('Rodada salva!', 'sucesso')
       await gravarLog('RODADA_SALVA', { nome, numero })
-    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function abrirFinalizar() {
@@ -332,8 +341,10 @@ function SecaoConfiguracaoRodada() {
       const faltando = await buscarJogosSemPlacar(roundId)
       setJogosSemPlacar(faltando)
       setModalFinalizar(faltando.length > 0 ? 'aviso' : 'confirmar')
-    } catch (e) { setMensagem(`Erro ao verificar jogos: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao verificar jogos: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function confirmarFinalizar() {
@@ -343,9 +354,12 @@ function SecaoConfiguracaoRodada() {
       await finalizarRodada(roundId)
       await gravarLog('RODADA_FINALIZADA', { roundId, nome })
       setAberta(false)
-      setMensagem('Rodada finalizada. Pontos lançados no Ranking. 🏆')
-    } catch (e) { setMensagem(`Erro ao finalizar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      vibrar('sucesso')
+      showToast('Rodada finalizada! Pontos lançados no Ranking. 🏆', 'sucesso', 4000)
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao finalizar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function handleLimparPalpites() {
@@ -354,16 +368,18 @@ function SecaoConfiguracaoRodada() {
     try {
       await limparPalpitesRodada(roundId)
       await gravarLog('PALPITES_LIMPOS', { roundId, nome })
-      setMensagem('Palpites apagados.')
-    } catch (e) { setMensagem(`Erro ao limpar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      vibrar('medio')
+      showToast('Palpites apagados.', 'aviso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao limpar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <Row label="Nome"><InputText value={nome} onChange={setNome} placeholder="ex: Rodada 20" className="flex-1" /></Row>
         <Row label="Nº Rodada">
@@ -478,7 +494,6 @@ function SecaoResultadoCorrecao() {
   const [res, setRes] = useState<Record<string, Placar>>({})
   const [carregando, setCarregando] = useState(true)
   const [calculando, setCalculando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
   const [jogadorSel, setJogadorSel] = useState('')
   const [palpites, setPalpites] = useState<PalpitePorJogo[]>([])
@@ -492,7 +507,7 @@ function SecaoResultadoCorrecao() {
         setRes(Object.fromEntries(rodada.jogos.map((j) => [j.id, { h: j.resultadoH?.toString() ?? '', a: j.resultadoA?.toString() ?? '' }])))
         setParticipantes(nomes)
       })
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
       .finally(() => setCarregando(false))
   }, [])
 
@@ -502,7 +517,7 @@ function SecaoResultadoCorrecao() {
 
   async function handleCalcular() {
     if (!roundId) return
-    setCalculando(true); setMensagem(null)
+    setCalculando(true)
     try {
       const resultados: Record<string, { h: number; a: number }> = {}
       for (const j of jogos) {
@@ -512,13 +527,16 @@ function SecaoResultadoCorrecao() {
       }
       await calcularPontosRodada(roundId, resultados, valeDobro)
       await gravarLog('PONTOS_CALCULADOS', { roundId })
-      setMensagem('Pontos calculados! ⚡')
+      vibrar('sucesso')
+      showToast('Pontos calculados! ⚡', 'sucesso')
       if (jogadorSel) {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
       }
-    } catch (e) { setMensagem(`Erro ao calcular: ${(e as Error).message}`) }
-    finally { setCalculando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao calcular: ${(e as Error).message}`, 'erro')
+    } finally { setCalculando(false) }
   }
 
   async function selecionarJogador(nome: string) {
@@ -528,8 +546,9 @@ function SecaoResultadoCorrecao() {
     try {
       const p = participantes.find((x) => x.name === nome)
       if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
-    } catch (e) { setMensagem(`Erro ao carregar palpites: ${(e as Error).message}`) }
-    finally { setCarregandoPalpites(false) }
+    } catch (e) {
+      showToast(`Erro ao carregar palpites: ${(e as Error).message}`, 'erro')
+    } finally { setCarregandoPalpites(false) }
   }
 
   async function handleCorrigir(predictionId: string | null) {
@@ -543,8 +562,12 @@ function SecaoResultadoCorrecao() {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
       }
-      setMensagem('Correção aplicada.')
-    } catch (e) { setMensagem(`Erro ao corrigir: ${(e as Error).message}`) }
+      vibrar('sucesso')
+      showToast('Correção aplicada!', 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao corrigir: ${(e as Error).message}`, 'erro')
+    }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
@@ -552,7 +575,6 @@ function SecaoResultadoCorrecao() {
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       {valeDobro && <Card><p className="font-sans text-sm font-semibold text-dourado-600">⚡ Esta rodada vale pontuação em dobro</p></Card>}
       <Card>
         {jogos.map((j) => (
@@ -632,7 +654,6 @@ function SecaoFrango() {
   const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
@@ -643,13 +664,13 @@ function SecaoFrango() {
           if (data) { setJogador(data.player_name ?? ''); setTexto(data.text ?? ''); setFotoUrl(data.photo_url ?? '') }
         }
       })
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
       .finally(() => setCarregando(false))
   }, [])
 
   async function salvar() {
     if (!roundId) return
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       await supabase.from('shame').delete().eq('round_id', roundId)
       if (jogador.trim()) {
@@ -657,9 +678,12 @@ function SecaoFrango() {
         if (error) throw error
         await gravarLog('FRANGO_ATRIBUIDO', { roundId, jogador, rodada: rodadaNome })
       }
-      setMensagem('Frango salvo. 🐔')
-    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      vibrar('sucesso')
+      showToast('Frango salvo! 🐔', 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function limpar() {
@@ -668,9 +692,12 @@ function SecaoFrango() {
     try {
       await supabase.from('shame').delete().eq('round_id', roundId)
       setJogador(''); setFotoUrl(''); setTexto('')
-      setMensagem('Frango removido.')
-    } catch (e) { setMensagem(`Erro ao limpar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      vibrar('leve')
+      showToast('Frango removido.', 'info')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao limpar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando...</p></Card>
@@ -678,7 +705,6 @@ function SecaoFrango() {
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">O frango de <b>{rodadaNome}</b> — carinhosamente constrangedor. 🐔</p>
         <Row label="Jogador">
@@ -709,13 +735,12 @@ function SecaoReabrirRodada() {
   const [selecionada, setSelecionada] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [reabrindo, setReabrindo] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState(false)
 
   async function carregar() {
     setCarregando(true)
     try { setRodadas(await buscarRodadasFinalizadas()) }
-    catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
 
@@ -728,17 +753,19 @@ function SecaoReabrirRodada() {
       const rod = rodadas.find((r) => r.id === selecionada)
       await reabrirRodada(selecionada)
       await gravarLog('RODADA_REABERTA', { roundId: selecionada, nome: rod?.name })
-      setMensagem('Rodada reaberta.')
+      vibrar('sucesso')
+      showToast('Rodada reaberta! 🔓', 'sucesso')
       setSelecionada(''); await carregar()
-    } catch (e) { setMensagem(`Erro ao reabrir: ${(e as Error).message}`) }
-    finally { setReabrindo(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao reabrir: ${(e as Error).message}`, 'erro')
+    } finally { setReabrindo(false) }
   }
 
   const rodadaSel = rodadas.find((r) => r.id === selecionada)
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">Volta uma rodada finalizada pro estado "em andamento".</p>
         {carregando ? (
@@ -793,7 +820,6 @@ function SecaoProjecao() {
   const [janela, setJanela] = useState(3)
   const [carregando, setCarregando] = useState(true)
   const [calculando, setCalculando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [projecoes, setProjecoes] = useState<Array<{ nome: string; pct: number }>>([])
   const [totalFinalizadas, setTotalFinalizadas] = useState(0)
 
@@ -804,7 +830,7 @@ function SecaoProjecao() {
         const j = cfg?.rodadas ?? 3
         setJanela(j)
         await calcular(j)
-      } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+      } catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
       finally { setCarregando(false) }
     }
     init()
@@ -835,13 +861,14 @@ function SecaoProjecao() {
       setProjecoes(
         Object.entries(resultado).map(([nome, pct]) => ({ nome, pct })).sort((a, b) => b.pct - a.pct)
       )
-    } catch (e) { setMensagem(`Erro ao calcular: ${(e as Error).message}`) }
+    } catch (e) { showToast(`Erro ao calcular: ${(e as Error).message}`, 'erro') }
     finally { setCalculando(false) }
   }
 
   async function mudarJanela(j: number) {
     if (j === janela || calculando) return
-    setJanela(j); setMensagem(null)
+    vibrar('leve')
+    setJanela(j)
     try { await salvarConfig('projecao_janela', { rodadas: j }) } catch { /* silencioso */ }
     await calcular(j)
   }
@@ -850,7 +877,6 @@ function SecaoProjecao() {
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-xs text-raridade-frango-selo">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">Define quantas rodadas usar pra calcular a chance de cada um ser campeão.</p>
         <div className="flex flex-wrap gap-2">
@@ -904,28 +930,30 @@ function SecaoEvolucao() {
   const [janela, setJanela] = useState(0)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   useEffect(() => {
     lerConfig<{ rodadas: number }>('evolucao_janela')
       .then((cfg) => setJanela(cfg?.rodadas ?? 0))
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
       .finally(() => setCarregando(false))
   }, [])
 
   async function mudarJanela(j: number) {
     if (j === janela || salvando) return
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       await salvarConfig('evolucao_janela', { rodadas: j })
-      setJanela(j); setMensagem('Configuração salva.')
-    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      setJanela(j)
+      vibrar('sucesso')
+      showToast('Configuração salva!', 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">Controla quantas rodadas aparecem no gráfico "Evolução por Rodada" no Ranking.</p>
         {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
@@ -968,25 +996,27 @@ function SecaoAlterarFormacao() {
   const [atual, setAtual] = useState<string>('4-3-3')
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   useEffect(() => {
     lerFormacaoId()
       .then((id) => setAtual(id))
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
       .finally(() => setCarregando(false))
   }, [])
 
   async function escolher(id: string) {
     if (id === atual || salvando) return
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       await salvarFormacaoId(id)
       await gravarLog('FORMACAO_ALTERADA', { id, nome: getFormacao(id).nome })
       setAtual(id)
-      setMensagem(`Formação alterada pra ${getFormacao(id).nome}. ⚽`)
-    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+      vibrar('sucesso')
+      showToast(`Formação alterada pra ${getFormacao(id).nome}! ⚽`, 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando formação...</p></Card>
@@ -996,7 +1026,6 @@ function SecaoAlterarFormacao() {
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="font-sans text-sm text-tinta-200">
           A formação escolhida vale pros campinhos da <b>abertura</b> e do <b>login</b>.
@@ -1077,7 +1106,6 @@ function SecaoNovidades() {
   const [lista, setLista] = useState<Array<{ id: string; titulo: string; resumo: string | null; data: string | null }>>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -1085,7 +1113,7 @@ function SecaoNovidades() {
       const { data, error } = await supabase.from('novidades').select('id, titulo, resumo, data').order('created_at', { ascending: false })
       if (error) throw error
       setLista(data ?? [])
-    } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    } catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
 
@@ -1093,15 +1121,19 @@ function SecaoNovidades() {
 
   async function publicar() {
     if (!titulo.trim()) return
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       const { error } = await supabase.from('novidades').insert({ titulo: titulo.trim(), resumo: resumo.trim() || null })
       if (error) throw error
       await gravarLog('NOVIDADE_PUBLICADA', { titulo })
-      setTitulo(''); setResumo(''); setMensagem('Novidade publicada. 🆕')
+      setTitulo(''); setResumo('')
+      vibrar('sucesso')
+      showToast('Novidade publicada! 🆕', 'sucesso')
       await carregar()
-    } catch (e) { setMensagem(`Erro ao publicar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao publicar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function remover(id: string) {
@@ -1109,15 +1141,17 @@ function SecaoNovidades() {
     try {
       const { error } = await supabase.from('novidades').delete().eq('id', id)
       if (error) throw error
-      setMensagem('Novidade removida.')
+      vibrar('leve')
+      showToast('Novidade removida.', 'info')
       await carregar()
-    } catch (e) { setMensagem(`Erro ao remover: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao remover: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">Publique uma novidade pra aparecer como pop-up quando os participantes entrarem no app.</p>
         <Row label="Título"><InputText value={titulo} onChange={setTitulo} placeholder="ex: Ranking disponível!" className="flex-1" /></Row>
@@ -1178,27 +1212,30 @@ function SecaoAdms() {
   const [lista, setLista] = useState<AdminProfile[]>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [editando, setEditando] = useState<(AdminProfile & { isNovo?: boolean }) | null>(null)
 
   async function carregar() {
     setCarregando(true)
     try { setLista(await buscarAdmins()) }
-    catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
 
   useEffect(() => { carregar() }, [])
 
   function abrirNovo() {
+    vibrar('leve')
     setEditando({ ...ADM_VAZIO, id: '', ordem: (lista[lista.length - 1]?.ordem ?? 0) + 1, isNovo: true })
   }
 
-  function abrirEditar(adm: AdminProfile) { setEditando({ ...adm }) }
+  function abrirEditar(adm: AdminProfile) {
+    vibrar('leve')
+    setEditando({ ...adm })
+  }
 
   async function salvar() {
     if (!editando || !editando.nome.trim()) return
-    setSalvando(true); setMensagem(null)
+    setSalvando(true)
     try {
       await salvarAdmin({
         id: editando.isNovo ? undefined : editando.id,
@@ -1220,10 +1257,14 @@ function SecaoAdms() {
         foto_pos_y: editando.foto_pos_y,
       })
       await gravarLog(editando.isNovo ? 'ADM_ADICIONADO' : 'ADM_EDITADO', { nome: editando.nome })
-      setEditando(null); setMensagem('Salvo.')
+      setEditando(null)
+      vibrar('sucesso')
+      showToast('Adm salvo!', 'sucesso')
       await carregar()
-    } catch (e) { setMensagem(`Erro ao salvar: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   async function remover(adm: AdminProfile) {
@@ -1232,15 +1273,17 @@ function SecaoAdms() {
     try {
       await removerAdmin(adm.id)
       await gravarLog('ADM_REMOVIDO', { nome: adm.nome })
-      setMensagem('Adm removido.')
+      vibrar('medio')
+      showToast('Adm removido.', 'aviso')
       await carregar()
-    } catch (e) { setMensagem(`Erro ao remover: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao remover: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">
           Gerencie os cards da seção "Conheça os Adms" — aparecem na aba Guia pra todos.
@@ -1447,36 +1490,41 @@ function SecaoPINs() {
   const [participantes, setParticipantes] = useState<ParticipantePin[]>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState<string | null>(null)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [buf, setBuf] = useState<Record<string, string>>({})
 
   useEffect(() => {
     buscarParticipantesPins()
       .then(setParticipantes)
-      .catch((e) => setMensagem(`Erro ao carregar: ${e.message}`))
+      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
       .finally(() => setCarregando(false))
   }, [])
 
   async function handleSalvarPin(p: ParticipantePin) {
     const novoPin = buf[p.id]?.trim()
     if (!novoPin || novoPin === p.pin) return
-    if (novoPin.length < 4) { setMensagem('PIN deve ter pelo menos 4 caracteres.'); return }
-    setSalvando(p.id); setMensagem(null)
+    if (novoPin.length < 4) {
+      vibrar('erro')
+      showToast('PIN deve ter pelo menos 4 caracteres.', 'aviso')
+      return
+    }
+    setSalvando(p.id)
     try {
       await atualizarPin(p.id, novoPin)
       await gravarLog('PIN_ATUALIZADO', { participante: p.name })
       setParticipantes((ps) => ps.map((x) => x.id === p.id ? { ...x, pin: novoPin } : x))
       setBuf((b) => { const next = { ...b }; delete next[p.id]; return next })
-      setMensagem(`PIN de ${p.name} atualizado.`)
-    } catch (e) { setMensagem(`Erro: ${(e as Error).message}`) }
-    finally { setSalvando(null) }
+      vibrar('sucesso')
+      showToast(`PIN de ${p.name} atualizado!`, 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(null) }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando...</p></Card>
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">
           Altere o PIN de qualquer participante. O PIN atual é exibido — troque só quando necessário.
@@ -1516,12 +1564,11 @@ function SecaoPINs() {
 function SecaoLog() {
   const [entradas, setEntradas] = useState<EntradaLog[]>([])
   const [carregando, setCarregando] = useState(true)
-  const [mensagem, setMensagem] = useState<string | null>(null)
 
   async function carregar() {
     setCarregando(true)
     try { setEntradas(await buscarLog(50)) }
-    catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
 
@@ -1551,7 +1598,6 @@ function SecaoLog() {
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
       <div className="flex justify-end">
         <Btn variant="outline" onClick={carregar} disabled={carregando}>
           {carregando ? '...' : '↻ Atualizar'}
@@ -1597,7 +1643,6 @@ function SecaoFinalizarCampeonato() {
   const [nomecamp, setNomecamp] = useState('Brasileirão Série A 2026')
   const [adminNome, setAdminNome] = useState('')
   const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState(false)
   const [snapshots, setSnapshots] = useState<Array<{ id: string; nome: string; campeao: string; data_encerramento: string }>>([])
   const [carregando, setCarregando] = useState(true)
@@ -1610,26 +1655,27 @@ function SecaoFinalizarCampeonato() {
         .select('id, nome, campeao, data_encerramento')
         .order('data_encerramento', { ascending: false })
       setSnapshots(data ?? [])
-    } catch (e) { setMensagem(`Erro ao carregar: ${(e as Error).message}`) }
+    } catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
 
   useEffect(() => { carregarSnapshots() }, [])
 
   async function handleFinalizar() {
-    setConfirmar(false); setSalvando(true); setMensagem(null)
+    setConfirmar(false); setSalvando(true)
     try {
       await finalizarCampeonato(nomecamp, adminNome || 'admin')
-      setMensagem('Campeonato finalizado e snapshot salvo. 🏆')
+      vibrar('sucesso')
+      showToast('Campeonato finalizado e snapshot salvo! 🏆', 'sucesso', 4000)
       await carregarSnapshots()
-    } catch (e) { setMensagem(`Erro: ${(e as Error).message}`) }
-    finally { setSalvando(false) }
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(false) }
   }
 
   return (
     <div className="space-y-3">
-      {mensagem && <Card><p className="font-sans text-sm text-tinta-200">{mensagem}</p></Card>}
-
       <Card>
         <p className="mb-3 font-sans text-sm text-tinta-200">
           Encerra o campeonato atual — salva um snapshot permanente do ranking final
