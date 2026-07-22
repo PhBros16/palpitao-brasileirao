@@ -114,16 +114,21 @@ export function AppLayout({
 
   if (!sessao || !prontoParaRenderizar) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">
-        Carregando...
-      </main>
+<main className="relative min-h-screen px-3 pb-10 pt-4">
+  <FundoAnimado />
+  <div className="relative mx-auto max-w-md space-y-3">
+    <SkeletonHeader />
+    <SkeletonNav />
+    <SkeletonConteudo />
+  </div>
+</main>
     )
   }
 
   const mostrarPlayer = pathname === '/inicio'
 
   return (
-    <main className="relative min-h-screen bg-papel-200 px-3 pb-10 pt-4">
+    <main className="relative min-h-screen px-3 pb-10 pt-4">
       <FundoAnimado />
       <div className="relative mx-auto max-w-md space-y-3">
         <HeaderUsuario
