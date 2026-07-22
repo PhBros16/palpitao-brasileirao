@@ -35,6 +35,8 @@ import { FORMACOES, getFormacao, type Formacao } from '@/lib/formacoes'
 import { lerConfig, salvarConfig, lerFormacaoId, salvarFormacaoId } from '@/lib/appSettings'
 import { supabase } from '@/lib/supabase'
 import { calcProjecaoPct } from '@/lib/domain/projecao'
+import { showToast } from '@/components/home/Toast'
+import { vibrar } from '@/lib/haptic'
 
 const URL_APP = 'https://palpitao-brasileirao-iota.vercel.app'
 
