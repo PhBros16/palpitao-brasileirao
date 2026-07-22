@@ -9,6 +9,7 @@ import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 import { buscarRankingReal, type LinhaRanking } from '@/lib/rankingReal'
 import { buscarTrofeusJogador, type TrofeuReal } from '@/lib/trofeusReal'
 import { AppLayout } from '@/components/home/AppLayout'
+import { Confete } from '@/components/home/Confete'
 import type { DadosRanking } from '@/components/ranking/tipos'
 
 const CHAVE_TROFEUS_VISTOS = 'palpitao_trofeus_vistos'
@@ -135,6 +136,13 @@ function detectarNovosTrofeus(
 
 function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFechar: () => void }) {
   const [indice, setIndice] = useState(0)
+  const [mostrarConfete, setMostrarConfete] = useState(true)
+
+  useEffect(() => {
+    setMostrarConfete(true)
+    const timerConfete = setTimeout(() => setMostrarConfete(false), 3500)
+    return () => clearTimeout(timerConfete)
+  }, [indice])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -151,37 +159,39 @@ function ToastNovoTrofeu({ trofeus, onFechar }: { trofeus: TrofeuReal[]; onFecha
   if (!t) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-[60] w-full max-w-xs animate-in slide-in-from-right duration-500">
-      <div className="overflow-hidden rounded-lg border-2 border-dourado-500 bg-gradient-to-br from-dourado-100 to-dourado-50 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-dourado-300 bg-dourado-200 px-3 py-1.5">
-          <p className="font-display text-[11px] font-bold uppercase tracking-widest text-dourado-800">
-            🏆 Troféu Desbloqueado!
-          </p>
-          <button type="button" onClick={onFechar} className="font-mono text-xs text-dourado-700 hover:text-dourado-900">
-            ✕
-          </button>
-        </div>
-        <div className="flex items-center gap-3 p-4">
-          <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-dourado-300 to-dourado-500 text-3xl shadow-inner">
-            {t.icon}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="font-display text-sm font-bold text-tinta-300">{t.label}</p>
-            <p className="mt-0.5 font-sans text-[11px] leading-tight text-tinta-200">{t.desc}</p>
+    <>
+      <Confete ativo={mostrarConfete} quantidade={80} duracao={3500} />
+      <div className="fixed bottom-4 right-4 z-[60] w-full max-w-xs animate-in slide-in-from-right duration-500">
+        <div className="overflow-hidden rounded-lg border-2 border-dourado-500 bg-gradient-to-br from-dourado-100 to-dourado-50 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-dourado-300 bg-dourado-200 px-3 py-1.5">
+            <p className="font-display text-[11px] font-bold uppercase tracking-widest text-dourado-800">
+              🏆 Troféu Desbloqueado!
+            </p>
+            <button type="button" onClick={onFechar} className="font-mono text-xs text-dourado-700 hover:text-dourado-900">
+              ✕
+            </button>
           </div>
-        </div>
-        {trofeus.length > 1 && (
-          <div className="flex items-center justify-center gap-1 border-t border-dourado-300 bg-dourado-100 px-3 py-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-dourado-700">
-              {indice + 1} de {trofeus.length}
+          <div className="flex items-center gap-3 p-4">
+            <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-dourado-300 to-dourado-500 text-3xl shadow-inner">
+              {t.icon}
             </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-display text-sm font-bold text-tinta-300">{t.label}</p>
+              <p className="mt-0.5 font-sans text-[11px] leading-tight text-tinta-200">{t.desc}</p>
+            </div>
           </div>
-        )}
+          {trofeus.length > 1 && (
+            <div className="flex items-center justify-center gap-1 border-t border-dourado-300 bg-dourado-100 px-3 py-1.5">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-dourado-700">
+                {indice + 1} de {trofeus.length}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
-
 function montarDadosRanking(linhasReais: LinhaRanking[]): DadosRanking {
   return {
     classificacao: linhasReais.map((l) => ({
