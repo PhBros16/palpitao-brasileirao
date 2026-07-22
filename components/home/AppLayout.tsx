@@ -2,8 +2,9 @@
 
 // AppLayout — wrapper de todas as páginas logadas.
 //
-// Renderiza sempre: FundoAnimado (partículas + textura) + Header + Nav + PageTransition.
+// Renderiza sempre: FundoAnimado + Header + Nav + PageTransition.
 // Player de música só aparece na aba "Início" (/inicio).
+// Enquanto carrega perfil, mostra skeleton loader (não tela em branco).
 //
 // Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
 // background. Isso elimina o "trava/carrega" ao trocar de aba.
@@ -18,6 +19,7 @@ import { NavAbas } from './NavAbas'
 import { PlayerMusica } from './PlayerMusica'
 import { PageTransition } from './PageTransition'
 import { FundoAnimado } from './FundoAnimado'
+import { SkeletonHeader, SkeletonNav, SkeletonConteudo } from './AppLayoutSkeleton'
 
 interface Sessao {
   id: string
@@ -114,14 +116,14 @@ export function AppLayout({
 
   if (!sessao || !prontoParaRenderizar) {
     return (
-<main className="relative min-h-screen px-3 pb-10 pt-4">
-  <FundoAnimado />
-  <div className="relative mx-auto max-w-md space-y-3">
-    <SkeletonHeader />
-    <SkeletonNav />
-    <SkeletonConteudo />
-  </div>
-</main>
+      <main className="relative min-h-screen px-3 pb-10 pt-4">
+        <FundoAnimado />
+        <div className="relative mx-auto max-w-md space-y-3">
+          <SkeletonHeader />
+          <SkeletonNav />
+          <SkeletonConteudo />
+        </div>
+      </main>
     )
   }
 
