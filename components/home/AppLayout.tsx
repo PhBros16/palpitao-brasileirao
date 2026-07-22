@@ -18,6 +18,7 @@ import { HeaderUsuario } from './HeaderUsuario'
 import { NavAbas } from './NavAbas'
 import { PlayerMusica } from './PlayerMusica'
 import { PageTransition } from './PageTransition'
+import { FundoAnimado } from './FundoAnimado'
 
 interface Sessao {
   id: string
