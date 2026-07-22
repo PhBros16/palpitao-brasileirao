@@ -2,9 +2,8 @@
 
 // AppLayout — wrapper de todas as páginas logadas.
 //
-// Renderiza sempre: Header do usuário + Nav de abas.
+// Renderiza sempre: FundoAnimado (partículas + textura) + Header + Nav + PageTransition.
 // Player de música só aparece na aba "Início" (/inicio).
-// O conteúdo específico da página vai como children, envolvido em PageTransition.
 //
 // Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
 // background. Isso elimina o "trava/carrega" ao trocar de aba.
@@ -55,17 +54,14 @@ export function AppLayout({
     }
     setSessao(s)
 
-    // 1. Tenta carregar do cache (instantâneo)
     const cache = lerPerfilCache(s.id)
     if (cache) {
       setIsAdmin(cache.isAdmin)
       setAvatar(cache.avatar)
       setEmoji(cache.emoji)
       setProntoParaRenderizar(true)
-      // 2. Revalida em background (não bloqueia render)
       revalidarPerfil(s.id, s.nome)
     } else {
-      // Sem cache: busca síncrono e só então libera render
       carregarPerfilInicial(s.id, s.nome)
     }
   }, [])
@@ -108,7 +104,7 @@ export function AppLayout({
         avatar: ae.avatar,
         emoji: ae.emoji,
       })
-    } catch { /* silencioso — se falhar, mantém o cache */ }
+    } catch { /* silencioso */ }
   }
 
   function recarregarAposEdicao() {
@@ -127,8 +123,9 @@ export function AppLayout({
   const mostrarPlayer = pathname === '/inicio'
 
   return (
-    <main className="min-h-screen bg-papel-200 px-3 pb-10 pt-4">
-      <div className="mx-auto max-w-md space-y-3">
+    <main className="relative min-h-screen bg-papel-200 px-3 pb-10 pt-4">
+      <FundoAnimado />
+      <div className="relative mx-auto max-w-md space-y-3">
         <HeaderUsuario
           participantId={sessao.id}
           nome={sessao.nome}
