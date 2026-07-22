@@ -1,14 +1,17 @@
 'use client'
 
 // PinModal — modal de PIN usado na abertura cinematográfica ao clicar num
-// jogador titular. Extraído do LoginGramado pra permitir reuso sem carregar
-// o gramado inteiro (a abertura já tem seu próprio "gramado", só faltava o
-// modal). Visual/UX espelham o modal original do LoginGramado.
-//
-// Ao validar PIN correto: chama onSucesso(player) — quem chama decide o que
-// fazer (a abertura grava sessão em localStorage e navega pra /palpites).
+// jogador titular. Agora com animações Framer Motion:
+// - Backdrop fade
+// - Card scale-in + slide up
+// - Bolinhas com "pop" ao preencher
+// - Shake horizontal + vibração no erro
+// - Teclas com press-down
+// - Haptic feedback ao digitar/errar/acertar
 
 import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { vibrar } from '@/lib/haptic'
 
 export interface PinPlayer {
   id: string
@@ -42,10 +45,13 @@ export function PinModal({
   const [erro, setErro] = useState(false)
 
   function digitar(d: string) {
+    vibrar('leve')
     setPin((atual) => (atual.length >= 4 ? atual : atual + d))
     setErro(false)
   }
+
   function apagar() {
+    vibrar('leve')
     setErro(false)
     setPin((atual) => atual.slice(0, -1))
   }
@@ -53,97 +59,156 @@ export function PinModal({
   useEffect(() => {
     if (pin.length !== 4) return
     if (pin === player.pin) {
+      vibrar('sucesso')
       onSucesso(player)
     } else {
+      vibrar('erro')
       setErro(true)
-      setPin('')
+      // Limpa o pin depois do shake terminar
+      setTimeout(() => setPin(''), 500)
     }
-  }, [pin, player])
+  }, [pin, player, onSucesso])
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-tinta-300/85 p-4 backdrop-blur-sm"
-      onClick={onFechar}
-    >
-      <div
-        className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-dourado-300 bg-papel-100 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+    <AnimatePresence>
+      <motion.div
+        key="backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-tinta-300/85 p-4 backdrop-blur-sm"
+        onClick={onFechar}
       >
-        {/* Avatar do selecionado (grande, dourado). Foto se existir, senão iniciais */}
-        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-4 border-dourado-400 bg-dourado-100">
-          {player.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={player.avatar} alt={player.nome} className="h-full w-full object-cover" />
-          ) : (
-            <span className="font-display text-xl font-bold text-dourado-700">{getIniciais(player.nome)}</span>
-          )}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 12 }}
+          animate={
+            erro
+              ? { opacity: 1, scale: 1, y: 0, x: [0, -8, 8, -6, 6, -3, 3, 0] }
+              : { opacity: 1, scale: 1, y: 0, x: 0 }
+          }
+          exit={{ opacity: 0, scale: 0.94, y: 6 }}
+          transition={
+            erro
+              ? { x: { duration: 0.45, ease: 'easeInOut' } }
+              : { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
+          }
+          className="flex w-full max-w-[300px] flex-col items-center gap-4 rounded-lg border-2 border-dourado-300 bg-papel-100 p-5 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Avatar */}
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: [0.32, 0.72, 0, 1] }}
+            className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-4 border-dourado-400 bg-dourado-100"
+          >
+            {player.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={player.avatar} alt={player.nome} className="h-full w-full object-cover" />
+            ) : (
+              <span className="font-display text-xl font-bold text-dourado-700">{getIniciais(player.nome)}</span>
+            )}
+          </motion.div>
 
-        <div className="text-center">
-          <p className="font-display text-lg font-bold text-tinta-300">{player.nome}</p>
-          {player.vulgo && <p className="font-sans text-xs italic text-tinta-100">"{player.vulgo}"</p>}
-        </div>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+            className="text-center"
+          >
+            <p className="font-display text-lg font-bold text-tinta-300">{player.nome}</p>
+            {player.vulgo && <p className="font-sans text-xs italic text-tinta-100">"{player.vulgo}"</p>}
+          </motion.div>
 
-        <p className="font-sans text-sm font-bold uppercase tracking-tight text-tinta-300">Digite seu PIN</p>
+          <p className="font-sans text-sm font-bold uppercase tracking-tight text-tinta-300">Digite seu PIN</p>
 
-        {/* 4 bolinhas */}
-        <div className="flex gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <span
-              key={i}
-              className={cx(
-                'h-3.5 w-3.5 rounded-full border-2',
-                erro
-                  ? 'border-raridade-frango-selo'
-                  : i < pin.length
-                    ? 'border-dourado-400 bg-dourado-400'
-                    : 'border-papel-borda-300',
-              )}
-            />
-          ))}
-        </div>
+          {/* 4 bolinhas com pop-in */}
+          <div className="flex gap-3">
+            {[0, 1, 2, 3].map((i) => {
+              const preenchida = i < pin.length
+              return (
+                <motion.span
+                  key={i}
+                  animate={
+                    erro
+                      ? { scale: 1, borderColor: 'var(--raridade-frango-selo, #B22222)' }
+                      : preenchida
+                        ? { scale: [1, 1.25, 1] }
+                        : { scale: 1 }
+                  }
+                  transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                  className={cx(
+                    'h-3.5 w-3.5 rounded-full border-2',
+                    erro
+                      ? 'border-raridade-frango-selo'
+                      : preenchida
+                        ? 'border-dourado-400 bg-dourado-400'
+                        : 'border-papel-borda-300',
+                  )}
+                />
+              )
+            })}
+          </div>
 
-        {erro && (
-          <p className="font-mono text-[11px] uppercase tracking-wider text-raridade-frango-selo">
-            PIN incorreto
-          </p>
-        )}
+          <AnimatePresence>
+            {erro && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="font-mono text-[11px] uppercase tracking-wider text-raridade-frango-selo"
+              >
+                PIN incorreto
+              </motion.p>
+            )}
+          </AnimatePresence>
 
-        {/* Teclado numérico */}
-        <div className="grid w-full grid-cols-3 gap-2">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-            <button
-              key={d}
+          {/* Teclado */}
+          <div className="grid w-full grid-cols-3 gap-2">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+              <motion.button
+                key={d}
+                type="button"
+                onClick={() => digitar(d)}
+                whileTap={{ scale: 0.94 }}
+                transition={{ duration: 0.1 }}
+                className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
+              >
+                {d}
+              </motion.button>
+            ))}
+            <motion.button
               type="button"
-              onClick={() => digitar(d)}
+              onClick={onFechar}
+              whileTap={{ scale: 0.94 }}
+              transition={{ duration: 0.1 }}
+              className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-xs uppercase text-tinta-100 transition-colors active:bg-papel-200"
+            >
+              Sair
+            </motion.button>
+            <motion.button
+              type="button"
+              onClick={() => digitar('0')}
+              whileTap={{ scale: 0.94 }}
+              transition={{ duration: 0.1 }}
               className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
             >
-              {d}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={onFechar}
-            className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-xs uppercase text-tinta-100 transition-colors active:bg-papel-200"
-          >
-            Sair
-          </button>
-          <button
-            type="button"
-            onClick={() => digitar('0')}
-            className="rounded-md border border-papel-borda-200 bg-papel-200 py-3 font-mono text-lg font-bold text-tinta-300 transition-colors active:bg-papel-300"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            onClick={apagar}
-            className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-lg text-tinta-100 transition-colors active:bg-papel-200"
-          >
-            ⌫
-          </button>
-        </div>
-      </div>
-    </div>
+              0
+            </motion.button>
+            <motion.button
+              type="button"
+              onClick={apagar}
+              whileTap={{ scale: 0.94 }}
+              transition={{ duration: 0.1 }}
+              className="rounded-md border border-papel-borda-200 bg-papel-50 py-3 font-mono text-lg text-tinta-100 transition-colors active:bg-papel-200"
+            >
+              ⌫
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
