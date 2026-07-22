@@ -52,13 +52,14 @@
   100% { background-position: 200% 0; }
 }
 
-/* ─── Cor de fundo global ─────────────────────────────────────────────── */
+/* ─── Cor de fundo global (papel envelhecido com brilho) ────────────── */
 
 body {
-  background-color: rgb(239 225 184); /* papel-200 */
+  background-color: rgb(245 232 195);
   background-image:
-    radial-gradient(ellipse at 20% 15%, rgba(139, 90, 43, 0.15), transparent 55%),
-    radial-gradient(ellipse at 80% 85%, rgba(184, 134, 11, 0.12), transparent 60%);
+    radial-gradient(ellipse at 15% 20%, rgba(184, 134, 11, 0.18), transparent 55%),
+    radial-gradient(ellipse at 85% 80%, rgba(139, 90, 43, 0.15), transparent 60%),
+    radial-gradient(ellipse at 50% 50%, rgba(244, 220, 132, 0.10), transparent 70%);
   background-attachment: fixed;
   min-height: 100vh;
 }
