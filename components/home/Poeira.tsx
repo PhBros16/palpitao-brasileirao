@@ -1,8 +1,6 @@
 'use client'
 
-// Poeira — partículas caindo do topo, variedade grande de tamanho/cor/vel.
-// 3 tipos: pequenas amarelas (rápidas), médias douradas (médias),
-// grandes marrons (lentas, opacas). Balanço lateral natural.
+// Poeira v2 — quantidade dobrada, mais variedade, cores vivas.
 
 import { motion } from 'framer-motion'
 import { useMemo } from 'react'
@@ -20,9 +18,9 @@ interface Grao {
 }
 
 const CORES = {
-  peq: ['#F5DC82', '#FCEBA7', '#E8C97A', '#F4DC84'],
-  med: ['#D4A544', '#E3C268', '#C89844', '#B8860B'],
-  grd: ['#8B6110', '#A97A22', '#7A5716', '#8A6428'],
+  peq: ['#F5DC82', '#FCEBA7', '#E8C97A', '#F4DC84', '#FFF2B8', '#F0D060'],
+  med: ['#D4A544', '#E3C268', '#C89844', '#B8860B', '#DCB057', '#F2D97A'],
+  grd: ['#8B6110', '#A97A22', '#7A5716', '#8A6428', '#6B4A15', '#9B7620'],
 }
 
 function pickCor(tipo: 'peq' | 'med' | 'grd'): string {
@@ -34,46 +32,43 @@ function gerarPoeira(qtdPeq: number, qtdMed: number, qtdGrd: number): Grao[] {
   let id = 0
   const graos: Grao[] = []
 
-  // Pequenas: rápidas, muitas, opacidade média
   for (let i = 0; i < qtdPeq; i++) {
     graos.push({
       id: id++,
       tipo: 'peq',
       x: Math.random() * 100,
-      size: 1 + Math.random() * 1.5, // 1-2.5px
-      duracao: 8 + Math.random() * 6, // 8-14s
+      size: 0.8 + Math.random() * 1.7,
+      duracao: 7 + Math.random() * 7,
       delay: Math.random() * 12,
-      wobble: 3 + Math.random() * 4,
-      opacidade: 0.35 + Math.random() * 0.35,
+      wobble: 3 + Math.random() * 5,
+      opacidade: 0.4 + Math.random() * 0.4,
       cor: pickCor('peq'),
     })
   }
 
-  // Médias: velocidade média
   for (let i = 0; i < qtdMed; i++) {
     graos.push({
       id: id++,
       tipo: 'med',
       x: Math.random() * 100,
-      size: 2 + Math.random() * 2, // 2-4px
-      duracao: 14 + Math.random() * 8, // 14-22s
+      size: 1.8 + Math.random() * 2.2,
+      duracao: 12 + Math.random() * 10,
       delay: Math.random() * 18,
-      wobble: 5 + Math.random() * 7,
-      opacidade: 0.4 + Math.random() * 0.3,
+      wobble: 5 + Math.random() * 8,
+      opacidade: 0.4 + Math.random() * 0.35,
       cor: pickCor('med'),
     })
   }
 
-  // Grandes: lentas, opacas, poucas
   for (let i = 0; i < qtdGrd; i++) {
     graos.push({
       id: id++,
       tipo: 'grd',
       x: Math.random() * 100,
-      size: 3 + Math.random() * 2.5, // 3-5.5px
-      duracao: 20 + Math.random() * 10, // 20-30s
+      size: 3 + Math.random() * 2.8,
+      duracao: 18 + Math.random() * 12,
       delay: Math.random() * 25,
-      wobble: 8 + Math.random() * 10,
+      wobble: 8 + Math.random() * 12,
       opacidade: 0.45 + Math.random() * 0.3,
       cor: pickCor('grd'),
     })
@@ -83,7 +78,7 @@ function gerarPoeira(qtdPeq: number, qtdMed: number, qtdGrd: number): Grao[] {
 }
 
 export function Poeira() {
-  const graos = useMemo(() => gerarPoeira(20, 14, 8), [])
+  const graos = useMemo(() => gerarPoeira(45, 25, 12), [])
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
