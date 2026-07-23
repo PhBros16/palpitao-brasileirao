@@ -1,116 +1,155 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+// AppLayout — wrapper de todas as páginas logadas.
+//
+// Renderiza sempre: FundoAnimado + LuzesAmbiente + Header + Nav + PageTransition.
+// Player de música só aparece na aba "Início" (/inicio).
+// Enquanto carrega perfil, mostra skeleton loader.
+//
+// Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
+// background. Isso elimina o "trava/carrega" ao trocar de aba.
 
-interface Foco {
-  id: number
-  x: string
-  y: string
+import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { buscarAvatarEmoji } from '@/lib/avatarUpload'
+import { lerPerfilCache, salvarPerfilCache } from '@/lib/perfilCache'
+import { HeaderUsuario } from './HeaderUsuario'
+import { NavAbas } from './NavAbas'
+import { PlayerMusica } from './PlayerMusica'
+import { PageTransition } from './PageTransition'
+import { FundoAnimado } from './FundoAnimado'
+import { SkeletonHeader, SkeletonNav, SkeletonConteudo } from './AppLayoutSkeleton'
+import { LuzesAmbiente } from './LuzesAmbiente'
+
+interface Sessao {
+  id: string
+  nome: string
 }
 
-const FOCOS: Foco[] = [
-  { id: 0, x: '12%', y: '10%' },
-  { id: 1, x: '88%', y: '12%' },
-  { id: 2, x: '10%', y: '88%' },
-  { id: 3, x: '90%', y: '85%' },
-]
-
-export function LuzesAmbiente() {
-  const [estados, setEstados] = useState<Record<number, number>>(() =>
-    FOCOS.reduce((acc, f) => ({ ...acc, [f.id]: 1 }), {}),
-  )
-  const [contador, setContador] = useState(0)
+export function AppLayout({
+  children,
+  onAtualizar,
+  atualizando = false,
+}: {
+  children: React.ReactNode
+  onAtualizar?: () => void
+  atualizando?: boolean
+}) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [sessao, setSessao] = useState<Sessao | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [emoji, setEmoji] = useState<string | null>(null)
+  const [prontoParaRenderizar, setProntoParaRenderizar] = useState(false)
 
   useEffect(() => {
-    console.log('[LuzesAmbiente] montado, iniciando loop em 3s')
-    let mounted = true
+    let s: Sessao | null = null
+    try {
+      const raw = localStorage.getItem('palpitao_sessao')
+      if (raw) s = JSON.parse(raw)
+    } catch { /* ignora */ }
 
-    async function loop() {
-      await new Promise((r) => setTimeout(r, 3000))
-      console.log('[LuzesAmbiente] loop começou')
-
-      while (mounted) {
-        const espera = 8000 + Math.random() * 5000
-        console.log(`[LuzesAmbiente] aguardando ${(espera / 1000).toFixed(1)}s antes de queimar`)
-        await new Promise((r) => setTimeout(r, espera))
-        if (!mounted) return
-
-        const idx = Math.floor(Math.random() * FOCOS.length)
-        console.log(`[LuzesAmbiente] QUEIMANDO foco ${idx}`)
-        setContador((c) => c + 1)
-
-        for (let i = 0; i < 3; i++) {
-          setEstados((s) => ({ ...s, [idx]: 0.1 }))
-          await new Promise((r) => setTimeout(r, 100))
-          if (!mounted) return
-          setEstados((s) => ({ ...s, [idx]: 1 }))
-          await new Promise((r) => setTimeout(r, 100))
-          if (!mounted) return
-        }
-
-        setEstados((s) => ({ ...s, [idx]: 0 }))
-        console.log(`[LuzesAmbiente] foco ${idx} APAGADO`)
-        await new Promise((r) => setTimeout(r, 4000))
-        if (!mounted) return
-
-        setEstados((s) => ({ ...s, [idx]: 1 }))
-        console.log(`[LuzesAmbiente] foco ${idx} REACENDIDO`)
-      }
+    if (!s) {
+      router.replace('/')
+      return
     }
+    setSessao(s)
 
-    loop()
-    return () => {
-      mounted = false
+    const cache = lerPerfilCache(s.id)
+    if (cache) {
+      setIsAdmin(cache.isAdmin)
+      setAvatar(cache.avatar)
+      setEmoji(cache.emoji)
+      setProntoParaRenderizar(true)
+      revalidarPerfil(s.id, s.nome)
+    } else {
+      carregarPerfilInicial(s.id, s.nome)
     }
   }, [])
 
-  return (
-    <>
-      {/* Indicador de debug no canto — mostra estados */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 4,
-          right: 4,
-          zIndex: 9999,
-          background: 'black',
-          color: 'lime',
-          padding: '4px 8px',
-          fontFamily: 'monospace',
-          fontSize: 11,
-        }}
-      >
-        Luzes: {FOCOS.map((f) => (estados[f.id] ?? 1).toFixed(2)).join(' ')} | queimas: {contador}
-      </div>
+  async function carregarPerfilInicial(pid: string, nome: string) {
+    try {
+      const [{ data: part }, ae] = await Promise.all([
+        supabase.from('participants').select('is_admin').eq('id', pid).maybeSingle(),
+        buscarAvatarEmoji(pid),
+      ])
+      const isAdminNovo = part?.is_admin ?? false
+      setIsAdmin(isAdminNovo)
+      setAvatar(ae.avatar)
+      setEmoji(ae.emoji)
+      salvarPerfilCache({
+        participantId: pid,
+        nome,
+        isAdmin: isAdminNovo,
+        avatar: ae.avatar,
+        emoji: ae.emoji,
+      })
+    } catch { /* silencioso */ }
+    finally { setProntoParaRenderizar(true) }
+  }
 
-      <div
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-        style={{ zIndex: 0 }}
-        aria-hidden="true"
-      >
-        {FOCOS.map((f) => {
-          const brilho = estados[f.id] ?? 1
-          return (
-            <div
-              key={f.id}
-              style={{
-                position: 'absolute',
-                left: f.x,
-                top: f.y,
-                transform: 'translate(-50%, -50%)',
-                width: 600,
-                height: 600,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(255, 200, 80, 0.95) 0%, rgba(255, 180, 60, 0.4) 30%, transparent 65%)',
-                filter: 'blur(35px)',
-                mixBlendMode: 'overlay',
-                opacity: brilho,
-                transition: 'opacity 0.2s ease-out',
-              }}
-            />
-          )
-        })}
+  async function revalidarPerfil(pid: string, nome: string) {
+    try {
+      const [{ data: part }, ae] = await Promise.all([
+        supabase.from('participants').select('is_admin').eq('id', pid).maybeSingle(),
+        buscarAvatarEmoji(pid),
+      ])
+      const isAdminNovo = part?.is_admin ?? false
+      setIsAdmin(isAdminNovo)
+      setAvatar(ae.avatar)
+      setEmoji(ae.emoji)
+      salvarPerfilCache({
+        participantId: pid,
+        nome,
+        isAdmin: isAdminNovo,
+        avatar: ae.avatar,
+        emoji: ae.emoji,
+      })
+    } catch { /* silencioso */ }
+  }
+
+  function recarregarAposEdicao() {
+    if (!sessao) return
+    revalidarPerfil(sessao.id, sessao.nome)
+  }
+
+  if (!sessao || !prontoParaRenderizar) {
+    return (
+      <main className="relative min-h-screen px-3 pb-10 pt-4">
+        <FundoAnimado />
+        <LuzesAmbiente />
+        <div className="relative mx-auto max-w-md space-y-3">
+          <SkeletonHeader />
+          <SkeletonNav />
+          <SkeletonConteudo />
+        </div>
+      </main>
+    )
+  }
+
+  const mostrarPlayer = pathname === '/inicio'
+
+  return (
+    <main className="relative min-h-screen px-3 pb-10 pt-4">
+      <FundoAnimado />
+      <LuzesAmbiente />
+      <div className="relative mx-auto max-w-md space-y-3">
+        <HeaderUsuario
+          participantId={sessao.id}
+          nome={sessao.nome}
+          avatar={avatar}
+          emoji={emoji}
+          onAtualizar={onAtualizar ?? (() => {})}
+          atualizando={atualizando}
+          onPerfilAlterado={recarregarAposEdicao}
+        />
+        <NavAbas isAdmin={isAdmin} />
+        {mostrarPlayer && <PlayerMusica />}
+
+        <PageTransition>{children}</PageTransition>
       </div>
-    </>
+    </main>
   )
 }
