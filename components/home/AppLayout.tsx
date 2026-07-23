@@ -20,6 +20,7 @@ import { PlayerMusica } from './PlayerMusica'
 import { PageTransition } from './PageTransition'
 import { FundoAnimado } from './FundoAnimado'
 import { SkeletonHeader, SkeletonNav, SkeletonConteudo } from './AppLayoutSkeleton'
+import { LuzesAmbiente } from './LuzesAmbiente'
 
 interface Sessao {
   id: string
