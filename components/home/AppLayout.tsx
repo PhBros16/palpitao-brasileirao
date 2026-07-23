@@ -119,6 +119,7 @@ export function AppLayout({
     return (
       <main className="relative min-h-screen px-3 pb-10 pt-4">
         <FundoAnimado />
+        <LuzesAmbiente />
         <div className="relative mx-auto max-w-md space-y-3">
           <SkeletonHeader />
           <SkeletonNav />
@@ -133,6 +134,7 @@ export function AppLayout({
   return (
     <main className="relative min-h-screen px-3 pb-10 pt-4">
       <FundoAnimado />
+      <LuzesAmbiente />
       <div className="relative mx-auto max-w-md space-y-3">
         <HeaderUsuario
           participantId={sessao.id}
