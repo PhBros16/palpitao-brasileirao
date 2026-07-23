@@ -1,16 +1,7 @@
 'use client'
 
-// LuzesAmbiente — Sistema completo de iluminação do "estádio".
-//
-// Fluxo:
-// 1. Estado inicial: overlay escuro global (~65%) — tela fica "meio apagada"
-// 2. 3 refletores cartoon descem do topo (SVG desenhado)
-// 3. Refletores piscam em cascata (cada um libera um HALO de luz radial)
-// 4. Halos dissipam o overlay escuro nas regiões que iluminam
-// 5. Refletores sobem e somem
-// 6. Loop contínuo: a cada 20-30s, um halo qualquer pisca/apaga/reacende
-//
-// O overlay escuro NÃO bloqueia cliques (pointer-events-none em tudo).
+// LuzesAmbiente — Iluminação completa "estádio".
+// Overlay escuro sempre presente + halos temporários durante a ligação + refletores cartoon.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
@@ -20,290 +11,364 @@ interface Halo {
   x: string
   y: string
   raio: number
-  intensidade: number
 }
 
-// 3 halos orgânicos cobrindo a tela
 const HALOS: Halo[] = [
-  { id: 0, x: '20%', y: '25%', raio: 700, intensidade: 1 },
-  { id: 1, x: '50%', y: '55%', raio: 850, intensidade: 1 },
-  { id: 2, x: '80%', y: '28%', raio: 700, intensidade: 1 },
+  { id: 0, x: '15%', y: '20%', raio: 600 },
+  { id: 1, x: '50%', y: '45%', raio: 750 },
+  { id: 2, x: '85%', y: '22%', raio: 600 },
 ]
 
-// ─── Refletor cartoon SVG ──────────────────────────────────────────────
+// ─── Refletor cartoon ──────────────────────────────────────────────
 
-function Refletor({ ligado, delay }: { ligado: boolean; delay: number }) {
+function Refletor({
+  lampadas,
+  scale = 1,
+}: {
+  lampadas: [boolean, boolean, boolean]
+  scale?: number
+}) {
+  const size = 80 * scale
   return (
-    <div className="relative" style={{ width: 90, height: 100 }}>
-      <svg viewBox="0 0 90 100" width="90" height="100">
-        {/* Haste (segurando o refletor por cima) */}
-        <line x1="45" y1="0" x2="45" y2="30" stroke="#3a2a1a" strokeWidth="3" />
-        <circle cx="45" cy="30" r="3" fill="#3a2a1a" />
+    <svg viewBox="0 0 90 100" width={size} height={size * (100 / 90)}>
+      <line x1="45" y1="0" x2="45" y2="30" stroke="#3a2a1a" strokeWidth="3" />
+      <circle cx="45" cy="30" r="3" fill="#3a2a1a" />
+      <rect x="10" y="30" width="70" height="40" rx="4" fill="#4a3a2a" stroke="#2a1e10" strokeWidth="2" />
+      <line x1="14" y1="38" x2="76" y2="38" stroke="#3a2a1a" strokeWidth="0.8" opacity="0.5" />
+      <line x1="14" y1="42" x2="76" y2="42" stroke="#5a4a3a" strokeWidth="0.6" opacity="0.6" />
+      <line x1="14" y1="55" x2="76" y2="55" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
+      <line x1="14" y1="60" x2="76" y2="60" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
+      <line x1="14" y1="65" x2="76" y2="65" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
 
-        {/* Corpo do refletor (retângulo cinza escuro) */}
-        <rect
-          x="10"
-          y="30"
-          width="70"
-          height="40"
-          rx="4"
-          fill="#4a3a2a"
-          stroke="#2a1e10"
-          strokeWidth="2"
-        />
-
-        {/* Detalhe de textura (linhas horizontais) */}
-        <line x1="14" y1="38" x2="76" y2="38" stroke="#3a2a1a" strokeWidth="0.8" opacity="0.5" />
-        <line x1="14" y1="42" x2="76" y2="42" stroke="#5a4a3a" strokeWidth="0.6" opacity="0.6" />
-
-        {/* Grade frontal (protetora) */}
-        <line x1="14" y1="55" x2="76" y2="55" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
-        <line x1="14" y1="60" x2="76" y2="60" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
-        <line x1="14" y1="65" x2="76" y2="65" stroke="#2a1e10" strokeWidth="0.6" opacity="0.7" />
-
-        {/* 3 lâmpadas */}
-        {[22, 45, 68].map((cx, i) => (
-          <g key={i}>
-            {/* Base da lâmpada */}
-            <circle cx={cx} cy="50" r="9" fill="#1a1408" stroke="#0a0804" strokeWidth="1.5" />
-            {/* Lâmpada em si */}
+      {[22, 45, 68].map((cx, i) => (
+        <g key={i}>
+          <circle cx={cx} cy="50" r="9" fill="#1a1408" stroke="#0a0804" strokeWidth="1.5" />
+          <motion.circle
+            cx={cx}
+            cy="50"
+            r="7"
+            animate={{
+              fill: lampadas[i] ? '#FFF4B8' : '#3a2e1a',
+            }}
+            transition={{ duration: 0.15 }}
+          />
+          {lampadas[i] && (
             <motion.circle
               cx={cx}
-              cy="50"
-              r="7"
-              fill={ligado ? '#FFF4B8' : '#3a2e1a'}
-              animate={{
-                fill: ligado ? '#FFF4B8' : '#3a2e1a',
-                filter: ligado ? 'brightness(1.3)' : 'brightness(0.6)',
-              }}
-              transition={{ duration: 0.2, delay: delay + i * 0.05 }}
+              cy="49"
+              r="3"
+              fill="#FFFFFF"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.9 }}
+              transition={{ duration: 0.2 }}
             />
-            {/* Brilho central (aparece quando ligada) */}
-            {ligado && (
-              <motion.circle
-                cx={cx}
-                cy="49"
-                r="3"
-                fill="#FFFFFF"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.9 }}
-                transition={{ duration: 0.3, delay: delay + i * 0.05 }}
-              />
-            )}
-          </g>
-        ))}
+          )}
+        </g>
+      ))}
 
-        {/* Sombra por baixo (dá volume) */}
-        <ellipse cx="45" cy="72" rx="35" ry="3" fill="#1a1408" opacity="0.4" />
+      <ellipse cx="45" cy="72" rx="35" ry="3" fill="#1a1408" opacity="0.4" />
 
-        {/* Glow externo quando ligado */}
-        {ligado && (
-          <motion.ellipse
-            cx="45"
-            cy="55"
-            rx="45"
-            ry="20"
-            fill="url(#refletorGlow)"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            transition={{ duration: 0.4, delay }}
-          />
-        )}
+      {lampadas.some(Boolean) && (
+        <motion.ellipse
+          cx="45"
+          cy="55"
+          rx="45"
+          ry="20"
+          fill="url(#refletorGlow)"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ duration: 0.3 }}
+        />
+      )}
 
-        <defs>
-          <radialGradient id="refletorGlow">
-            <stop offset="0%" stopColor="rgba(255, 240, 180, 0.6)" />
-            <stop offset="100%" stopColor="rgba(255, 240, 180, 0)" />
-          </radialGradient>
-        </defs>
-      </svg>
-    </div>
+      <defs>
+        <radialGradient id="refletorGlow">
+          <stop offset="0%" stopColor="rgba(255, 240, 180, 0.6)" />
+          <stop offset="100%" stopColor="rgba(255, 240, 180, 0)" />
+        </radialGradient>
+      </defs>
+    </svg>
   )
 }
 
 // ─── Componente principal ──────────────────────────────────────────────
 
+type EstadoLampadas = [boolean, boolean, boolean]
+
 export function LuzesAmbiente() {
   const [fase, setFase] = useState<'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>('inicial')
-  const [refletoresLigados, setRefletoresLigados] = useState<[boolean, boolean, boolean]>([false, false, false])
+  const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
+    0: [false, false, false],
+    1: [false, false, false],
+    2: [false, false, false],
+  })
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
+  const [escuridaoGlobal, setEscuridaoGlobal] = useState(0.65)
 
-  // Sequência de abertura: escuro → refletores descem → ligam → halos acendem → refletores sobem
+  // Helper: liga lâmpadas uma a uma (com pequenos delays/piscadas aleatórias)
+  async function ligarRefletorGradual(
+    idxRefletor: 0 | 1 | 2,
+    mounted: () => boolean,
+  ) {
+    for (let l = 0; l < 3; l++) {
+      // Chance de piscar antes de estabilizar
+      if (Math.random() > 0.4) {
+        setRefletores((r) => {
+          const novo = [...r[idxRefletor]] as EstadoLampadas
+          novo[l] = true
+          return { ...r, [idxRefletor]: novo }
+        })
+        await new Promise((res) => setTimeout(res, 60))
+        if (!mounted()) return
+        setRefletores((r) => {
+          const novo = [...r[idxRefletor]] as EstadoLampadas
+          novo[l] = false
+          return { ...r, [idxRefletor]: novo }
+        })
+        await new Promise((res) => setTimeout(res, 80))
+        if (!mounted()) return
+      }
+      setRefletores((r) => {
+        const novo = [...r[idxRefletor]] as EstadoLampadas
+        novo[l] = true
+        return { ...r, [idxRefletor]: novo }
+      })
+      await new Promise((res) => setTimeout(res, 180 + Math.random() * 200))
+      if (!mounted()) return
+    }
+  }
+
   useEffect(() => {
-    let mounted = true
+    let alive = true
+    const isMounted = () => alive
 
     async function sequenciaInicial() {
-      // 1. Aguarda 400ms com tela escura
-      await new Promise((r) => setTimeout(r, 400))
-      if (!mounted) return
+      // 1. Aguarda com tela escura (mostra o "quarto apagado")
+      await new Promise((r) => setTimeout(r, 800))
+      if (!alive) return
 
-      // 2. Refletores descem (dura 900ms via CSS)
+      // 2. Refletores descem devagar
       setFase('refletoresDescendo')
-      await new Promise((r) => setTimeout(r, 1100))
-      if (!mounted) return
+      await new Promise((r) => setTimeout(r, 1600))
+      if (!alive) return
 
-      // 3. Ligam em cascata (400ms cada) e halos correspondentes acendem
+      // 3. Ligam em sequência, cada um libera seu halo quando acabar
       setFase('refletoresLigando')
 
-      // Refletor 0 liga
-      setRefletoresLigados([true, false, false])
+      await ligarRefletorGradual(0, isMounted)
+      if (!alive) return
       setHalosBrilho((h) => ({ ...h, 0: 1 }))
-      await new Promise((r) => setTimeout(r, 500))
-      if (!mounted) return
+      // Escurece um pouquinho o global (dissipa)
+      setEscuridaoGlobal(0.5)
+      await new Promise((r) => setTimeout(r, 400))
+      if (!alive) return
 
-      // Refletor 2 liga (pula o do meio, cria assimetria)
-      setRefletoresLigados([true, false, true])
+      await ligarRefletorGradual(2, isMounted)
+      if (!alive) return
       setHalosBrilho((h) => ({ ...h, 2: 1 }))
-      await new Promise((r) => setTimeout(r, 500))
-      if (!mounted) return
+      setEscuridaoGlobal(0.3)
+      await new Promise((r) => setTimeout(r, 400))
+      if (!alive) return
 
-      // Refletor 1 pisca antes de ligar (efeito fluorescente)
-      for (let i = 0; i < 3; i++) {
-        setRefletoresLigados([true, true, true])
-        await new Promise((r) => setTimeout(r, 80))
-        if (!mounted) return
-        setRefletoresLigados([true, false, true])
-        await new Promise((r) => setTimeout(r, 100))
-        if (!mounted) return
-      }
-      setRefletoresLigados([true, true, true])
+      await ligarRefletorGradual(1, isMounted)
+      if (!alive) return
       setHalosBrilho((h) => ({ ...h, 1: 1 }))
-      await new Promise((r) => setTimeout(r, 800))
-      if (!mounted) return
+      setEscuridaoGlobal(0.15)
+      await new Promise((r) => setTimeout(r, 900))
+      if (!alive) return
 
-      // 4. Refletores sobem e somem
+      // 4. Refletores sobem
       setFase('refletoresSubindo')
-      await new Promise((r) => setTimeout(r, 1200))
-      if (!mounted) return
+      await new Promise((r) => setTimeout(r, 1800))
+      if (!alive) return
 
-      // 5. Estado operando (loop de queima começa)
+      // 5. Halos dissipam gradualmente (deixam só o escurecimento leve residual)
+      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+      // Escurecimento operacional (bem sutil, só pra ter atmosfera)
+      setEscuridaoGlobal(0.1)
+
       setFase('operando')
     }
 
     sequenciaInicial()
-    return () => { mounted = false }
+    return () => { alive = false }
   }, [])
 
-  // Loop de queima aleatória (só depois que entrou em "operando")
+  // Loop de queima: escurece brevemente uma região
   useEffect(() => {
     if (fase !== 'operando') return
 
-    let mounted = true
+    let alive = true
 
     async function loopQueima() {
-      while (mounted) {
-        const espera = 20000 + Math.random() * 15000
+      while (alive) {
+        const espera = 15000 + Math.random() * 15000
         await new Promise((r) => setTimeout(r, espera))
-        if (!mounted) return
+        if (!alive) return
 
         const idx = Math.floor(Math.random() * HALOS.length)
 
         // Piscar 3x
         for (let i = 0; i < 3; i++) {
-          setHalosBrilho((h) => ({ ...h, [idx]: 0.15 }))
+          setHalosBrilho((h) => ({ ...h, [idx]: -0.6 }))
           await new Promise((r) => setTimeout(r, 90))
-          if (!mounted) return
-          setHalosBrilho((h) => ({ ...h, [idx]: 0.9 }))
+          if (!alive) return
+          setHalosBrilho((h) => ({ ...h, [idx]: 0 }))
           await new Promise((r) => setTimeout(r, 110))
-          if (!mounted) return
+          if (!alive) return
         }
 
-        // Apaga (fica 0 = escuridão máxima naquela região)
-        setHalosBrilho((h) => ({ ...h, [idx]: 0 }))
-        await new Promise((r) => setTimeout(r, 4500 + Math.random() * 2000))
-        if (!mounted) return
+        // Fica apagada (halo negativo = escurece região)
+        setHalosBrilho((h) => ({ ...h, [idx]: -1 }))
+        await new Promise((r) => setTimeout(r, 4000 + Math.random() * 2000))
+        if (!alive) return
 
         // Volta piscando
         for (let i = 0; i < 2; i++) {
-          setHalosBrilho((h) => ({ ...h, [idx]: 0.5 }))
+          setHalosBrilho((h) => ({ ...h, [idx]: -0.3 }))
           await new Promise((r) => setTimeout(r, 80))
-          if (!mounted) return
-          setHalosBrilho((h) => ({ ...h, [idx]: 0.1 }))
+          if (!alive) return
+          setHalosBrilho((h) => ({ ...h, [idx]: -0.8 }))
           await new Promise((r) => setTimeout(r, 100))
-          if (!mounted) return
+          if (!alive) return
         }
 
-        setHalosBrilho((h) => ({ ...h, [idx]: 1 }))
+        // Volta ao normal
+        setHalosBrilho((h) => ({ ...h, [idx]: 0 }))
       }
     }
 
     loopQueima()
-    return () => { mounted = false }
+    return () => { alive = false }
   }, [fase])
 
   return (
     <>
-      {/* ─── Overlay escuro global (por trás dos halos, cobre tudo) ─── */}
+      {/* ─── Overlay escurecedor global ─── */}
       <div
         className="pointer-events-none fixed inset-0 overflow-hidden"
         style={{ zIndex: 1 }}
         aria-hidden="true"
       >
-        {/* Camada escura base — sempre presente */}
-        <div
+        <motion.div
           className="absolute inset-0"
+          animate={{
+            background: `rgba(10, 6, 2, ${escuridaoGlobal})`,
+          }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
           style={{
-            background: 'rgba(10, 6, 2, 0.55)',
             mixBlendMode: 'multiply',
           }}
         />
 
-        {/* Halos de luz (dissipam o escuro nas regiões iluminadas) */}
+        {/* Halos: quando positivo = clareiam (durante ligação); quando negativo = escurecem (queima) */}
         {HALOS.map((h) => {
           const brilho = halosBrilho[h.id] ?? 0
-          return (
-            <motion.div
-              key={h.id}
-              className="absolute rounded-full"
-              style={{
-                left: h.x,
-                top: h.y,
-                width: h.raio,
-                height: h.raio,
-                transform: 'translate(-50%, -50%)',
-                background: 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.7) 25%, rgba(255, 220, 150, 0.3) 55%, transparent 80%)',
-                filter: 'blur(20px)',
-                mixBlendMode: 'screen',
-              }}
-              animate={{ opacity: brilho * h.intensidade }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-            />
-          )
+
+          if (brilho >= 0) {
+            // Halo positivo — clareia a região
+            return (
+              <motion.div
+                key={h.id}
+                className="absolute rounded-full"
+                style={{
+                  left: h.x,
+                  top: h.y,
+                  width: h.raio,
+                  height: h.raio,
+                  transform: 'translate(-50%, -50%)',
+                  background: 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.5) 30%, transparent 65%)',
+                  filter: 'blur(30px)',
+                  mixBlendMode: 'screen',
+                }}
+                animate={{ opacity: brilho }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+              />
+            )
+          } else {
+            // Halo negativo — escurece a região (queima)
+            return (
+              <motion.div
+                key={h.id}
+                className="absolute rounded-full"
+                style={{
+                  left: h.x,
+                  top: h.y,
+                  width: h.raio,
+                  height: h.raio,
+                  transform: 'translate(-50%, -50%)',
+                  background: 'radial-gradient(circle, rgba(5, 3, 1, 0.7) 0%, rgba(5, 3, 1, 0.35) 40%, transparent 70%)',
+                  filter: 'blur(30px)',
+                  mixBlendMode: 'multiply',
+                }}
+                animate={{ opacity: Math.abs(brilho) }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+              />
+            )
+          }
         })}
       </div>
 
-      {/* ─── Refletores cartoon ─── */}
+      {/* ─── Refletores (responsivo mobile/desktop via scale) ─── */}
       <AnimatePresence>
         {(fase === 'refletoresDescendo' || fase === 'refletoresLigando') && (
           <motion.div
-            className="pointer-events-none fixed left-0 right-0 top-0 flex justify-around px-8"
-            style={{ zIndex: 10 }}
-            initial={{ y: -120 }}
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-between px-4 sm:px-8"
+            initial={{ y: -140 }}
             animate={{ y: 0 }}
-            exit={{ y: -120 }}
-            transition={{
-              y: { duration: 0.9, ease: [0.32, 0.72, 0, 1] },
-            }}
+            exit={{ y: -140 }}
+            transition={{ y: { duration: 1.5, ease: [0.32, 0.72, 0, 1] } }}
           >
-            <Refletor ligado={refletoresLigados[0]} delay={0} />
-            <Refletor ligado={refletoresLigados[1]} delay={0.1} />
-            <Refletor ligado={refletoresLigados[2]} delay={0.05} />
+            <div className="sm:hidden">
+              <Refletor lampadas={refletores[0]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={refletores[0]} scale={1} />
+            </div>
+
+            <div className="sm:hidden">
+              <Refletor lampadas={refletores[1]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={refletores[1]} scale={1} />
+            </div>
+
+            <div className="sm:hidden">
+              <Refletor lampadas={refletores[2]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={refletores[2]} scale={1} />
+            </div>
           </motion.div>
         )}
 
         {fase === 'refletoresSubindo' && (
           <motion.div
-            className="pointer-events-none fixed left-0 right-0 top-0 flex justify-around px-8"
-            style={{ zIndex: 10 }}
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-between px-4 sm:px-8"
             initial={{ y: 0 }}
-            animate={{ y: -140 }}
-            transition={{
-              y: { duration: 1.1, ease: [0.62, 0, 0.38, 1] },
-            }}
+            animate={{ y: -160 }}
+            transition={{ y: { duration: 1.8, ease: [0.62, 0, 0.38, 1] } }}
           >
-            <Refletor ligado={true} delay={0} />
-            <Refletor ligado={true} delay={0} />
-            <Refletor ligado={true} delay={0} />
+            <div className="sm:hidden">
+              <Refletor lampadas={[true, true, true]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={[true, true, true]} scale={1} />
+            </div>
+
+            <div className="sm:hidden">
+              <Refletor lampadas={[true, true, true]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={[true, true, true]} scale={1} />
+            </div>
+
+            <div className="sm:hidden">
+              <Refletor lampadas={[true, true, true]} scale={0.7} />
+            </div>
+            <div className="hidden sm:block">
+              <Refletor lampadas={[true, true, true]} scale={1} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
