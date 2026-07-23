@@ -1,29 +1,28 @@
 'use client'
 
-// LuzesAmbiente — focos posicionados pra funcionar em mobile e desktop.
-// Cor quente discreta (não amarela chapada), animações de queima aleatórias.
+// LuzesAmbiente — 3 feixes verticais vindos do topo cobrindo toda a tela.
+// Sem cor própria: apenas realçam (blend overlay) o fundo existente.
+// Quando um pisca/queima, aquele terço da tela escurece uniformemente.
 
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
-interface Foco {
+interface Feixe {
   id: number
-  x: string
-  y: string
-  tamanho: number
+  esquerda: string
+  largura: string
 }
 
-// Posições em % — funcionam em qualquer viewport (mobile e desktop)
-const FOCOS: Foco[] = [
-  { id: 0, x: '25%', y: '20%', tamanho: 500 },
-  { id: 1, x: '75%', y: '25%', tamanho: 480 },
-  { id: 2, x: '30%', y: '75%', tamanho: 520 },
-  { id: 3, x: '70%', y: '80%', tamanho: 500 },
+// 3 feixes cobrindo a tela em 3 colunas iguais
+const FEIXES: Feixe[] = [
+  { id: 0, esquerda: '0%',    largura: '33.33%' },
+  { id: 1, esquerda: '33.33%', largura: '33.33%' },
+  { id: 2, esquerda: '66.66%', largura: '33.33%' },
 ]
 
 export function LuzesAmbiente() {
   const [estados, setEstados] = useState<Record<number, number>>(() =>
-    FOCOS.reduce((acc, f) => ({ ...acc, [f.id]: 1 }), {}),
+    FEIXES.reduce((acc, f) => ({ ...acc, [f.id]: 1 }), {}),
   )
 
   useEffect(() => {
@@ -37,9 +36,9 @@ export function LuzesAmbiente() {
         await new Promise((r) => setTimeout(r, espera))
         if (!mounted) return
 
-        const idx = Math.floor(Math.random() * FOCOS.length)
+        const idx = Math.floor(Math.random() * FEIXES.length)
 
-        // Piscar rápido (3x — efeito lâmpada fluorescente falhando)
+        // Piscar 3x (fluorescente falhando)
         for (let i = 0; i < 3; i++) {
           setEstados((s) => ({ ...s, [idx]: 0.2 }))
           await new Promise((r) => setTimeout(r, 90))
@@ -49,17 +48,17 @@ export function LuzesAmbiente() {
           if (!mounted) return
         }
 
-        // Apaga por 4-6 segundos
-        setEstados((s) => ({ ...s, [idx]: 0 }))
-        await new Promise((r) => setTimeout(r, 4000 + Math.random() * 2000))
+        // Apaga (fica em 0.35 pra ainda dar pra ler)
+        setEstados((s) => ({ ...s, [idx]: 0.35 }))
+        await new Promise((r) => setTimeout(r, 4500 + Math.random() * 2000))
         if (!mounted) return
 
-        // Volta piscando (2x tentando ligar)
+        // Volta piscando 2x
         for (let i = 0; i < 2; i++) {
-          setEstados((s) => ({ ...s, [idx]: 0.4 }))
+          setEstados((s) => ({ ...s, [idx]: 0.5 }))
           await new Promise((r) => setTimeout(r, 80))
           if (!mounted) return
-          setEstados((s) => ({ ...s, [idx]: 0.1 }))
+          setEstados((s) => ({ ...s, [idx]: 0.15 }))
           await new Promise((r) => setTimeout(r, 100))
           if (!mounted) return
         }
@@ -81,51 +80,51 @@ export function LuzesAmbiente() {
       style={{ zIndex: 0 }}
       aria-hidden="true"
     >
-      {/* Luzes principais — quentes e sutis */}
-      {FOCOS.map((f) => {
+      {FEIXES.map((f) => {
         const brilho = estados[f.id] ?? 1
-        return (
-          <motion.div
-            key={`luz-${f.id}`}
-            className="absolute rounded-full"
-            style={{
-              left: f.x,
-              top: f.y,
-              width: f.tamanho,
-              height: f.tamanho,
-              transform: 'translate(-50%, -50%)',
-              background: 'radial-gradient(circle, rgba(255, 195, 100, 0.4) 0%, rgba(255, 180, 80, 0.15) 35%, transparent 65%)',
-              filter: 'blur(45px)',
-              mixBlendMode: 'overlay',
-              opacity: brilho,
-            }}
-            animate={{ opacity: brilho }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-          />
-        )
-      })}
+        // brilho vai de 0.35 (apagado) até 1 (aceso)
+        // opacity do "escurecedor" fica maior quanto menor o brilho
+        const escurecedor = (1 - brilho) * 0.55
 
-      {/* Sombra quando apaga (região escurece sutilmente) */}
-      {FOCOS.map((f) => {
-        const brilho = estados[f.id] ?? 1
-        const escuridao = 1 - brilho
         return (
           <motion.div
-            key={`sombra-${f.id}`}
-            className="absolute rounded-full"
+            key={f.id}
+            className="absolute top-0 bottom-0"
             style={{
-              left: f.x,
-              top: f.y,
-              width: f.tamanho * 0.9,
-              height: f.tamanho * 0.9,
-              transform: 'translate(-50%, -50%)',
-              background: 'radial-gradient(circle, rgba(30, 20, 10, 0.35) 0%, rgba(30, 20, 10, 0.15) 40%, transparent 65%)',
-              filter: 'blur(50px)',
-              mixBlendMode: 'multiply',
+              left: f.esquerda,
+              width: f.largura,
             }}
-            animate={{ opacity: escuridao }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-          />
+          >
+            {/* Feixe de luz (realce sutil no topo, dissipa em baixo) */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(180deg,
+                  rgba(255, 255, 255, 0.15) 0%,
+                  rgba(255, 255, 255, 0.08) 40%,
+                  rgba(255, 255, 255, 0.02) 100%
+                )`,
+                mixBlendMode: 'overlay',
+                opacity: brilho,
+                transition: 'opacity 0.25s ease-out',
+              }}
+            />
+
+            {/* Escurecedor (aparece quando feixe apaga) */}
+            <motion.div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(180deg,
+                  rgba(20, 12, 5, 0.6) 0%,
+                  rgba(20, 12, 5, 0.4) 50%,
+                  rgba(20, 12, 5, 0.25) 100%
+                )`,
+                mixBlendMode: 'multiply',
+              }}
+              animate={{ opacity: escurecedor }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            />
+          </motion.div>
         )
       })}
     </div>
