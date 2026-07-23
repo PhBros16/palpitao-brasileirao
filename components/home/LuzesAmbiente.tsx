@@ -1,7 +1,9 @@
 'use client'
 
-// LuzesAmbiente — Iluminação completa "estádio".
-// Overlay escuro sempre presente + halos temporários durante a ligação + refletores cartoon.
+// LuzesAmbiente — Iluminação "estádio".
+// Sequência completa (escuro + refletores) roda APENAS UMA VEZ por sessão.
+// Depois disso: só o loop de queima (uma região escurece brevemente).
+// Marca no sessionStorage — limpa ao fechar aba, roda de novo no próximo login.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
@@ -18,6 +20,8 @@ const HALOS: Halo[] = [
   { id: 1, x: '50%', y: '45%', raio: 750 },
   { id: 2, x: '85%', y: '22%', raio: 600 },
 ]
+
+const CHAVE_SESSAO = 'palpitao_luzes_ligadas'
 
 // ─── Refletor cartoon ──────────────────────────────────────────────
 
@@ -96,22 +100,21 @@ function Refletor({
 type EstadoLampadas = [boolean, boolean, boolean]
 
 export function LuzesAmbiente() {
-  const [fase, setFase] = useState<'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>('inicial')
+  const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>('esperando')
   const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
     0: [false, false, false],
     1: [false, false, false],
     2: [false, false, false],
   })
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
-  const [escuridaoGlobal, setEscuridaoGlobal] = useState(0.65)
+  const [escuridaoGlobal, setEscuridaoGlobal] = useState(0)
 
-  // Helper: liga lâmpadas uma a uma (com pequenos delays/piscadas aleatórias)
+  // Helper: liga lâmpadas uma a uma (com piscadas aleatórias)
   async function ligarRefletorGradual(
     idxRefletor: 0 | 1 | 2,
     mounted: () => boolean,
   ) {
     for (let l = 0; l < 3; l++) {
-      // Chance de piscar antes de estabilizar
       if (Math.random() > 0.4) {
         setRefletores((r) => {
           const novo = [...r[idxRefletor]] as EstadoLampadas
@@ -138,27 +141,41 @@ export function LuzesAmbiente() {
     }
   }
 
+  // Sequência inicial: verifica sessionStorage
   useEffect(() => {
     let alive = true
     const isMounted = () => alive
 
+    // Se já rodou nesta sessão, pula direto pra "operando"
+    let jaRodou = false
+    try {
+      jaRodou = sessionStorage.getItem(CHAVE_SESSAO) === '1'
+    } catch { /* ignora */ }
+
+    if (jaRodou) {
+      setFase('operando')
+      return
+    }
+
     async function sequenciaInicial() {
-      // 1. Aguarda com tela escura (mostra o "quarto apagado")
+      // Estado inicial escuro
+      setEscuridaoGlobal(0.65)
+      setFase('inicial')
+
       await new Promise((r) => setTimeout(r, 800))
       if (!alive) return
 
-      // 2. Refletores descem devagar
+      // Refletores descem
       setFase('refletoresDescendo')
       await new Promise((r) => setTimeout(r, 1600))
       if (!alive) return
 
-      // 3. Ligam em sequência, cada um libera seu halo quando acabar
+      // Ligam em sequência
       setFase('refletoresLigando')
 
       await ligarRefletorGradual(0, isMounted)
       if (!alive) return
       setHalosBrilho((h) => ({ ...h, 0: 1 }))
-      // Escurece um pouquinho o global (dissipa)
       setEscuridaoGlobal(0.5)
       await new Promise((r) => setTimeout(r, 400))
       if (!alive) return
@@ -177,15 +194,21 @@ export function LuzesAmbiente() {
       await new Promise((r) => setTimeout(r, 900))
       if (!alive) return
 
-      // 4. Refletores sobem
+      // Refletores sobem
       setFase('refletoresSubindo')
       await new Promise((r) => setTimeout(r, 1800))
       if (!alive) return
 
-      // 5. Halos dissipam gradualmente (deixam só o escurecimento leve residual)
+      // Halos dissipam SUAVEMENTE (2s de fade out gradual + escuridão global some)
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
-      // Escurecimento operacional (bem sutil, só pra ter atmosfera)
-      setEscuridaoGlobal(0.1)
+      setEscuridaoGlobal(0)
+      await new Promise((r) => setTimeout(r, 2000))
+      if (!alive) return
+
+      // Marca na sessão que já rodou
+      try {
+        sessionStorage.setItem(CHAVE_SESSAO, '1')
+      } catch { /* ignora */ }
 
       setFase('operando')
     }
@@ -201,6 +224,10 @@ export function LuzesAmbiente() {
     let alive = true
 
     async function loopQueima() {
+      // Se acabou de entrar em operando (aba trocada, sequência já foi), espera menos
+      await new Promise((r) => setTimeout(r, 8000))
+      if (!alive) return
+
       while (alive) {
         const espera = 15000 + Math.random() * 15000
         await new Promise((r) => setTimeout(r, espera))
@@ -218,7 +245,7 @@ export function LuzesAmbiente() {
           if (!alive) return
         }
 
-        // Fica apagada (halo negativo = escurece região)
+        // Fica apagada
         setHalosBrilho((h) => ({ ...h, [idx]: -1 }))
         await new Promise((r) => setTimeout(r, 4000 + Math.random() * 2000))
         if (!alive) return
@@ -233,7 +260,6 @@ export function LuzesAmbiente() {
           if (!alive) return
         }
 
-        // Volta ao normal
         setHalosBrilho((h) => ({ ...h, [idx]: 0 }))
       }
     }
@@ -244,7 +270,7 @@ export function LuzesAmbiente() {
 
   return (
     <>
-      {/* ─── Overlay escurecedor global ─── */}
+      {/* Overlay escurecedor global (só ativo durante sequência inicial) */}
       <div
         className="pointer-events-none fixed inset-0 overflow-hidden"
         style={{ zIndex: 1 }}
@@ -255,18 +281,17 @@ export function LuzesAmbiente() {
           animate={{
             background: `rgba(10, 6, 2, ${escuridaoGlobal})`,
           }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
+          transition={{ duration: 1.5, ease: 'easeInOut' }}
           style={{
             mixBlendMode: 'multiply',
           }}
         />
 
-        {/* Halos: quando positivo = clareiam (durante ligação); quando negativo = escurecem (queima) */}
+        {/* Halos: positivo = clareia, negativo = escurece */}
         {HALOS.map((h) => {
           const brilho = halosBrilho[h.id] ?? 0
 
           if (brilho >= 0) {
-            // Halo positivo — clareia a região
             return (
               <motion.div
                 key={h.id}
@@ -282,11 +307,10 @@ export function LuzesAmbiente() {
                   mixBlendMode: 'screen',
                 }}
                 animate={{ opacity: brilho }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
+                transition={{ duration: 1.5, ease: 'easeOut' }}
               />
             )
           } else {
-            // Halo negativo — escurece a região (queima)
             return (
               <motion.div
                 key={h.id}
@@ -309,7 +333,7 @@ export function LuzesAmbiente() {
         })}
       </div>
 
-      {/* ─── Refletores (responsivo mobile/desktop via scale) ─── */}
+      {/* Refletores (responsivo) */}
       <AnimatePresence>
         {(fase === 'refletoresDescendo' || fase === 'refletoresLigando') && (
           <motion.div
@@ -319,26 +343,12 @@ export function LuzesAmbiente() {
             exit={{ y: -140 }}
             transition={{ y: { duration: 1.5, ease: [0.32, 0.72, 0, 1] } }}
           >
-            <div className="sm:hidden">
-              <Refletor lampadas={refletores[0]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={refletores[0]} scale={1} />
-            </div>
-
-            <div className="sm:hidden">
-              <Refletor lampadas={refletores[1]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={refletores[1]} scale={1} />
-            </div>
-
-            <div className="sm:hidden">
-              <Refletor lampadas={refletores[2]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={refletores[2]} scale={1} />
-            </div>
+            <div className="sm:hidden"><Refletor lampadas={refletores[0]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[0]} scale={1} /></div>
+            <div className="sm:hidden"><Refletor lampadas={refletores[1]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[1]} scale={1} /></div>
+            <div className="sm:hidden"><Refletor lampadas={refletores[2]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[2]} scale={1} /></div>
           </motion.div>
         )}
 
@@ -349,26 +359,12 @@ export function LuzesAmbiente() {
             animate={{ y: -160 }}
             transition={{ y: { duration: 1.8, ease: [0.62, 0, 0.38, 1] } }}
           >
-            <div className="sm:hidden">
-              <Refletor lampadas={[true, true, true]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={[true, true, true]} scale={1} />
-            </div>
-
-            <div className="sm:hidden">
-              <Refletor lampadas={[true, true, true]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={[true, true, true]} scale={1} />
-            </div>
-
-            <div className="sm:hidden">
-              <Refletor lampadas={[true, true, true]} scale={0.7} />
-            </div>
-            <div className="hidden sm:block">
-              <Refletor lampadas={[true, true, true]} scale={1} />
-            </div>
+            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
+            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
+            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.7} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
           </motion.div>
         )}
       </AnimatePresence>
