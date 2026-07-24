@@ -559,3 +559,19 @@ export function LuzesAmbiente() {
     </>
   )
 }
+/* ─── Overlay escuro inicial (evita flash antes das luzes React) ─── */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 6, 2, 0.65);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: multiply;
+  transition: opacity 1s ease-out;
+}
+
+body.luzes-ligadas::before {
+  opacity: 0;
+}
