@@ -1,13 +1,20 @@
 'use client'
 
-// LuzesAmbiente — Iluminação "estádio".
-// Estado inicial já escuro (evita flash de tela clara antes do refletor).
-// Sequência completa roda APENAS uma vez por sessão.
-// Loop de queima roda sempre em "operando".
-// Cleanup limpa halos residuais ao trocar de aba.
+// LuzesAmbiente — Sistema completo de iluminação "estádio velho".
+//
+// Features:
+// 1. Sequência inicial (1x/sessão): overlay escuro → refletores descem →
+//    ligam em cascata → halos clareiam → refletores sobem → dissipa.
+// 2. Loop de queima ocasional (15-30s): região escurece brevemente.
+// 3. Lâmpada "cansada": halos que já queimaram têm chance maior + gaguejam mais.
+// 4. Rajada de vento (2-4min): todos halos piscam sincronizados + escuridão breve.
+// 5. Momento de silêncio (1x/sessão): tudo escurece 0.6s.
+// 6. 20% de chance de 1 lâmpada nascer queimada (não liga na inicialização).
+//
+// Cliques nunca são bloqueados.
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 interface Halo {
   id: number
@@ -23,6 +30,9 @@ const HALOS: Halo[] = [
 ]
 
 const CHAVE_SESSAO = 'palpitao_luzes_ligadas'
+const CHAVE_SILENCIO = 'palpitao_silencio_ocorreu'
+const CHAVE_CANSACO = 'palpitao_cansaco_halos'
+const CHAVE_LAMPADA_QUEIMADA = 'palpitao_lampada_queimada'
 
 // ─── Refletor cartoon ──────────────────────────────────────────────
 
@@ -100,8 +110,44 @@ function Refletor({
 
 type EstadoLampadas = [boolean, boolean, boolean]
 
+// Helpers pra sessionStorage — sempre com fallback
+function lerCansaco(): Record<number, number> {
+  if (typeof window === 'undefined') return { 0: 0, 1: 0, 2: 0 }
+  try {
+    const raw = sessionStorage.getItem(CHAVE_CANSACO)
+    if (!raw) return { 0: 0, 1: 0, 2: 0 }
+    return JSON.parse(raw)
+  } catch {
+    return { 0: 0, 1: 0, 2: 0 }
+  }
+}
+
+function salvarCansaco(cansaco: Record<number, number>): void {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(CHAVE_CANSACO, JSON.stringify(cansaco))
+  } catch { /* ignora */ }
+}
+
+function lerLampadaQueimada(): [number, number] {
+  if (typeof window === 'undefined') return [-1, -1]
+  try {
+    const raw = sessionStorage.getItem(CHAVE_LAMPADA_QUEIMADA)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignora */ }
+
+  // Não tem salvo — sorteia agora
+  let sorteio: [number, number] = [-1, -1]
+  if (Math.random() < 0.2) {
+    sorteio = [Math.floor(Math.random() * 3), Math.floor(Math.random() * 3)]
+  }
+  try {
+    sessionStorage.setItem(CHAVE_LAMPADA_QUEIMADA, JSON.stringify(sorteio))
+  } catch { /* ignora */ }
+  return sorteio
+}
+
 export function LuzesAmbiente() {
-  // Fase inicial: se já rodou na sessão, começa em "operando"; senão em "esperando"
   const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>(() => {
     if (typeof window === 'undefined') return 'esperando'
     try {
@@ -111,6 +157,9 @@ export function LuzesAmbiente() {
     }
   })
 
+  // Ref pra qual lâmpada nasce queimada (persiste na sessão)
+  const lampadaQueimada = useRef<[number, number]>(lerLampadaQueimada())
+
   const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
     0: [false, false, false],
     1: [false, false, false],
@@ -119,7 +168,6 @@ export function LuzesAmbiente() {
 
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
 
-  // Escuridão inicial já ativa se for 1ª vez da sessão (evita flash)
   const [escuridaoGlobal, setEscuridaoGlobal] = useState(() => {
     if (typeof window === 'undefined') return 0
     try {
@@ -129,11 +177,25 @@ export function LuzesAmbiente() {
     }
   })
 
+  // Flag pra prevenir dois eventos raros ao mesmo tempo
+  const eventoAtivo = useRef(false)
+
+  // Contador de cansaço por halo
+  const cansacoHalos = useRef<Record<number, number>>(lerCansaco())
+
   async function ligarRefletorGradual(
     idxRefletor: 0 | 1 | 2,
     mounted: () => boolean,
   ) {
     for (let l = 0; l < 3; l++) {
+      // Se essa lâmpada está queimada, pula (fica apagada)
+      if (
+        lampadaQueimada.current[0] === idxRefletor &&
+        lampadaQueimada.current[1] === l
+      ) {
+        continue
+      }
+
       if (Math.random() > 0.4) {
         setRefletores((r) => {
           const novo = [...r[idxRefletor]] as EstadoLampadas
@@ -160,7 +222,17 @@ export function LuzesAmbiente() {
     }
   }
 
-  // Sequência inicial: só roda se estava em 'esperando'
+  // Calcula estado final das lâmpadas do refletor considerando queimada
+  function estadoFinalRefletor(idx: number): EstadoLampadas {
+    const base: EstadoLampadas = [true, true, true]
+    if (lampadaQueimada.current[0] === idx) {
+      const l = lampadaQueimada.current[1]
+      if (l >= 0 && l < 3) base[l] = false
+    }
+    return base
+  }
+
+  // Sequência inicial
   useEffect(() => {
     if (fase !== 'esperando') return
 
@@ -204,7 +276,6 @@ export function LuzesAmbiente() {
       await new Promise((r) => setTimeout(r, 1800))
       if (!alive) return
 
-      // Dissipa halos + escuridão suavemente
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
       await new Promise((r) => setTimeout(r, 2000))
@@ -221,13 +292,12 @@ export function LuzesAmbiente() {
     return () => { alive = false }
   }, [fase])
 
-  // Loop de queima
+  // Loop de queima com "cansaço"
   useEffect(() => {
     if (fase !== 'operando') return
 
     let alive = true
 
-    // Garante estado limpo ao entrar em operando
     setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
     setEscuridaoGlobal(0)
 
@@ -240,9 +310,28 @@ export function LuzesAmbiente() {
         await new Promise((r) => setTimeout(r, espera))
         if (!alive) return
 
-        const idx = Math.floor(Math.random() * HALOS.length)
+        if (eventoAtivo.current) continue
 
-        for (let i = 0; i < 3; i++) {
+        // Sorteio com pesos (halos cansados têm mais chance)
+        const pesos = HALOS.map((h) => 1 + (cansacoHalos.current[h.id] ?? 0) * 0.5)
+        const total = pesos.reduce((s, p) => s + p, 0)
+        let sorteio = Math.random() * total
+        let idx = 0
+        for (let i = 0; i < pesos.length; i++) {
+          sorteio -= pesos[i]
+          if (sorteio <= 0) {
+            idx = i
+            break
+          }
+        }
+
+        cansacoHalos.current[idx] = (cansacoHalos.current[idx] ?? 0) + 1
+        salvarCansaco(cansacoHalos.current)
+
+        const piscadasExtras = Math.min(cansacoHalos.current[idx], 3)
+        const totalPiscadas = 3 + piscadasExtras
+
+        for (let i = 0; i < totalPiscadas; i++) {
           setHalosBrilho((h) => ({ ...h, [idx]: -0.6 }))
           await new Promise((r) => setTimeout(r, 90))
           if (!alive) return
@@ -277,6 +366,97 @@ export function LuzesAmbiente() {
     }
   }, [fase])
 
+  // Rajada de vento (a cada 2-4 min)
+  useEffect(() => {
+    if (fase !== 'operando') return
+
+    let alive = true
+
+    async function loopRajada() {
+      await new Promise((r) => setTimeout(r, 120000 + Math.random() * 120000))
+      if (!alive) return
+
+      while (alive) {
+        while (alive && eventoAtivo.current) {
+          await new Promise((r) => setTimeout(r, 500))
+        }
+        if (!alive) return
+
+        eventoAtivo.current = true
+
+        for (let i = 0; i < 3; i++) {
+          setHalosBrilho({ 0: -0.5, 1: -0.5, 2: -0.5 })
+          await new Promise((r) => setTimeout(r, 120))
+          if (!alive) { eventoAtivo.current = false; return }
+          setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+          await new Promise((r) => setTimeout(r, 100))
+          if (!alive) { eventoAtivo.current = false; return }
+        }
+
+        setEscuridaoGlobal(0.25)
+        await new Promise((r) => setTimeout(r, 400))
+        if (!alive) { eventoAtivo.current = false; return }
+        setEscuridaoGlobal(0)
+
+        eventoAtivo.current = false
+
+        await new Promise((r) => setTimeout(r, 120000 + Math.random() * 120000))
+        if (!alive) return
+      }
+    }
+
+    loopRajada()
+
+    return () => { alive = false }
+  }, [fase])
+
+  // Momento de silêncio — 1x/sessão
+  useEffect(() => {
+    if (fase !== 'operando') return
+
+    let alive = true
+
+    let jaOcorreu = false
+    try {
+      jaOcorreu = sessionStorage.getItem(CHAVE_SILENCIO) === '1'
+    } catch { /* ignora */ }
+
+    if (jaOcorreu) return
+
+    async function eventoSilencio() {
+      const espera = 60000 + Math.random() * 240000
+      await new Promise((r) => setTimeout(r, espera))
+      if (!alive) return
+
+      while (alive && eventoAtivo.current) {
+        await new Promise((r) => setTimeout(r, 500))
+      }
+      if (!alive) return
+
+      eventoAtivo.current = true
+
+      setEscuridaoGlobal(0.75)
+      setHalosBrilho({ 0: -0.9, 1: -0.9, 2: -0.9 })
+
+      await new Promise((r) => setTimeout(r, 600))
+      if (!alive) { eventoAtivo.current = false; return }
+
+      setEscuridaoGlobal(0)
+      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+
+      try {
+        sessionStorage.setItem(CHAVE_SILENCIO, '1')
+      } catch { /* ignora */ }
+
+      await new Promise((r) => setTimeout(r, 1500))
+      eventoAtivo.current = false
+    }
+
+    eventoSilencio()
+
+    return () => { alive = false }
+  }, [fase])
+
   return (
     <>
       <div
@@ -289,7 +469,7 @@ export function LuzesAmbiente() {
           animate={{
             background: `rgba(10, 6, 2, ${escuridaoGlobal})`,
           }}
-          transition={{ duration: 1.5, ease: 'easeInOut' }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
           style={{
             mixBlendMode: 'multiply',
           }}
@@ -367,12 +547,12 @@ export function LuzesAmbiente() {
             animate={{ y: -160 }}
             transition={{ y: { duration: 1.8, ease: [0.62, 0, 0.38, 1] } }}
           >
-            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
-            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
-            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(0)} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(0)} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(1)} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(1)} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(2)} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(2)} scale={1} /></div>
           </motion.div>
         )}
       </AnimatePresence>
