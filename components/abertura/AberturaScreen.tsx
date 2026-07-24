@@ -1,8 +1,8 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
-// campinho revelado. PIN correto vira mais uma "página" do álbum (mesma
-// estética do flip da capa) antes de navegar pra /inicio ou /admin.
+// campinho revelado. PIN correto vira mais uma "página" do álbum antes de
+// navegar pra /inicio ou /admin.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -41,11 +41,9 @@ export function AberturaScreen() {
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const [escala, setEscala] = useState(1)
 
-  // Login integrado: jogador selecionado pra abrir o PinModal
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  // Virada de página após PIN correto (mesma estética do flip da capa)
   const [virandoParaHome, setVirandoParaHome] = useState(false)
   const [mostrarVersoHome, setMostrarVersoHome] = useState(false)
 
@@ -61,17 +59,22 @@ export function AberturaScreen() {
   useEffect(() => {
     const atualizar = () => {
       const el = outerRef.current
-      const w = el?.clientWidth ?? window.innerWidth
-      const h = el?.clientHeight ?? window.innerHeight
-      setEscala(Math.min(1, w / LARGURA_CENA, h / ALTURA_CENA))
+      // Prioriza window.innerWidth/Height (confiável no iOS),
+      // com fallback pro clientWidth do container e valores padrão.
+      const w = window.innerWidth || el?.clientWidth || LARGURA_CENA
+      const h = window.innerHeight || el?.clientHeight || ALTURA_CENA
+      const novoScale = Math.min(1, w / LARGURA_CENA, h / ALTURA_CENA)
+      if (novoScale > 0) setEscala(novoScale)
     }
     atualizar()
     const ro = new ResizeObserver(atualizar)
     if (outerRef.current) ro.observe(outerRef.current)
     window.addEventListener('resize', atualizar)
+    window.addEventListener('orientationchange', atualizar)
     return () => {
       ro.disconnect()
       window.removeEventListener('resize', atualizar)
+      window.removeEventListener('orientationchange', atualizar)
     }
   }, [])
 
@@ -169,7 +172,6 @@ export function AberturaScreen() {
     }
   }, [buscandoPin, pinPlayer, virandoParaHome])
 
-  // PIN validado → salva sessão, dispara virada de página, navega no meio do flip.
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
       'palpitao_sessao',
@@ -183,17 +185,13 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    // Toca clack de refletor (som de página virando "clacado")
     try {
       somKit.playSpotlightClack(0)
     } catch { /* silencioso */ }
 
-    // Inicia flip: a cena atual gira, o verso (papel envelhecido) aparece
     setVirandoParaHome(true)
     timers.current.push(setTimeout(() => setMostrarVersoHome(true), DUR_FLIP / 2))
 
-    // No meio do flip, dispara navegação (assim quando o flip termina,
-    // a página nova já está pronta)
     timers.current.push(
       setTimeout(() => {
         router.push(player.isAdmin ? '/admin' : '/inicio')
@@ -232,7 +230,15 @@ export function AberturaScreen() {
   )
 
   return (
-    <div ref={outerRef} className="relative flex h-full w-full items-center justify-center overflow-hidden bg-campo-noturno" style={{ width: '100dvw', height: '100dvh' }}>
+    <div
+      ref={outerRef}
+      className="relative flex items-center justify-center overflow-hidden bg-campo-noturno"
+      style={{
+        width: '100vw',
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+      }}
+    >
       <div
         style={{
           width: LARGURA_CENA,
@@ -246,7 +252,6 @@ export function AberturaScreen() {
           transformOrigin: 'center center',
         }}
       >
-        {/* Contêiner de flip — quando vira pra Home, a cena inteira gira */}
         <div
           style={{
             position: 'absolute',
@@ -258,7 +263,6 @@ export function AberturaScreen() {
             transform: virandoParaHome ? 'rotateY(-180deg)' : 'rotateY(0deg)',
           }}
         >
-          {/* Frente: cena do campinho */}
           <div
             style={{
               position: 'absolute',
@@ -267,7 +271,6 @@ export function AberturaScreen() {
               backfaceVisibility: 'hidden',
             }}
           >
-            {/* Interior — campo, banco e poeira, revelados por trás da capa */}
             <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
               <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
               <BancoReservas
@@ -286,7 +289,6 @@ export function AberturaScreen() {
               <PoeiraTransicao fase={fasePoeira} />
             </div>
 
-            {/* Capa (frente) */}
             <div
               style={{
                 position: 'absolute',
@@ -319,7 +321,6 @@ export function AberturaScreen() {
             </div>
           </div>
 
-          {/* Verso: página envelhecida indo pra Home */}
           <div
             style={{
               position: 'absolute',
@@ -334,7 +335,6 @@ export function AberturaScreen() {
               `,
             }}
           >
-            {/* Textura de papel no verso */}
             <div
               className="absolute inset-0 opacity-60 mix-blend-multiply"
               style={{
@@ -343,7 +343,6 @@ export function AberturaScreen() {
               }}
             />
 
-            {/* Sombra no vinco (canto esquerdo) */}
             <div
               className="absolute inset-y-0 left-0 w-8"
               style={{
@@ -351,7 +350,6 @@ export function AberturaScreen() {
               }}
             />
 
-            {/* Vinheta */}
             <div
               className="absolute inset-0"
               style={{
@@ -361,7 +359,6 @@ export function AberturaScreen() {
           </div>
         </div>
 
-        {/* Grão de filme (fica acima do flip, cobre tudo) */}
         <div
           className={`pointer-events-none absolute ${styles.grainJitter}`}
           style={{
@@ -376,7 +373,6 @@ export function AberturaScreen() {
         />
       </div>
 
-      {/* PIN modal — fica FORA da cena escalada, cobre a viewport inteira */}
       {pinPlayer && (
         <PinModal
           player={pinPlayer}
