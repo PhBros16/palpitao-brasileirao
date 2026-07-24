@@ -3,16 +3,14 @@
 // LuzesAmbiente — Sistema completo de iluminação "estádio velho".
 //
 // Features:
-// 1. Sequência inicial (1x/sessão): overlay escuro → refletores descem →
-//    ligam em cascata → halos clareiam → refletores sobem → dissipa.
-// 2. Loop de queima ocasional (15-30s): região escurece brevemente.
-// 3. Lâmpada "cansada": halos que já queimaram têm chance maior + gaguejam mais.
-// 4. Rajada de vento (2-4min): todos halos piscam sincronizados + escuridão breve.
-// 5. Momento de silêncio (1x/sessão): tudo escurece 0.6s.
-// 6. 20% de chance de 1 lâmpada nascer queimada (não liga na inicialização).
-//
-// Overlay escuro inicial vem do CSS (body::before) pra evitar flash antes do JS.
-// Cliques nunca são bloqueados.
+// 1. Sequência inicial (1x/sessão)
+// 2. Loop de queima com cansaço acumulado
+// 3. Rajada de vento (2-4min)
+// 4. Momento de silêncio (1x/sessão)
+// 5. 20% chance de lâmpada nascer queimada
+// 6. Eventos externos:
+//    - 'palpitao:chamarTI' → conserta tudo, roda mini-sequência
+//    - 'palpitao:alternarInterruptor' → liga/desliga tudo
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
@@ -34,6 +32,7 @@ const CHAVE_SESSAO = 'palpitao_luzes_ligadas'
 const CHAVE_SILENCIO = 'palpitao_silencio_ocorreu'
 const CHAVE_CANSACO = 'palpitao_cansaco_halos'
 const CHAVE_LAMPADA_QUEIMADA = 'palpitao_lampada_queimada'
+const CHAVE_INTERRUPTOR = 'palpitao_interruptor_desligado'
 
 // ─── Refletor cartoon ──────────────────────────────────────────────
 
@@ -177,13 +176,22 @@ export function LuzesAmbiente() {
     }
   })
 
+  // Refletores extras (chamar TI / interruptor)
+  const [refletoresExtras, setRefletoresExtras] = useState<'nenhum' | 'descendo' | 'ligando' | 'apagando' | 'subindo'>('nenhum')
+
   const eventoAtivo = useRef(false)
   const cansacoHalos = useRef<Record<number, number>>(lerCansaco())
+  const interruptorDesligado = useRef<boolean>(false)
 
-  // Se sessão já rodou, marca body imediatamente pra CSS remover overlay escuro
   useEffect(() => {
     try {
-      if (sessionStorage.getItem(CHAVE_SESSAO) === '1') {
+      interruptorDesligado.current = sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1'
+      // Se interruptor está desligado, aplica escuridão imediata
+      if (interruptorDesligado.current) {
+        setEscuridaoGlobal(0.7)
+        setHalosBrilho({ 0: -0.9, 1: -0.9, 2: -0.9 })
+      }
+      if (sessionStorage.getItem(CHAVE_SESSAO) === '1' && !interruptorDesligado.current) {
         document.body.classList.add('luzes-ligadas')
       }
     } catch { /* ignora */ }
@@ -236,6 +244,170 @@ export function LuzesAmbiente() {
     return base
   }
 
+  // Eventos externos
+  useEffect(() => {
+    if (fase !== 'operando') return
+
+    let alive = true
+
+    async function handleChamarTI() {
+      if (!alive || eventoAtivo.current) return
+      eventoAtivo.current = true
+
+      // Conserta lâmpada queimada + reseta cansaço
+      lampadaQueimada.current = [-1, -1]
+      cansacoHalos.current = { 0: 0, 1: 0, 2: 0 }
+      try {
+        sessionStorage.setItem(CHAVE_LAMPADA_QUEIMADA, JSON.stringify([-1, -1]))
+        sessionStorage.setItem(CHAVE_CANSACO, JSON.stringify({ 0: 0, 1: 0, 2: 0 }))
+      } catch { /* ignora */ }
+
+      // Reseta halos e escuridão pra estado limpo
+      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+      setEscuridaoGlobal(0)
+
+      // Mini-sequência visual: refletores descem, ligam todas as lâmpadas, sobem
+      setRefletores({
+        0: [false, false, false],
+        1: [false, false, false],
+        2: [false, false, false],
+      })
+      setRefletoresExtras('descendo')
+      await new Promise((r) => setTimeout(r, 1200))
+      if (!alive) { eventoAtivo.current = false; return }
+
+      setRefletoresExtras('ligando')
+      // Liga todas as 9 lâmpadas com pequeno delay
+      for (let ref = 0; ref < 3; ref++) {
+        for (let l = 0; l < 3; l++) {
+          setRefletores((r) => {
+            const novo = [...r[ref as 0 | 1 | 2]] as EstadoLampadas
+            novo[l] = true
+            return { ...r, [ref]: novo }
+          })
+          await new Promise((r) => setTimeout(r, 100))
+          if (!alive) { eventoAtivo.current = false; return }
+        }
+      }
+
+      // Flash de halos brilhantes rápido
+      setHalosBrilho({ 0: 1, 1: 1, 2: 1 })
+      await new Promise((r) => setTimeout(r, 800))
+      if (!alive) { eventoAtivo.current = false; return }
+
+      setRefletoresExtras('subindo')
+      await new Promise((r) => setTimeout(r, 1400))
+      if (!alive) { eventoAtivo.current = false; return }
+
+      setRefletoresExtras('nenhum')
+      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+
+      eventoAtivo.current = false
+    }
+
+    async function handleInterruptor() {
+      if (!alive || eventoAtivo.current) return
+      eventoAtivo.current = true
+
+      const desligarAgora = !interruptorDesligado.current
+      interruptorDesligado.current = desligarAgora
+
+      try {
+        sessionStorage.setItem(CHAVE_INTERRUPTOR, desligarAgora ? '1' : '0')
+      } catch { /* ignora */ }
+
+      if (desligarAgora) {
+        // Desligando — refletores descem, apagam, sobem
+        setRefletores({
+          0: estadoFinalRefletor(0),
+          1: estadoFinalRefletor(1),
+          2: estadoFinalRefletor(2),
+        })
+        setRefletoresExtras('descendo')
+        await new Promise((r) => setTimeout(r, 1200))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('apagando')
+        // Apaga todas as lâmpadas
+        setRefletores({
+          0: [false, false, false],
+          1: [false, false, false],
+          2: [false, false, false],
+        })
+
+        // Escurece progressivamente
+        setEscuridaoGlobal(0.35)
+        setHalosBrilho({ 0: -0.5, 1: -0.5, 2: -0.5 })
+        await new Promise((r) => setTimeout(r, 400))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setEscuridaoGlobal(0.7)
+        setHalosBrilho({ 0: -0.9, 1: -0.9, 2: -0.9 })
+        await new Promise((r) => setTimeout(r, 600))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('subindo')
+        await new Promise((r) => setTimeout(r, 1400))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('nenhum')
+
+        // Remove classe pra CSS deixar escuro
+        try {
+          document.body.classList.remove('luzes-ligadas')
+        } catch { /* ignora */ }
+      } else {
+        // Ligando de volta
+        setRefletores({
+          0: [false, false, false],
+          1: [false, false, false],
+          2: [false, false, false],
+        })
+        setRefletoresExtras('descendo')
+        await new Promise((r) => setTimeout(r, 1200))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('ligando')
+
+        // Liga uma por uma
+        for (let ref = 0; ref < 3; ref++) {
+          await ligarRefletorGradual(ref as 0 | 1 | 2, () => alive)
+          if (!alive) { eventoAtivo.current = false; return }
+        }
+
+        // Halos acendem
+        setHalosBrilho({ 0: 1, 1: 1, 2: 1 })
+        setEscuridaoGlobal(0.2)
+        await new Promise((r) => setTimeout(r, 700))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('subindo')
+        setEscuridaoGlobal(0)
+        setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
+
+        try {
+          document.body.classList.add('luzes-ligadas')
+        } catch { /* ignora */ }
+
+        await new Promise((r) => setTimeout(r, 1400))
+        if (!alive) { eventoAtivo.current = false; return }
+
+        setRefletoresExtras('nenhum')
+      }
+
+      eventoAtivo.current = false
+    }
+
+    window.addEventListener('palpitao:chamarTI', handleChamarTI)
+    window.addEventListener('palpitao:alternarInterruptor', handleInterruptor)
+
+    return () => {
+      alive = false
+      window.removeEventListener('palpitao:chamarTI', handleChamarTI)
+      window.removeEventListener('palpitao:alternarInterruptor', handleInterruptor)
+    }
+  }, [fase])
+
   // Sequência inicial
   useEffect(() => {
     if (fase !== 'esperando') return
@@ -244,6 +416,15 @@ export function LuzesAmbiente() {
     const isMounted = () => alive
 
     async function sequenciaInicial() {
+      // Se interruptor está desligado, pula tudo direto pra operando (escuro)
+      if (interruptorDesligado.current) {
+        setFase('operando')
+        try {
+          sessionStorage.setItem(CHAVE_SESSAO, '1')
+        } catch { /* ignora */ }
+        return
+      }
+
       setFase('inicial')
 
       await new Promise((r) => setTimeout(r, 800))
@@ -283,7 +464,6 @@ export function LuzesAmbiente() {
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
 
-      // Marca body pra CSS dissipar overlay escuro inicial
       try {
         document.body.classList.add('luzes-ligadas')
       } catch { /* ignora */ }
@@ -302,14 +482,12 @@ export function LuzesAmbiente() {
     return () => { alive = false }
   }, [fase])
 
-  // Loop de queima com "cansaço"
+  // Loop de queima
   useEffect(() => {
     if (fase !== 'operando') return
+    if (interruptorDesligado.current) return
 
     let alive = true
-
-    setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
-    setEscuridaoGlobal(0)
 
     async function loopQueima() {
       await new Promise((r) => setTimeout(r, 8000))
@@ -320,7 +498,7 @@ export function LuzesAmbiente() {
         await new Promise((r) => setTimeout(r, espera))
         if (!alive) return
 
-        if (eventoAtivo.current) continue
+        if (eventoAtivo.current || interruptorDesligado.current) continue
 
         const pesos = HALOS.map((h) => 1 + (cansacoHalos.current[h.id] ?? 0) * 0.5)
         const total = pesos.reduce((s, p) => s + p, 0)
@@ -368,16 +546,13 @@ export function LuzesAmbiente() {
 
     loopQueima()
 
-    return () => {
-      alive = false
-      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
-      setEscuridaoGlobal(0)
-    }
+    return () => { alive = false }
   }, [fase])
 
-  // Rajada de vento (2-4 min)
+  // Rajada de vento
   useEffect(() => {
     if (fase !== 'operando') return
+    if (interruptorDesligado.current) return
 
     let alive = true
 
@@ -386,7 +561,7 @@ export function LuzesAmbiente() {
       if (!alive) return
 
       while (alive) {
-        while (alive && eventoAtivo.current) {
+        while (alive && (eventoAtivo.current || interruptorDesligado.current)) {
           await new Promise((r) => setTimeout(r, 500))
         }
         if (!alive) return
@@ -415,13 +590,13 @@ export function LuzesAmbiente() {
     }
 
     loopRajada()
-
     return () => { alive = false }
   }, [fase])
 
-  // Momento de silêncio — 1x/sessão
+  // Momento de silêncio
   useEffect(() => {
     if (fase !== 'operando') return
+    if (interruptorDesligado.current) return
 
     let alive = true
 
@@ -437,7 +612,7 @@ export function LuzesAmbiente() {
       await new Promise((r) => setTimeout(r, espera))
       if (!alive) return
 
-      while (alive && eventoAtivo.current) {
+      while (alive && (eventoAtivo.current || interruptorDesligado.current)) {
         await new Promise((r) => setTimeout(r, 500))
       }
       if (!alive) return
@@ -462,9 +637,16 @@ export function LuzesAmbiente() {
     }
 
     eventoSilencio()
-
     return () => { alive = false }
   }, [fase])
+
+  const mostrarRefletoresSequenciaInicial =
+    fase === 'refletoresDescendo' || fase === 'refletoresLigando'
+  const mostrarRefletoresSubindo = fase === 'refletoresSubindo'
+
+  const mostrarRefletoresExtras =
+    refletoresExtras === 'descendo' || refletoresExtras === 'ligando' || refletoresExtras === 'apagando'
+  const mostrarRefletoresExtrasSubindo = refletoresExtras === 'subindo'
 
   return (
     <>
@@ -530,14 +712,15 @@ export function LuzesAmbiente() {
       </div>
 
       <AnimatePresence>
-        {(fase === 'refletoresDescendo' || fase === 'refletoresLigando') && (
+        {(mostrarRefletoresSequenciaInicial || mostrarRefletoresExtras) && (
           <motion.div
+            key="refletores-descendo"
             className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: -140 }}
             animate={{ y: 0 }}
             exit={{ y: -140 }}
-            transition={{ y: { duration: 1.5, ease: [0.32, 0.72, 0, 1] } }}
+            transition={{ y: { duration: 1.2, ease: [0.32, 0.72, 0, 1] } }}
           >
             <div className="block sm:hidden"><Refletor lampadas={refletores[0]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={refletores[0]} scale={1} /></div>
@@ -548,20 +731,21 @@ export function LuzesAmbiente() {
           </motion.div>
         )}
 
-        {fase === 'refletoresSubindo' && (
+        {(mostrarRefletoresSubindo || mostrarRefletoresExtrasSubindo) && (
           <motion.div
+            key="refletores-subindo"
             className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: 0 }}
             animate={{ y: -160 }}
-            transition={{ y: { duration: 1.8, ease: [0.62, 0, 0.38, 1] } }}
+            transition={{ y: { duration: 1.4, ease: [0.62, 0, 0.38, 1] } }}
           >
-            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(0)} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(0)} scale={1} /></div>
-            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(1)} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(1)} scale={1} /></div>
-            <div className="block sm:hidden"><Refletor lampadas={estadoFinalRefletor(2)} scale={0.45} /></div>
-            <div className="hidden sm:block"><Refletor lampadas={estadoFinalRefletor(2)} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[0]} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[0]} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[1]} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[1]} scale={1} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[2]} scale={0.45} /></div>
+            <div className="hidden sm:block"><Refletor lampadas={refletores[2]} scale={1} /></div>
           </motion.div>
         )}
       </AnimatePresence>
