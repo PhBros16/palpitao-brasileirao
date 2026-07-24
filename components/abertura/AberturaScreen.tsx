@@ -1,25 +1,8 @@
 'use client'
 
-// AberturaScreen — sequência cinematográfica completa: capa de couro (com
-// medalhão/parallax/shimmer/poeira dourada ambiente) → flip 3D com espessura
-// real → nuvem de poeira (assenta, depois sopra) → cascata de refletores por
-// zona (goleiro→defesa→meio→ataque→banco) com o elenco saindo em fila única
-// da lateral esquerda, na altura do meio-campo, e se espalhando pras posições.
-//
-// Cena de referência fixa em 390×844 (todo o layout — campo, banco, zonas de
-// luz, vetores de corrida — é calibrado nesses px exatos) e escalada via
-// ResizeObserver pra caber em qualquer viewport/contêiner real, sem recalcular
-// a coreografia. Áudio sintetizado (somKit) dispara no toque de "Abrir o
-// Álbum" — único gesto que libera som no navegador (CLAUDE.md Seção 4).
-//
-// Login integrado: ao clicar num titular no campo revelado, abre o PinModal
-// aqui mesmo (não navega mais pra /login — que agora só redireciona pra /).
-// PIN validado contra Supabase (participants.name → participants.pin) via
-// buscarPinPorNome() do elencoMock.ts. Sessão gravada em localStorage
-// (chave 'palpitao_sessao') igual ao fluxo já usado por /palpites.
-//
-// Admin: chip ADM do banco abre o mesmo PinModal com o participante
-// "Administração". PIN correto navega pra /admin em vez de /inicio.
+// AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
+// campinho revelado. PIN correto vira mais uma "página" do álbum (mesma
+// estética do flip da capa) antes de navegar pra /inicio ou /admin.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -41,6 +24,8 @@ import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransi
 import { somKit } from './somKit'
 import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
+import { showToast } from '@/components/home/Toast'
+import { vibrar } from '@/lib/haptic'
 import type { FasePoeira, JogadorCampo } from './tipos'
 
 const LARGURA_CENA = 390
@@ -59,6 +44,10 @@ export function AberturaScreen() {
   // Login integrado: jogador selecionado pra abrir o PinModal
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
+
+  // Virada de página após PIN correto (mesma estética do flip da capa)
+  const [virandoParaHome, setVirandoParaHome] = useState(false)
+  const [mostrarVersoHome, setMostrarVersoHome] = useState(false)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const iniciado = useRef(false)
@@ -114,8 +103,6 @@ export function AberturaScreen() {
   const handleAbrir = useCallback(() => {
     if (iniciado.current) return
     iniciado.current = true
-    // Inicia música tema real (gesto do usuário libera autoplay do navegador).
-    // Silencioso se o mp3 ainda não existir.
     import('@/components/home/PlayerMusica').then((m) => m.iniciarMusicaTema())
     setAberto(true)
     timers.current.push(setTimeout(() => setMostrarVerso(true), DUR_FLIP / 2))
@@ -144,8 +131,7 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
-    // Se o modal de PIN está aberto, prioriza fechar ele — não recolhe a capa.
-    if (pinPlayer) return
+    if (pinPlayer || virandoParaHome) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -157,26 +143,23 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers, pinPlayer])
+  }, [limparTimers, pinPlayer, virandoParaHome])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
-  // Click num titular no campo revelado → busca PIN real do Supabase → abre modal.
   const handleClickJogador = useCallback(async (j: JogadorCampo) => {
-    if (buscandoPin || pinPlayer) return
+    if (buscandoPin || pinPlayer || virandoParaHome) return
     setBuscandoPin(true)
     try {
       const player = await buscarPinPorNome(j.nome)
       if (player) setPinPlayer(player)
-      // Se não achou (nome não bate com nenhum participant), não faz nada silenciosamente.
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer])
+  }, [buscandoPin, pinPlayer, virandoParaHome])
 
-  // Clique no chip ADM do banco → abre o PIN do participante Administração.
   const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer) return
+    if (buscandoPin || pinPlayer || virandoParaHome) return
     setBuscandoPin(true)
     try {
       const admin = await buscarPinPorNome('Administração')
@@ -184,9 +167,9 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer])
+  }, [buscandoPin, pinPlayer, virandoParaHome])
 
-  // PIN validado → grava sessão e navega conforme o tipo de conta.
+  // PIN validado → salva sessão, dispara virada de página, navega no meio do flip.
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
       'palpitao_sessao',
@@ -195,8 +178,27 @@ export function AberturaScreen() {
         nome: player.nome,
       }),
     )
+
     setPinPlayer(null)
-    router.push(player.isAdmin ? '/admin' : '/inicio')
+    vibrar('sucesso')
+    showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
+
+    // Toca clack de refletor (som de página virando "clacado")
+    try {
+      somKit.playSpotlightClack(0)
+    } catch { /* silencioso */ }
+
+    // Inicia flip: a cena atual gira, o verso (papel envelhecido) aparece
+    setVirandoParaHome(true)
+    timers.current.push(setTimeout(() => setMostrarVersoHome(true), DUR_FLIP / 2))
+
+    // No meio do flip, dispara navegação (assim quando o flip termina,
+    // a página nova já está pronta)
+    timers.current.push(
+      setTimeout(() => {
+        router.push(player.isAdmin ? '/admin' : '/inicio')
+      }, DUR_FLIP / 2 + 100),
+    )
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -244,26 +246,7 @@ export function AberturaScreen() {
           transformOrigin: 'center center',
         }}
       >
-        {/* Interior — campo, banco e poeira, revelados por trás da capa */}
-        <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
-          <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
-          <BancoReservas
-            revelado={revelado}
-            reservas={reservasComEntrada}
-            admin={adminComEntrada}
-            tecnico={tecnicoComEntrada}
-            onEntrarAdmin={handleClickAdmin}
-          />
-
-          <div
-            className="pointer-events-none absolute bottom-0 left-0 top-0"
-            style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
-          />
-
-          <PoeiraTransicao fase={fasePoeira} />
-        </div>
-
-        {/* Capa */}
+        {/* Contêiner de flip — quando vira pra Home, a cena inteira gira */}
         <div
           style={{
             position: 'absolute',
@@ -272,30 +255,113 @@ export function AberturaScreen() {
             transformStyle: 'preserve-3d',
             willChange: 'transform',
             transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
-            transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-            opacity: capaVisivel ? 1 : 0,
-            pointerEvents: capaVisivel ? 'auto' : 'none',
+            transform: virandoParaHome ? 'rotateY(-180deg)' : 'rotateY(0deg)',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
-            <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
-          </div>
+          {/* Frente: cena do campinho */}
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              visibility: mostrarVerso ? 'visible' : 'hidden',
-              transformOrigin: 'left center',
-              transform: 'rotateY(180deg) translateZ(14px)',
+              visibility: mostrarVersoHome ? 'hidden' : 'visible',
               backfaceVisibility: 'hidden',
             }}
           >
-            <CapaVerso />
+            {/* Interior — campo, banco e poeira, revelados por trás da capa */}
+            <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
+              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
+              <BancoReservas
+                revelado={revelado}
+                reservas={reservasComEntrada}
+                admin={adminComEntrada}
+                tecnico={tecnicoComEntrada}
+                onEntrarAdmin={handleClickAdmin}
+              />
+
+              <div
+                className="pointer-events-none absolute bottom-0 left-0 top-0"
+                style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
+              />
+
+              <PoeiraTransicao fase={fasePoeira} />
+            </div>
+
+            {/* Capa (frente) */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                transformOrigin: 'left center',
+                transformStyle: 'preserve-3d',
+                willChange: 'transform',
+                transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
+                transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                opacity: capaVisivel ? 1 : 0,
+                pointerEvents: capaVisivel ? 'auto' : 'none',
+              }}
+            >
+              <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
+                <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
+              </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  visibility: mostrarVerso ? 'visible' : 'hidden',
+                  transformOrigin: 'left center',
+                  transform: 'rotateY(180deg) translateZ(14px)',
+                  backfaceVisibility: 'hidden',
+                }}
+              >
+                <CapaVerso />
+              </div>
+              <CapaEspessura />
+            </div>
           </div>
-          <CapaEspessura />
+
+          {/* Verso: página envelhecida indo pra Home */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              visibility: mostrarVersoHome ? 'visible' : 'hidden',
+              transformOrigin: 'left center',
+              transform: 'rotateY(180deg) translateZ(14px)',
+              backfaceVisibility: 'hidden',
+              background: `
+                radial-gradient(ellipse at 30% 25%, #F7E6BA 0%, #EBD9A4 45%, #D4C088 100%),
+                #E8D4A0
+              `,
+            }}
+          >
+            {/* Textura de papel no verso */}
+            <div
+              className="absolute inset-0 opacity-60 mix-blend-multiply"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.28 0 0 0 0 0.13 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")`,
+                backgroundSize: '400px 400px',
+              }}
+            />
+
+            {/* Sombra no vinco (canto esquerdo) */}
+            <div
+              className="absolute inset-y-0 left-0 w-8"
+              style={{
+                background: 'linear-gradient(90deg, rgba(60,40,20,0.4) 0%, rgba(60,40,20,0.1) 60%, transparent 100%)',
+              }}
+            />
+
+            {/* Vinheta */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'radial-gradient(ellipse at center, transparent 40%, rgba(92,56,24,0.2) 90%, rgba(62,38,15,0.4) 100%)',
+              }}
+            />
+          </div>
         </div>
 
-        {/* Grão de filme */}
+        {/* Grão de filme (fica acima do flip, cobre tudo) */}
         <div
           className={`pointer-events-none absolute ${styles.grainJitter}`}
           style={{
