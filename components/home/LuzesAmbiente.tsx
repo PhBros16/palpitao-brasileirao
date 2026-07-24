@@ -184,9 +184,10 @@ export function LuzesAmbiente() {
   const interruptorDesligado = useRef<boolean>(false)
 
   useEffect(() => {
+    // Ativa o overlay CSS APENAS quando LuzesAmbiente monta (dentro do AppLayout)
     try {
+      document.body.classList.add('overlay-escuro-ativo')
       interruptorDesligado.current = sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1'
-      // Se interruptor está desligado, aplica escuridão imediata
       if (interruptorDesligado.current) {
         setEscuridaoGlobal(0.7)
         setHalosBrilho({ 0: -0.9, 1: -0.9, 2: -0.9 })
@@ -195,6 +196,14 @@ export function LuzesAmbiente() {
         document.body.classList.add('luzes-ligadas')
       }
     } catch { /* ignora */ }
+
+    // Cleanup: remove classes ao desmontar (ex: sair pra abertura)
+    return () => {
+      try {
+        document.body.classList.remove('overlay-escuro-ativo')
+        document.body.classList.remove('luzes-ligadas')
+      } catch { /* ignora */ }
+    }
   }, [])
 
   async function ligarRefletorGradual(
