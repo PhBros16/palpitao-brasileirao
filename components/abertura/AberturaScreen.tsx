@@ -1,17 +1,19 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
-// campinho revelado. PIN correto vira mais uma "página" do álbum antes de
-// navegar pra /inicio ou /admin.
+// campinho revelado. PIN correto → efeito de RASGO DE PÁGINA → navega pra Home.
 //
-// Mudanças recentes:
-// - Fundo do container root: 'bg-campo-noturno' (verde escuro) → cor de couro
-//   escuro (#2a1e10) → mesma tonalidade das bordas da capa. Se sobrar espaço
-//   nas laterais (aspect ratio ≠ 390:844), fica visualmente contínuo.
-// - Estratégia de escala: mantida como contain (Math.min) pra nunca cortar a
-//   cena, mas com fundo casando a capa em vez de destoar.
-// - Virada pra Home: aguarda animação COMPLETA (DUR_FLIP) antes de navegar,
-//   evitando flash brusco.
+// Mudanças v7:
+// - Fundo externo: <FundoMesa /> (mesa de madeira envelhecida + cone de luz
+//   descendo do topo + poeira suspensa). Substitui bg-campo-noturno.
+// - Removido o "verso da página" antigo que aparecia na virada PIN → Home
+//   (era uma página bege sólida sem contexto, ficava esquisito).
+// - Novo fluxo PIN → Home:
+//     1. PIN correto → dispara <RasgoParaHome />
+//     2. Rasgo cobre a tela cobrindo a cena do estádio
+//     3. Duas metades da página se separam com flash dourado
+//     4. Ao final do rasgo (~1300ms), navega pra /inicio ou /admin
+//   Muito mais orgânico e cinematográfico que o flip anterior.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -33,6 +35,8 @@ import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransi
 import { somKit } from './somKit'
 import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
+import { FundoMesa } from './FundoMesa'
+import { RasgoParaHome } from './RasgoParaHome'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 import type { FasePoeira, JogadorCampo } from './tipos'
@@ -53,8 +57,9 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  const [virandoParaHome, setVirandoParaHome] = useState(false)
-  const [mostrarVersoHome, setMostrarVersoHome] = useState(false)
+  // Rasgo → Home
+  const [rasgando, setRasgando] = useState(false)
+  const destinoNav = useRef<string>('/inicio')
 
   const outerRef = useRef<HTMLDivElement>(null)
   const iniciado = useRef(false)
@@ -141,7 +146,7 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
-    if (pinPlayer || virandoParaHome) return
+    if (pinPlayer || rasgando) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -153,12 +158,12 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers, pinPlayer, virandoParaHome])
+  }, [limparTimers, pinPlayer, rasgando])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
   const handleClickJogador = useCallback(async (j: JogadorCampo) => {
-    if (buscandoPin || pinPlayer || virandoParaHome) return
+    if (buscandoPin || pinPlayer || rasgando) return
     setBuscandoPin(true)
     try {
       const player = await buscarPinPorNome(j.nome)
@@ -166,10 +171,10 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer, virandoParaHome])
+  }, [buscandoPin, pinPlayer, rasgando])
 
   const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer || virandoParaHome) return
+    if (buscandoPin || pinPlayer || rasgando) return
     setBuscandoPin(true)
     try {
       const admin = await buscarPinPorNome('Administração')
@@ -177,7 +182,7 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer, virandoParaHome])
+  }, [buscandoPin, pinPlayer, rasgando])
 
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
@@ -192,22 +197,13 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    try {
-      somKit.playSpotlightClack(0)
-    } catch { /* silencioso */ }
+    // Dispara rasgo. onCompleto do rasgo (chamado após ~1300ms) faz o router.push
+    destinoNav.current = player.isAdmin ? '/admin' : '/inicio'
+    setRasgando(true)
+  }, [])
 
-    // Fluxo da virada:
-    //   1. t=0        → dispara flip (rotateY 0 → -180deg em DUR_FLIP=1200ms)
-    //   2. t=DUR/2    → mostrarVersoHome=true (esconde frente, mostra verso)
-    //   3. t=DUR      → animação completa. AGORA sim navega, sem flash.
-    setVirandoParaHome(true)
-    timers.current.push(setTimeout(() => setMostrarVersoHome(true), DUR_FLIP / 2))
-
-    timers.current.push(
-      setTimeout(() => {
-        router.push(player.isAdmin ? '/admin' : '/inicio')
-      }, DUR_FLIP + 50),
-    )
+  const handleRasgoCompleto = useCallback(() => {
+    router.push(destinoNav.current)
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -248,12 +244,11 @@ export function AberturaScreen() {
         width: '100vw',
         height: '100vh',
         minHeight: '-webkit-fill-available',
-        // Fundo cor de couro escuro (mesma família da capa) — se sobrar espaço
-        // nas laterais em telas de proporção diferente de 390:844, fica
-        // visualmente contínuo com a capa em vez de aparecer barra verde.
-        background: 'radial-gradient(ellipse at center, #3a2515 0%, #1f1409 100%)',
       }}
     >
+      {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
+      <FundoMesa />
+
       <div
         style={{
           width: LARGURA_CENA,
@@ -265,24 +260,23 @@ export function AberturaScreen() {
           perspectiveOrigin: '52% 45%',
           transform: `scale(${escala})`,
           transformOrigin: 'center center',
+          zIndex: 2,
+          // Sombra projetada do álbum sobre a mesa (efeito profundidade)
+          boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
         }}
       >
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            transformOrigin: 'left center',
             transformStyle: 'preserve-3d',
             willChange: 'transform',
-            transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
-            transform: virandoParaHome ? 'rotateY(-180deg)' : 'rotateY(0deg)',
           }}
         >
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              visibility: mostrarVersoHome ? 'hidden' : 'visible',
               backfaceVisibility: 'hidden',
             }}
           >
@@ -335,43 +329,6 @@ export function AberturaScreen() {
               <CapaEspessura />
             </div>
           </div>
-
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              visibility: mostrarVersoHome ? 'visible' : 'hidden',
-              transformOrigin: 'left center',
-              transform: 'rotateY(180deg) translateZ(14px)',
-              backfaceVisibility: 'hidden',
-              background: `
-                radial-gradient(ellipse at 30% 25%, #F7E6BA 0%, #EBD9A4 45%, #D4C088 100%),
-                #E8D4A0
-              `,
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-60 mix-blend-multiply"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.28 0 0 0 0 0.13 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")`,
-                backgroundSize: '400px 400px',
-              }}
-            />
-
-            <div
-              className="absolute inset-y-0 left-0 w-8"
-              style={{
-                background: 'linear-gradient(90deg, rgba(60,40,20,0.4) 0%, rgba(60,40,20,0.1) 60%, transparent 100%)',
-              }}
-            />
-
-            <div
-              className="absolute inset-0"
-              style={{
-                background: 'radial-gradient(ellipse at center, transparent 40%, rgba(92,56,24,0.2) 90%, rgba(62,38,15,0.4) 100%)',
-              }}
-            />
-          </div>
         </div>
 
         <div
@@ -395,6 +352,8 @@ export function AberturaScreen() {
           onSucesso={handlePinSucesso}
         />
       )}
+
+      {rasgando && <RasgoParaHome onCompleto={handleRasgoCompleto} />}
     </div>
   )
 }
