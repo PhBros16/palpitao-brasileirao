@@ -3,6 +3,15 @@
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
 // campinho revelado. PIN correto vira mais uma "página" do álbum antes de
 // navegar pra /inicio ou /admin.
+//
+// Mudanças recentes:
+// - Fundo do container root: 'bg-campo-noturno' (verde escuro) → cor de couro
+//   escuro (#2a1e10) → mesma tonalidade das bordas da capa. Se sobrar espaço
+//   nas laterais (aspect ratio ≠ 390:844), fica visualmente contínuo.
+// - Estratégia de escala: mantida como contain (Math.min) pra nunca cortar a
+//   cena, mas com fundo casando a capa em vez de destoar.
+// - Virada pra Home: aguarda animação COMPLETA (DUR_FLIP) antes de navegar,
+//   evitando flash brusco.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -59,8 +68,6 @@ export function AberturaScreen() {
   useEffect(() => {
     const atualizar = () => {
       const el = outerRef.current
-      // Prioriza window.innerWidth/Height (confiável no iOS),
-      // com fallback pro clientWidth do container e valores padrão.
       const w = window.innerWidth || el?.clientWidth || LARGURA_CENA
       const h = window.innerHeight || el?.clientHeight || ALTURA_CENA
       const novoScale = Math.min(1, w / LARGURA_CENA, h / ALTURA_CENA)
@@ -189,13 +196,17 @@ export function AberturaScreen() {
       somKit.playSpotlightClack(0)
     } catch { /* silencioso */ }
 
+    // Fluxo da virada:
+    //   1. t=0        → dispara flip (rotateY 0 → -180deg em DUR_FLIP=1200ms)
+    //   2. t=DUR/2    → mostrarVersoHome=true (esconde frente, mostra verso)
+    //   3. t=DUR      → animação completa. AGORA sim navega, sem flash.
     setVirandoParaHome(true)
     timers.current.push(setTimeout(() => setMostrarVersoHome(true), DUR_FLIP / 2))
 
     timers.current.push(
       setTimeout(() => {
         router.push(player.isAdmin ? '/admin' : '/inicio')
-      }, DUR_FLIP / 2 + 100),
+      }, DUR_FLIP + 50),
     )
   }, [router])
 
@@ -232,11 +243,15 @@ export function AberturaScreen() {
   return (
     <div
       ref={outerRef}
-      className="relative flex items-center justify-center overflow-hidden bg-campo-noturno"
+      className="relative flex items-center justify-center overflow-hidden"
       style={{
         width: '100vw',
         height: '100vh',
         minHeight: '-webkit-fill-available',
+        // Fundo cor de couro escuro (mesma família da capa) — se sobrar espaço
+        // nas laterais em telas de proporção diferente de 390:844, fica
+        // visualmente contínuo com a capa em vez de aparecer barra verde.
+        background: 'radial-gradient(ellipse at center, #3a2515 0%, #1f1409 100%)',
       }}
     >
       <div
