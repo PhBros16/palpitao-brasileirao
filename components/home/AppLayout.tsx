@@ -2,12 +2,11 @@
 
 // AppLayout — wrapper de todas as páginas logadas.
 //
-// Renderiza sempre: FundoAnimado + LuzesAmbiente + Header + Nav + PageTransition.
+// Renderiza sempre: FundoAnimado + LuzesAmbiente + Header + Nav.
 // Player de música só aparece na aba "Início" (/inicio).
-// Enquanto carrega perfil, mostra skeleton loader.
 //
-// Perfil vem do cache localStorage (instantâneo) + revalida do Supabase em
-// background. Isso elimina o "trava/carrega" ao trocar de aba.
+// Perfil vem do cache localStorage (instantâneo) + revalida em background.
+// Renderiza sempre, sem loading — zero delay entre trocas de aba.
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
@@ -69,27 +68,6 @@ export function AppLayout({
     revalidarPerfil(s.id, s.nome)
   }, [])
 
-  async function carregarPerfilInicial(pid: string, nome: string) {
-    try {
-      const [{ data: part }, ae] = await Promise.all([
-        supabase.from('participants').select('is_admin').eq('id', pid).maybeSingle(),
-        buscarAvatarEmoji(pid),
-      ])
-      const isAdminNovo = part?.is_admin ?? false
-      setIsAdmin(isAdminNovo)
-      setAvatar(ae.avatar)
-      setEmoji(ae.emoji)
-      salvarPerfilCache({
-        participantId: pid,
-        nome,
-        isAdmin: isAdminNovo,
-        avatar: ae.avatar,
-        emoji: ae.emoji,
-      })
-    } catch { /* silencioso */ }
-    finally { setProntoParaRenderizar(true) }
-  }
-
   async function revalidarPerfil(pid: string, nome: string) {
     try {
       const [{ data: part }, ae] = await Promise.all([
@@ -148,7 +126,7 @@ export function AppLayout({
         <NavAbas isAdmin={isAdmin} />
         {mostrarPlayer && <PlayerMusica />}
 
-                {children}
+        {children}
       </div>
     </main>
   )
