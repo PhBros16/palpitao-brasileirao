@@ -11,6 +11,7 @@
 // 5. Momento de silêncio (1x/sessão): tudo escurece 0.6s.
 // 6. 20% de chance de 1 lâmpada nascer queimada (não liga na inicialização).
 //
+// Overlay escuro inicial vem do CSS (body::before) pra evitar flash antes do JS.
 // Cliques nunca são bloqueados.
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -106,11 +107,10 @@ function Refletor({
   )
 }
 
-// ─── Componente principal ──────────────────────────────────────────────
+// ─── Helpers pra sessionStorage ──────────────────────────────────────
 
 type EstadoLampadas = [boolean, boolean, boolean]
 
-// Helpers pra sessionStorage — sempre com fallback
 function lerCansaco(): Record<number, number> {
   if (typeof window === 'undefined') return { 0: 0, 1: 0, 2: 0 }
   try {
@@ -136,7 +136,6 @@ function lerLampadaQueimada(): [number, number] {
     if (raw) return JSON.parse(raw)
   } catch { /* ignora */ }
 
-  // Não tem salvo — sorteia agora
   let sorteio: [number, number] = [-1, -1]
   if (Math.random() < 0.2) {
     sorteio = [Math.floor(Math.random() * 3), Math.floor(Math.random() * 3)]
@@ -146,6 +145,8 @@ function lerLampadaQueimada(): [number, number] {
   } catch { /* ignora */ }
   return sorteio
 }
+
+// ─── Componente principal ──────────────────────────────────────────────
 
 export function LuzesAmbiente() {
   const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>(() => {
@@ -157,7 +158,6 @@ export function LuzesAmbiente() {
     }
   })
 
-  // Ref pra qual lâmpada nasce queimada (persiste na sessão)
   const lampadaQueimada = useRef<[number, number]>(lerLampadaQueimada())
 
   const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
@@ -177,18 +177,23 @@ export function LuzesAmbiente() {
     }
   })
 
-  // Flag pra prevenir dois eventos raros ao mesmo tempo
   const eventoAtivo = useRef(false)
-
-  // Contador de cansaço por halo
   const cansacoHalos = useRef<Record<number, number>>(lerCansaco())
+
+  // Se sessão já rodou, marca body imediatamente pra CSS remover overlay escuro
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(CHAVE_SESSAO) === '1') {
+        document.body.classList.add('luzes-ligadas')
+      }
+    } catch { /* ignora */ }
+  }, [])
 
   async function ligarRefletorGradual(
     idxRefletor: 0 | 1 | 2,
     mounted: () => boolean,
   ) {
     for (let l = 0; l < 3; l++) {
-      // Se essa lâmpada está queimada, pula (fica apagada)
       if (
         lampadaQueimada.current[0] === idxRefletor &&
         lampadaQueimada.current[1] === l
@@ -222,7 +227,6 @@ export function LuzesAmbiente() {
     }
   }
 
-  // Calcula estado final das lâmpadas do refletor considerando queimada
   function estadoFinalRefletor(idx: number): EstadoLampadas {
     const base: EstadoLampadas = [true, true, true]
     if (lampadaQueimada.current[0] === idx) {
@@ -278,6 +282,12 @@ export function LuzesAmbiente() {
 
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
+
+      // Marca body pra CSS dissipar overlay escuro inicial
+      try {
+        document.body.classList.add('luzes-ligadas')
+      } catch { /* ignora */ }
+
       await new Promise((r) => setTimeout(r, 2000))
       if (!alive) return
 
@@ -312,7 +322,6 @@ export function LuzesAmbiente() {
 
         if (eventoAtivo.current) continue
 
-        // Sorteio com pesos (halos cansados têm mais chance)
         const pesos = HALOS.map((h) => 1 + (cansacoHalos.current[h.id] ?? 0) * 0.5)
         const total = pesos.reduce((s, p) => s + p, 0)
         let sorteio = Math.random() * total
@@ -366,7 +375,7 @@ export function LuzesAmbiente() {
     }
   }, [fase])
 
-  // Rajada de vento (a cada 2-4 min)
+  // Rajada de vento (2-4 min)
   useEffect(() => {
     if (fase !== 'operando') return
 
@@ -558,20 +567,4 @@ export function LuzesAmbiente() {
       </AnimatePresence>
     </>
   )
-}
-/* ─── Overlay escuro inicial (evita flash antes das luzes React) ─── */
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 6, 2, 0.65);
-  pointer-events: none;
-  z-index: 1;
-  mix-blend-mode: multiply;
-  transition: opacity 1s ease-out;
-}
-
-body.luzes-ligadas::before {
-  opacity: 0;
 }
