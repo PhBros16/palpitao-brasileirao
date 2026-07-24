@@ -1,8 +1,10 @@
 'use client'
 
 // LuzesAmbiente — Iluminação "estádio".
-// Sequência inicial roda APENAS uma vez por sessão.
-// Loop de queima roda sempre, mas sempre reseta halos ao iniciar.
+// Estado inicial já escuro (evita flash de tela clara antes do refletor).
+// Sequência completa roda APENAS uma vez por sessão.
+// Loop de queima roda sempre em "operando".
+// Cleanup limpa halos residuais ao trocar de aba.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
@@ -99,14 +101,33 @@ function Refletor({
 type EstadoLampadas = [boolean, boolean, boolean]
 
 export function LuzesAmbiente() {
-  const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>('esperando')
+  // Fase inicial: se já rodou na sessão, começa em "operando"; senão em "esperando"
+  const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>(() => {
+    if (typeof window === 'undefined') return 'esperando'
+    try {
+      return sessionStorage.getItem(CHAVE_SESSAO) === '1' ? 'operando' : 'esperando'
+    } catch {
+      return 'esperando'
+    }
+  })
+
   const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
     0: [false, false, false],
     1: [false, false, false],
     2: [false, false, false],
   })
+
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
-  const [escuridaoGlobal, setEscuridaoGlobal] = useState(0)
+
+  // Escuridão inicial já ativa se for 1ª vez da sessão (evita flash)
+  const [escuridaoGlobal, setEscuridaoGlobal] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    try {
+      return sessionStorage.getItem(CHAVE_SESSAO) === '1' ? 0 : 0.65
+    } catch {
+      return 0.65
+    }
+  })
 
   async function ligarRefletorGradual(
     idxRefletor: 0 | 1 | 2,
@@ -139,26 +160,14 @@ export function LuzesAmbiente() {
     }
   }
 
-  // Sequência inicial
+  // Sequência inicial: só roda se estava em 'esperando'
   useEffect(() => {
+    if (fase !== 'esperando') return
+
     let alive = true
     const isMounted = () => alive
 
-    let jaRodou = false
-    try {
-      jaRodou = sessionStorage.getItem(CHAVE_SESSAO) === '1'
-    } catch { /* ignora */ }
-
-    if (jaRodou) {
-      // Garante estado limpo ao pular sequência
-      setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
-      setEscuridaoGlobal(0)
-      setFase('operando')
-      return
-    }
-
     async function sequenciaInicial() {
-      setEscuridaoGlobal(0.65)
       setFase('inicial')
 
       await new Promise((r) => setTimeout(r, 800))
@@ -195,7 +204,7 @@ export function LuzesAmbiente() {
       await new Promise((r) => setTimeout(r, 1800))
       if (!alive) return
 
-      // Dissipa halos suavemente + escuridão zera
+      // Dissipa halos + escuridão suavemente
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
       await new Promise((r) => setTimeout(r, 2000))
@@ -210,7 +219,7 @@ export function LuzesAmbiente() {
 
     sequenciaInicial()
     return () => { alive = false }
-  }, [])
+  }, [fase])
 
   // Loop de queima
   useEffect(() => {
@@ -218,7 +227,7 @@ export function LuzesAmbiente() {
 
     let alive = true
 
-    // GARANTE estado limpo ao entrar em operando (evita halos residuais)
+    // Garante estado limpo ao entrar em operando
     setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
     setEscuridaoGlobal(0)
 
@@ -261,7 +270,6 @@ export function LuzesAmbiente() {
 
     loopQueima()
 
-    // Cleanup: ao desmontar (troca de aba), reseta TUDO pra não deixar halo residual
     return () => {
       alive = false
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
@@ -335,35 +343,35 @@ export function LuzesAmbiente() {
       <AnimatePresence>
         {(fase === 'refletoresDescendo' || fase === 'refletoresLigando') && (
           <motion.div
-            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around"
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: -140 }}
             animate={{ y: 0 }}
             exit={{ y: -140 }}
             transition={{ y: { duration: 1.5, ease: [0.32, 0.72, 0, 1] } }}
           >
-            <div className="sm:hidden"><Refletor lampadas={refletores[0]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[0]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={refletores[0]} scale={1} /></div>
-            <div className="sm:hidden"><Refletor lampadas={refletores[1]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[1]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={refletores[1]} scale={1} /></div>
-            <div className="sm:hidden"><Refletor lampadas={refletores[2]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={refletores[2]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={refletores[2]} scale={1} /></div>
           </motion.div>
         )}
 
         {fase === 'refletoresSubindo' && (
           <motion.div
-            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around"
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: 0 }}
             animate={{ y: -160 }}
             transition={{ y: { duration: 1.8, ease: [0.62, 0, 0.38, 1] } }}
           >
-            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
-            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
-            <div className="sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.55} /></div>
+            <div className="block sm:hidden"><Refletor lampadas={[true, true, true]} scale={0.45} /></div>
             <div className="hidden sm:block"><Refletor lampadas={[true, true, true]} scale={1} /></div>
           </motion.div>
         )}
