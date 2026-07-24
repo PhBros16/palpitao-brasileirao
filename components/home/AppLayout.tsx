@@ -17,7 +17,6 @@ import { lerPerfilCache, salvarPerfilCache } from '@/lib/perfilCache'
 import { HeaderUsuario } from './HeaderUsuario'
 import { NavAbas } from './NavAbas'
 import { PlayerMusica } from './PlayerMusica'
-import { PageTransition } from './PageTransition'
 import { FundoAnimado } from './FundoAnimado'
 import { SkeletonHeader, SkeletonNav, SkeletonConteudo } from './AppLayoutSkeleton'
 import { LuzesAmbiente } from './LuzesAmbiente'
@@ -57,16 +56,17 @@ export function AppLayout({
     }
     setSessao(s)
 
+    // Sempre renderiza IMEDIATAMENTE (com cache ou vazio)
     const cache = lerPerfilCache(s.id)
     if (cache) {
       setIsAdmin(cache.isAdmin)
       setAvatar(cache.avatar)
       setEmoji(cache.emoji)
-      setProntoParaRenderizar(true)
-      revalidarPerfil(s.id, s.nome)
-    } else {
-      carregarPerfilInicial(s.id, s.nome)
     }
+    setProntoParaRenderizar(true)
+
+    // Revalida em background — não bloqueia
+    revalidarPerfil(s.id, s.nome)
   }, [])
 
   async function carregarPerfilInicial(pid: string, nome: string) {
@@ -148,7 +148,7 @@ export function AppLayout({
         <NavAbas isAdmin={isAdmin} />
         {mostrarPlayer && <PlayerMusica />}
 
-        <PageTransition>{children}</PageTransition>
+                {children}
       </div>
     </main>
   )
