@@ -6,6 +6,7 @@
 import { motion } from 'framer-motion'
 import { Accordion } from './Accordion'
 import { BannerPalpite } from './BannerPalpite'
+import { BotoesLuz } from './BotoesLuz'
 import { CardDestaque } from './CardDestaque'
 import { MiniPlayer } from './MiniPlayer'
 import { SecaoDistribuicao } from './SecaoDistribuicao'
@@ -98,6 +99,11 @@ export function HomeScreen({ data }: { data: HomeData }) {
           <SecaoFixa titulo="Pódio Atual">
             <SecaoPodio podio={data.podio} />
           </SecaoFixa>
+        </motion.div>
+
+        {/* 9 · Botões de Luz (Chamar TI + Interruptor) */}
+        <motion.div variants={item}>
+          <BotoesLuz />
         </motion.div>
       </motion.div>
     </main>
