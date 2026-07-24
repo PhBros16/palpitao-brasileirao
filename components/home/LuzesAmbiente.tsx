@@ -3,14 +3,23 @@
 // LuzesAmbiente — Sistema completo de iluminação "estádio velho".
 //
 // Features:
-// 1. Sequência inicial (1x/sessão)
-// 2. Loop de queima com cansaço acumulado
-// 3. Rajada de vento (2-4min)
-// 4. Momento de silêncio (1x/sessão)
-// 5. 20% chance de lâmpada nascer queimada
+// 1. Sequência inicial (1x/sessão) — refletores descem, ligam gradualmente,
+//    dissipam a escuridão global e sobem.
+// 2. Loop de queima com cansaço acumulado — halos gaguejam e piscam.
+// 3. Rajada de vento (2-4min) — todos halos tremem sincronizados.
+// 4. Momento de silêncio (1x/sessão) — escurece 0.6s.
+// 5. 20% chance de lâmpada nascer queimada.
 // 6. Eventos externos:
 //    - 'palpitao:chamarTI' → conserta tudo, roda mini-sequência
 //    - 'palpitao:alternarInterruptor' → liga/desliga tudo
+//
+// Regra de overlay CSS (globals.css):
+//   - Adiciona 'overlay-escuro-ativo' APENAS quando vai rodar sequência
+//     inicial ou quando interruptor está desligado.
+//   - Adiciona 'luzes-ligadas' quando os refletores terminaram de acender
+//     (dispara fade-out do overlay).
+//   - Se a sessão já rodou (usuário navegou entre abas), NÃO adiciona
+//     nenhuma classe → nada de overlay → Home aparece limpa.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
@@ -159,10 +168,34 @@ export function LuzesAmbiente() {
 
   const lampadaQueimada = useRef<[number, number]>(lerLampadaQueimada())
 
-  const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>({
-    0: [false, false, false],
-    1: [false, false, false],
-    2: [false, false, false],
+  // Estado final das lâmpadas quando "operando" (todas acesas, exceto a queimada)
+  function estadoFinalRefletor(idx: number): EstadoLampadas {
+    const base: EstadoLampadas = [true, true, true]
+    if (lampadaQueimada.current[0] === idx) {
+      const l = lampadaQueimada.current[1]
+      if (l >= 0 && l < 3) base[l] = false
+    }
+    return base
+  }
+
+  const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>(() => {
+    // Se sessão já rodou, começa com lâmpadas acesas (mesmo estado visual do final da sequência)
+    if (typeof window !== 'undefined') {
+      try {
+        if (sessionStorage.getItem(CHAVE_SESSAO) === '1' && sessionStorage.getItem(CHAVE_INTERRUPTOR) !== '1') {
+          return {
+            0: [true, true, true],
+            1: [true, true, true],
+            2: [true, true, true],
+          }
+        }
+      } catch { /* ignora */ }
+    }
+    return {
+      0: [false, false, false],
+      1: [false, false, false],
+      2: [false, false, false],
+    }
   })
 
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
@@ -170,6 +203,7 @@ export function LuzesAmbiente() {
   const [escuridaoGlobal, setEscuridaoGlobal] = useState(() => {
     if (typeof window === 'undefined') return 0
     try {
+      if (sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1') return 0.7
       return sessionStorage.getItem(CHAVE_SESSAO) === '1' ? 0 : 0.65
     } catch {
       return 0.65
@@ -184,16 +218,24 @@ export function LuzesAmbiente() {
   const interruptorDesligado = useRef<boolean>(false)
 
   useEffect(() => {
-    // Ativa o overlay CSS APENAS quando LuzesAmbiente monta (dentro do AppLayout)
+    // Decide qual classe adicionar ao body baseado no estado da sessão
     try {
-      document.body.classList.add('overlay-escuro-ativo')
       interruptorDesligado.current = sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1'
+      const sessaoJaRodou = sessionStorage.getItem(CHAVE_SESSAO) === '1'
+
       if (interruptorDesligado.current) {
-        setEscuridaoGlobal(0.7)
-        setHalosBrilho({ 0: -0.9, 1: -0.9, 2: -0.9 })
-      }
-      if (sessionStorage.getItem(CHAVE_SESSAO) === '1' && !interruptorDesligado.current) {
-        document.body.classList.add('luzes-ligadas')
+        // Interruptor desligado → escurece manualmente
+        document.body.classList.add('overlay-escuro-ativo')
+        // NÃO adiciona luzes-ligadas → overlay fica opaco
+      } else if (sessaoJaRodou) {
+        // Sessão já rodou (navegação entre abas) → sem overlay
+        // Home fica limpa, luzes já estão "ligadas" no estado inicial
+        document.body.classList.remove('overlay-escuro-ativo')
+        document.body.classList.remove('luzes-ligadas')
+      } else {
+        // Primeira vez na sessão → ativa overlay pra sequência rodar
+        document.body.classList.add('overlay-escuro-ativo')
+        // luzes-ligadas será adicionada ao final da sequência
       }
     } catch { /* ignora */ }
 
@@ -242,15 +284,6 @@ export function LuzesAmbiente() {
       await new Promise((res) => setTimeout(res, 180 + Math.random() * 200))
       if (!mounted()) return
     }
-  }
-
-  function estadoFinalRefletor(idx: number): EstadoLampadas {
-    const base: EstadoLampadas = [true, true, true]
-    if (lampadaQueimada.current[0] === idx) {
-      const l = lampadaQueimada.current[1]
-      if (l >= 0 && l < 3) base[l] = false
-    }
-    return base
   }
 
   // Eventos externos
@@ -361,9 +394,10 @@ export function LuzesAmbiente() {
 
         setRefletoresExtras('nenhum')
 
-        // Remove classe pra CSS deixar escuro
+        // Ativa overlay CSS pra escuridão persistir
         try {
           document.body.classList.remove('luzes-ligadas')
+          document.body.classList.add('overlay-escuro-ativo')
         } catch { /* ignora */ }
       } else {
         // Ligando de volta
@@ -402,6 +436,11 @@ export function LuzesAmbiente() {
         if (!alive) { eventoAtivo.current = false; return }
 
         setRefletoresExtras('nenhum')
+
+        // Como está ligado, dissipa overlay
+        try {
+          document.body.classList.remove('overlay-escuro-ativo')
+        } catch { /* ignora */ }
       }
 
       eventoAtivo.current = false
@@ -467,21 +506,27 @@ export function LuzesAmbiente() {
       if (!alive) return
 
       setFase('refletoresSubindo')
+
+      // Ao iniciar subida, dissipa overlay CSS
+      try {
+        document.body.classList.add('luzes-ligadas')
+      } catch { /* ignora */ }
+
       await new Promise((r) => setTimeout(r, 1800))
       if (!alive) return
 
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
 
-      try {
-        document.body.classList.add('luzes-ligadas')
-      } catch { /* ignora */ }
-
-      await new Promise((r) => setTimeout(r, 2000))
+      await new Promise((r) => setTimeout(r, 1000))
       if (!alive) return
 
       try {
         sessionStorage.setItem(CHAVE_SESSAO, '1')
+        // Depois da sequência completa, pode remover overlay (luzes-ligadas
+        // já mantém opacity:0, mas remover a classe base evita reflow futuro)
+        document.body.classList.remove('overlay-escuro-ativo')
+        document.body.classList.remove('luzes-ligadas')
       } catch { /* ignora */ }
 
       setFase('operando')
@@ -724,7 +769,7 @@ export function LuzesAmbiente() {
         {(mostrarRefletoresSequenciaInicial || mostrarRefletoresExtras) && (
           <motion.div
             key="refletores-descendo"
-            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[50] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: -140 }}
             animate={{ y: 0 }}
@@ -743,7 +788,7 @@ export function LuzesAmbiente() {
         {(mostrarRefletoresSubindo || mostrarRefletoresExtrasSubindo) && (
           <motion.div
             key="refletores-subindo"
-            className="pointer-events-none fixed left-0 right-0 top-0 z-[10] flex items-start justify-around px-2"
+            className="pointer-events-none fixed left-0 right-0 top-0 z-[50] flex items-start justify-around px-2"
             style={{ maxWidth: '100vw' }}
             initial={{ y: 0 }}
             animate={{ y: -160 }}
