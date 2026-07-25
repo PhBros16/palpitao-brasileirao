@@ -8,6 +8,16 @@ export interface ClassificacaoLinha {
   saldo: number
   /** Projeção de campeão em %. */
   projecao: number
+  /**
+   * Avatar em base64 (ou URL) — vindo do participants.avatar.
+   * OPCIONAL: mocks e testes não precisam preencher.
+   */
+  avatar?: string | null
+  /**
+   * Emoji do participante — vindo do participants.emoji.
+   * OPCIONAL: mocks e testes não precisam preencher.
+   */
+  emoji?: string | null
 }
 
 export interface EvolucaoSerie {
