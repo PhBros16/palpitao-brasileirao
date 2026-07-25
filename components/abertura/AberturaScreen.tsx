@@ -256,7 +256,7 @@ export function AberturaScreen() {
           height: ALTURA_CENA,
           flex: 'none',
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'visible',
           perspective: 1700,
           perspectiveOrigin: '52% 45%',
           transform: `scale(${escala})`,
