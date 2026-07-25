@@ -21,7 +21,7 @@ export function CapaAlbum({
 }) {
   return (
     <div
-      className="absolute overflow-hidden"
+      className="absolute"
       style={{
         top: 0,
         left: 0,
