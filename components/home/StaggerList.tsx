@@ -1,68 +1,76 @@
 'use client'
 
-// StaggerList — wrapper que aplica entrada em cascata nos filhos.
-// Cada filho aparece com delay incremental (fade + slide up sutil).
+import { motion, type Variants } from 'framer-motion'
+import { ReactNode, ElementType } from 'react'
 
-import { motion } from 'framer-motion'
-
-const container = {
-  hidden: { opacity: 1 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.05,
-    },
-  },
+interface StaggerListProps {
+  children: ReactNode
+  className?: string
+  itemClassName?: string
+  as?: ElementType
+  delay?: number
+  duration?: number
+  staggerDelay?: number
+  yOffset?: number
 }
 
-const item = {
-  hidden: { opacity: 0, y: 12 },
+const containerVariants = (delay: number, staggerDelay: number): Variants => ({
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: delay,
+      staggerChildren: staggerDelay,
+    },
+  },
+})
+
+const itemVariants = (duration: number, yOffset: number): Variants => ({
+  hidden: { opacity: 0, y: yOffset },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.35,
-      ease: [0.32, 0.72, 0, 1],
+      duration,
+      ease: [0.32, 0.72, 0, 1] as const,
     },
   },
-}
+})
 
-export function StaggerList({
+export default function StaggerList({
   children,
-  className,
-  as: Component = 'div',
-}: {
-  children: React.ReactNode
-  className?: string
-  as?: 'div' | 'ul' | 'ol' | 'tbody'
-}) {
-  const MotionComponent = motion[Component as 'div']
+  className = '',
+  itemClassName = '',
+  as: Tag = 'div',
+  delay = 0,
+  duration = 0.35,
+  staggerDelay = 0.07,
+  yOffset = 16,
+}: StaggerListProps) {
+  const MotionComponent = motion(Tag as ElementType)
+  const MotionItem = motion.div
+
   return (
     <MotionComponent
-      variants={container}
+      variants={containerVariants(delay, staggerDelay)}
       initial="hidden"
       animate="visible"
       className={className}
     >
-      {children}
-    </MotionComponent>
-  )
-}
-
-export function StaggerItem({
-  children,
-  className,
-  as: Component = 'div',
-}: {
-  children: React.ReactNode
-  className?: string
-  as?: 'div' | 'li' | 'tr'
-}) {
-  const MotionComponent = motion[Component as 'div']
-  return (
-    <MotionComponent variants={item} className={className}>
-      {children}
+      {Array.isArray(children)
+        ? children.map((child, i) => (
+            <MotionItem
+              key={i}
+              variants={itemVariants(duration, yOffset)}
+              className={itemClassName}
+            >
+              {child}
+            </MotionItem>
+          ))
+        : (
+          <MotionItem variants={itemVariants(duration, yOffset)} className={itemClassName}>
+            {children}
+          </MotionItem>
+        )}
     </MotionComponent>
   )
 }
