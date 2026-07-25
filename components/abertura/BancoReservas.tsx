@@ -94,7 +94,7 @@ export function BancoReservas({
           numero=""
           entrada={admin.entrada}
           variante="admin"
-          onClick={onEntrarAdmin}
+          onClick={onEntrarAdmin ? (e) => { e.stopPropagation(); onEntrarAdmin() } : undefined}
         />
       </div>
     </div>
