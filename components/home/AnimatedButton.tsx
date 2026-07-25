@@ -6,13 +6,17 @@
 // - Loading state com spinner
 // - Vibração leve em mobile (haptic)
 // - Disabled com opacidade suave
+//
+// Nota TS: estende HTMLMotionProps<'button'> (não ButtonHTMLAttributes) pra
+// evitar conflito entre onAnimationStart do HTML (AnimationEventHandler) e
+// o do Framer Motion (recebe AnimationDefinition).
 
-import { motion } from 'framer-motion'
+import { motion, type HTMLMotionProps } from 'framer-motion'
 import { forwardRef } from 'react'
 
 export type ButtonVariant = 'gold' | 'green' | 'danger' | 'outline' | 'whatsapp' | 'ghost'
 
-interface AnimatedButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> {
+interface AnimatedButtonProps extends Omit<HTMLMotionProps<'button'>, 'onClick' | 'children'> {
   variant?: ButtonVariant
   loading?: boolean
   hapticFeedback?: boolean
