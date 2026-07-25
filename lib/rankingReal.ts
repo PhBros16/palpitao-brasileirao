@@ -199,7 +199,12 @@ export async function buscarRodadasParaFrenteAFrente(): Promise<RodadaFinalizada
     .eq('finalized', true)
     .order('number', { ascending: false })
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    numero: r.number,
+    nome: r.name,
+    is_double: r.is_double,
+  }))
 }
 
 export async function buscarFrenteAFrente(
