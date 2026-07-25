@@ -44,7 +44,7 @@ export function CenaEstadio({
   const offset = (total: number) => (revelado ? 0 : total)
 
   return (
-    <div className="absolute inset-0" style={{ background: 'var(--campo-200)' }}>
+    <div className="absolute inset-0" style={{ background: 'var(--campo-200)', zIndex: 0 }}>
       {/* faixas de corte — deriva lenta contínua, como se o vento movesse a grama */}
       <div
         className={styles.grassDrift}
