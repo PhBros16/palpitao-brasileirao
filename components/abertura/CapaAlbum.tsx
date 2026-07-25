@@ -66,7 +66,7 @@ export function CapaAlbum({
       {/* luz ambiente quente incidindo de cima */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ mixBlendMode: 'screen', background: 'radial-gradient(58% 42% at 50% 6%, color-mix(in srgb, var(--dourado-100) 40%, transparent) 0%, color-mix(in srgb, var(--dourado-400) 16%, transparent) 40%, transparent 72%)' }}
+        style={{ background: 'radial-gradient(58% 42% at 50% 6%, color-mix(in srgb, var(--dourado-100) 40%, transparent) 0%, color-mix(in srgb, var(--dourado-400) 16%, transparent) 40%, transparent 72%)' }}
       />
 
       {/* poeira dourada caindo, concentrada perto da luz */}
@@ -219,7 +219,7 @@ export function CapaAlbum({
       {/* reflexo de verniz — faixa diagonal clara cruzando ocasionalmente */}
       <div
         className={`pointer-events-none absolute ${styles.coverVarnishPass}`}
-        style={{ inset: '-20% -10%', mixBlendMode: 'soft-light', opacity: 0, background: 'linear-gradient(105deg, transparent 45%, color-mix(in srgb, var(--papel-100) 55%, transparent) 50%, transparent 55%)' }}
+        style={{ inset: '-20% -10%', opacity: 0, background: 'linear-gradient(105deg, transparent 45%, color-mix(in srgb, var(--papel-100) 55%, transparent) 50%, transparent 55%)' }}
       />
 
       {/* vinheta — respiração lenta e contínua */}
