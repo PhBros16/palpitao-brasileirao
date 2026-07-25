@@ -1,19 +1,24 @@
 import type { Metadata, Viewport } from 'next'
-import Script from 'next/script'
-import './globals.css'
 import { ToastProvider } from '@/components/home/Toast'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Palpitão Copa do Mundo 2026',
-  description: 'Bolão Copa do Mundo 2026',
+  title: 'Palpitão Brasileirão',
+  description: 'Bolão do Campeonato Brasileiro Série A',
   manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Palpitão',
+  },
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>',
+    icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
 }
 
 export const viewport: Viewport = {
+  themeColor: '#8B5A2B',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -25,22 +30,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <head>
-        <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body style={{margin:0,padding:0}}>
+      <body style={{ margin: 0, padding: 0 }}>
         <ToastProvider>
           {children}
         </ToastProvider>
-        <Script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer strategy="afterInteractive"/>
-        <Script id="onesignal-init" strategy="afterInteractive" dangerouslySetInnerHTML={{__html: `
-          window.OneSignalDeferred = window.OneSignalDeferred || [];
-          OneSignalDeferred.push(async function(OneSignal) {
-            await OneSignal.init({
-              appId: "d925369e-0929-43a2-b17c-ffdc11bfae8f",
-              notifyButton: { enable: false },
-            });
-          });
-        `}}/>
       </body>
     </html>
   )
