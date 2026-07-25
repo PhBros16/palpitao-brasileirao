@@ -65,7 +65,7 @@ const podioColunaVariants = {
 }
 
 // Círculo de foto/iniciais 24×24 pra usar na tabela do ranking.
-function AvatarMini({ avatar, nome }: { avatar: string | null; nome: string }) {
+function AvatarMini({ avatar, nome }: { avatar: string | null | undefined; nome: string }) {
   if (avatar) {
     return (
       <span className="flex h-6 w-6 flex-shrink-0 overflow-hidden rounded-full border border-dourado-300 bg-papel-100">
