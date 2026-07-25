@@ -271,7 +271,7 @@ export function AberturaScreen() {
           style={{
             position: 'absolute',
             inset: 0,
-            transformStyle: 'preserve-3d',
+            transformStyle: 'flat',
             willChange: 'transform',
           }}
         >
