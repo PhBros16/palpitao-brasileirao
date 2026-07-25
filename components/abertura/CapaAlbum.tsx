@@ -195,7 +195,7 @@ export function CapaAlbum({
         {/* botão — aparece só depois de 1.8s (dá tempo do usuário absorver a capa) */}
         <button
           type="button"
-          onClick={onAbrir}
+          onClick={(e) => { e.stopPropagation(); onAbrir() }}
           className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse} ${styles.buttonReveal}`}
           style={{
             borderColor: 'var(--dourado-700)',
