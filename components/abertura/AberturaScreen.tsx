@@ -356,7 +356,7 @@ export function AberturaScreen() {
         <PinModal
           player={pinPlayer}
           onFechar={() => setPinPlayer(null)}
-          onSucesso={handlePinSucesso}
+          onSucesso={handlePinSucesso as (player: any) => void}
         />
       )}
 
