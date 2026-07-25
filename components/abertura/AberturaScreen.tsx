@@ -3,17 +3,20 @@
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
 // campinho revelado. PIN correto → efeito de RASGO DE PÁGINA → navega pra Home.
 //
-// Mudanças v7:
-// - Fundo externo: <FundoMesa /> (mesa de madeira envelhecida + cone de luz
-//   descendo do topo + poeira suspensa). Substitui bg-campo-noturno.
-// - Removido o "verso da página" antigo que aparecia na virada PIN → Home
-//   (era uma página bege sólida sem contexto, ficava esquisito).
-// - Novo fluxo PIN → Home:
-//     1. PIN correto → dispara <RasgoParaHome />
-//     2. Rasgo cobre a tela cobrindo a cena do estádio
-//     3. Duas metades da página se separam com flash dourado
-//     4. Ao final do rasgo (~1300ms), navega pra /inicio ou /admin
-//   Muito mais orgânico e cinematográfico que o flip anterior.
+// Estrutura da hierarquia 3D (crítico — não mexer sem testar em mobile):
+//   root outerRef (fixed, contém FundoMesa e a cena escalada)
+//     └─ .cena (390x844, scaled, perspective, contém tudo o resto)
+//        └─ wrapper 3D (preserve-3d)
+//           └─ div (backfaceVisibility hidden)
+//              └─ onClick=handleFechar (cursor-pointer, overflow-hidden)
+//                 ├─ CenaEstadio (revelado)
+//                 ├─ BancoReservas
+//                 ├─ gradiente sombra esquerda
+//                 ├─ PoeiraTransicao
+//                 └─ wrapper flip da CAPA (rotateY 0 → -180)
+//                    ├─ CapaAlbum (frente)
+//                    ├─ CapaVerso (verso)
+//                    └─ CapaEspessura
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -57,7 +60,6 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  // Rasgo → Home
   const [rasgando, setRasgando] = useState(false)
   const destinoNav = useRef<string>('/inicio')
 
@@ -197,7 +199,6 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    // Dispara rasgo. onCompleto do rasgo (chamado após ~1300ms) faz o router.push
     destinoNav.current = player.isAdmin ? '/admin' : '/inicio'
     setRasgando(true)
   }, [])
@@ -265,6 +266,7 @@ export function AberturaScreen() {
           boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
         }}
       >
+        {/* Wrapper 3D — mantido igual ao original que funcionava */}
         <div
           style={{
             position: 'absolute',
@@ -280,7 +282,11 @@ export function AberturaScreen() {
               backfaceVisibility: 'hidden',
             }}
           >
-            <div onClick={handleFechar} className="absolute inset-0 cursor-pointer overflow-hidden" style={{ isolation: 'isolate' }}>
+            <div
+              onClick={handleFechar}
+              className="absolute inset-0 cursor-pointer overflow-hidden"
+              style={{ isolation: 'isolate' }}
+            >
               <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
               <BancoReservas
                 revelado={revelado}
@@ -296,37 +302,38 @@ export function AberturaScreen() {
               />
 
               <PoeiraTransicao fase={fasePoeira} />
-            </div>
 
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                transformOrigin: 'left center',
-                transformStyle: 'preserve-3d',
-                willChange: 'transform',
-                transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
-                transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-                opacity: capaVisivel ? 1 : 0,
-                pointerEvents: capaVisivel ? 'auto' : 'none',
-              }}
-            >
-              <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
-                <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
-              </div>
+              {/* CAPA (frente + verso + espessura) — precisa ficar DENTRO do onClick handler */}
               <div
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  visibility: mostrarVerso ? 'visible' : 'hidden',
                   transformOrigin: 'left center',
-                  transform: 'rotateY(180deg) translateZ(14px)',
-                  backfaceVisibility: 'hidden',
+                  transformStyle: 'preserve-3d',
+                  willChange: 'transform',
+                  transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
+                  transform: aberto ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                  opacity: capaVisivel ? 1 : 0,
+                  pointerEvents: capaVisivel ? 'auto' : 'none',
                 }}
               >
-                <CapaVerso />
+                <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
+                  <CapaAlbum onAbrir={handleAbrir} parallax={parallax} sombraAbertura={aberto ? 0.55 : 0} />
+                </div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    visibility: mostrarVerso ? 'visible' : 'hidden',
+                    transformOrigin: 'left center',
+                    transform: 'rotateY(180deg) translateZ(14px)',
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  <CapaVerso />
+                </div>
+                <CapaEspessura />
               </div>
-              <CapaEspessura />
             </div>
           </div>
         </div>
