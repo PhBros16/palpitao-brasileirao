@@ -10,130 +10,318 @@
  */
 
 /* ===== TESTE DIAGNÓSTICO — remover depois ===== */
-.goldDustFall, .medallionShimmer, .grassDrift, .vignettePulse, .grainJitter,
-.leatherContrastShift, .leatherWearShift, .coverShadowPass {
+.goldDustFall,
+.medallionShimmer,
+.grassDrift,
+.vignettePulse,
+.grainJitter,
+.leatherContrastShift,
+.leatherWearShift {
   animation: none !important;
 }
 /* ===== FIM TESTE DIAGNÓSTICO ===== */
 
 /* ===== Capa — ambiente/textura ===== */
 @keyframes leatherContrastShift {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 @keyframes leatherWearShift {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 @keyframes coverVignetteBreathe {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.88; }
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.88;
+  }
 }
 @keyframes coverShadowPass {
-  0% { opacity: 0; transform: translateX(-70%) rotate(6deg); }
-  6% { opacity: 0.32; }
-  17% { opacity: 0.32; transform: translateX(70%) rotate(6deg); }
-  23%, 100% { opacity: 0; transform: translateX(70%) rotate(6deg); }
+  0% {
+    opacity: 0;
+    transform: translateX(-70%);
+  }
+  6% {
+    opacity: 0.32;
+  }
+  17% {
+    opacity: 0.32;
+    transform: translateX(70%);
+  }
+  23%,
+  100% {
+    opacity: 0;
+    transform: translateX(70%);
+  }
 }
 @keyframes coverVarnishPass {
-  0% { opacity: 0; transform: translateX(-80%) rotate(20deg); }
-  5% { opacity: 0.45; }
-  15% { opacity: 0.45; transform: translateX(80%) rotate(20deg); }
-  21%, 100% { opacity: 0; transform: translateX(80%) rotate(20deg); }
+  0% {
+    opacity: 0;
+    transform: translateX(-80%) rotate(20deg);
+  }
+  5% {
+    opacity: 0.45;
+  }
+  15% {
+    opacity: 0.45;
+    transform: translateX(80%) rotate(20deg);
+  }
+  21%,
+  100% {
+    opacity: 0;
+    transform: translateX(80%) rotate(20deg);
+  }
 }
 @keyframes goldDustFall {
-  0% { transform: translate(0, 0); opacity: 0; }
-  10% { opacity: var(--dop, 0.5); }
-  88% { opacity: var(--dop, 0.5); }
-  100% { transform: translate(var(--ddrift, 6px), var(--dfall, 150px)); opacity: 0; }
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--dop, 0.5);
+  }
+  88% {
+    opacity: var(--dop, 0.5);
+  }
+  100% {
+    transform: translate(var(--ddrift, 6px), var(--dfall, 150px));
+    opacity: 0;
+  }
 }
 @keyframes medallionShimmer {
-  0% { left: -150%; }
-  30%, 100% { left: 180%; }
+  0% {
+    left: -150%;
+  }
+  30%,
+  100% {
+    left: 180%;
+  }
 }
 @keyframes titleShimmerPulse {
-  0%, 60% { text-shadow: 0 1px 0 var(--couro-600), 0 2px 3px rgba(0,0,0,0.5); }
-  78% {
-    text-shadow: 0 1px 0 var(--couro-600), 0 2px 3px rgba(0,0,0,0.5),
-      0 0 16px rgba(255,248,224,0.95), 0 0 5px rgba(255,255,255,0.85);
+  0%,
+  60% {
+    text-shadow:
+      0 1px 0 var(--couro-600),
+      0 2px 3px rgba(0, 0, 0, 0.5);
   }
-  100% { text-shadow: 0 1px 0 var(--couro-600), 0 2px 3px rgba(0,0,0,0.5); }
+  78% {
+    text-shadow:
+      0 1px 0 var(--couro-600),
+      0 2px 3px rgba(0, 0, 0, 0.5),
+      0 0 16px rgba(255, 248, 224, 0.95),
+      0 0 5px rgba(255, 255, 255, 0.85);
+  }
+  100% {
+    text-shadow:
+      0 1px 0 var(--couro-600),
+      0 2px 3px rgba(0, 0, 0, 0.5);
+  }
 }
 @keyframes buttonPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.015); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
 }
 
 /* ===== Campo — ambiente ===== */
 @keyframes grassDrift {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 208px; }
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 208px;
+  }
 }
 @keyframes vignettePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.86; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.86;
+  }
 }
 @keyframes dustFloat {
-  0% { transform: translate(0, 0); opacity: 0; }
-  12% { opacity: 0.55; }
-  50% { transform: translate(var(--dx), var(--dy)); opacity: 0.32; }
-  88% { opacity: 0.5; }
-  100% { transform: translate(calc(var(--dx) * -0.4), calc(var(--dy) * 2)); opacity: 0; }
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.32;
+  }
+  88% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(calc(var(--dx) * -0.4), calc(var(--dy) * 2));
+    opacity: 0;
+  }
 }
 
 /* ===== Jogadores — cascata de entrada + idle ===== */
 @keyframes filaUnica {
-  0% { transform: var(--t0); opacity: 0; }
-  18% { opacity: 1; }
-  32% { transform: var(--t1); opacity: 1; }
-  100% { transform: var(--t2); opacity: 1; }
+  0% {
+    transform: var(--t0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  32% {
+    transform: var(--t1);
+    opacity: 1;
+  }
+  100% {
+    transform: var(--t2);
+    opacity: 1;
+  }
 }
 @keyframes chipIdle {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.012); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.012);
+  }
 }
 
 /* ===== Transição de poeira pós-flip ===== */
 @keyframes windGust {
-  0% { opacity: 0; transform: translate(0, 10px) scaleY(0.7); }
-  22% { opacity: 0.4; }
-  65% { opacity: 0.22; }
-  100% { opacity: 0; transform: translate(var(--wdx, 0px), -230px) scaleY(1.15); }
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px) scaleY(0.7);
+  }
+  22% {
+    opacity: 0.4;
+  }
+  65% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--wdx, 0px), -230px) scaleY(1.15);
+  }
 }
 
 /* ===== Grão de filme sobre toda a cena ===== */
 @keyframes grainJitter {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-2%, -3%); }
-  20% { transform: translate(-5%, 2%); }
-  30% { transform: translate(3%, -5%); }
-  40% { transform: translate(-3%, 6%); }
-  50% { transform: translate(2%, -2%); }
-  60% { transform: translate(-6%, 3%); }
-  70% { transform: translate(5%, 5%); }
-  80% { transform: translate(-2%, -6%); }
-  90% { transform: translate(3%, 2%); }
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-2%, -3%);
+  }
+  20% {
+    transform: translate(-5%, 2%);
+  }
+  30% {
+    transform: translate(3%, -5%);
+  }
+  40% {
+    transform: translate(-3%, 6%);
+  }
+  50% {
+    transform: translate(2%, -2%);
+  }
+  60% {
+    transform: translate(-6%, 3%);
+  }
+  70% {
+    transform: translate(5%, 5%);
+  }
+  80% {
+    transform: translate(-2%, -6%);
+  }
+  90% {
+    transform: translate(3%, 2%);
+  }
 }
 
-.leatherContrastShift { animation: leatherContrastShift 9s ease-in-out infinite; }
-.leatherWearShift { animation: leatherWearShift 17s ease-in-out infinite; }
-.coverVignetteBreathe { animation: coverVignetteBreathe 12s ease-in-out infinite; }
-.coverShadowPass { animation: coverShadowPass 16s ease-in-out infinite 3s; }
-.coverVarnishPass { animation: coverVarnishPass 13s ease-in-out infinite 7s; }
-.goldDustFall { animation-name: goldDustFall; animation-timing-function: linear; animation-iteration-count: infinite; }
-.medallionShimmer { animation: medallionShimmer 6s ease-in-out infinite; }
-.titleShimmerPulse { animation: titleShimmerPulse 4.5s ease-in-out infinite; }
-.buttonPulse { animation: buttonPulse 2.6s ease-in-out infinite; }
-.grassDrift { animation: grassDrift 42s linear infinite; }
-.vignettePulse { animation: vignettePulse 9s ease-in-out infinite; }
-.dustFloat { animation-name: dustFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.leatherContrastShift {
+  animation: leatherContrastShift 9s ease-in-out infinite;
+}
+.leatherWearShift {
+  animation: leatherWearShift 17s ease-in-out infinite;
+}
+.coverVignetteBreathe {
+  animation: coverVignetteBreathe 12s ease-in-out infinite;
+}
+.coverShadowPass {
+  animation: coverShadowPass 16s ease-in-out infinite 3s;
+}
+.coverVarnishPass {
+  animation: coverVarnishPass 13s ease-in-out infinite 7s;
+}
+.goldDustFall {
+  animation-name: goldDustFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.medallionShimmer {
+  animation: medallionShimmer 6s ease-in-out infinite;
+}
+.titleShimmerPulse {
+  animation: titleShimmerPulse 4.5s ease-in-out infinite;
+}
+.buttonPulse {
+  animation: buttonPulse 2.6s ease-in-out infinite;
+}
+.grassDrift {
+  animation: grassDrift 42s linear infinite;
+}
+.vignettePulse {
+  animation: vignettePulse 9s ease-in-out infinite;
+}
+.dustFloat {
+  animation-name: dustFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
 
-.filaUnica { animation-name: filaUnica; animation-timing-function: cubic-bezier(0.16,1,0.3,1); animation-fill-mode: both; }
-.chipIdle { animation-name: chipIdle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.filaUnica {
+  animation-name: filaUnica;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+.chipIdle {
+  animation-name: chipIdle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
 
-.windGust { animation-name: windGust; animation-timing-function: ease-out; animation-iteration-count: 1; animation-fill-mode: both; }
+.windGust {
+  animation-name: windGust;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+}
 
-.grainJitter { animation: grainJitter 1s steps(10) infinite; }
+.grainJitter {
+  animation: grainJitter 1s steps(10) infinite;
+}
 
 /* Botão "Abrir Álbum" — aparece com fade + slide após 1.8s */
 .buttonReveal {
