@@ -9,18 +9,6 @@
  * figurinha.module.css (único CSS module do repo até então).
  */
 
-/* ===== TESTE DIAGNÓSTICO — remover depois ===== */
-.goldDustFall,
-.medallionShimmer,
-.grassDrift,
-.vignettePulse,
-.grainJitter,
-.leatherContrastShift,
-.leatherWearShift {
-  animation: none !important;
-}
-/* ===== FIM TESTE DIAGNÓSTICO ===== */
-
 /* ===== Capa — ambiente/textura ===== */
 @keyframes leatherContrastShift {
   0%,
@@ -341,5 +329,14 @@
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .goldDustFall,
+  .leatherContrastShift,
+  .leatherWearShift,
+  .grainJitter {
+    animation: none !important;
   }
 }
