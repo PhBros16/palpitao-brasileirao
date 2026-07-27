@@ -10,7 +10,8 @@
  */
 
 /* ===== TESTE DIAGNÓSTICO — remover depois ===== */
-.goldDustFall, .medallionShimmer, .grassDrift, .vignettePulse, .grainJitter {
+.goldDustFall, .medallionShimmer, .grassDrift, .vignettePulse, .grainJitter,
+.leatherContrastShift, .leatherWearShift {
   animation: none !important;
 }
 /* ===== FIM TESTE DIAGNÓSTICO ===== */
