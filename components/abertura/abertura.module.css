@@ -11,7 +11,7 @@
 
 /* ===== TESTE DIAGNÓSTICO — remover depois ===== */
 .goldDustFall, .medallionShimmer, .grassDrift, .vignettePulse, .grainJitter,
-.leatherContrastShift, .leatherWearShift {
+.leatherContrastShift, .leatherWearShift, .coverShadowPass {
   animation: none !important;
 }
 /* ===== FIM TESTE DIAGNÓSTICO ===== */
