@@ -85,3 +85,7 @@ body.overlay-escuro-ativo::before {
 body.overlay-escuro-ativo.luzes-ligadas::before {
   opacity: 0;
 }
+
+html, body {
+  touch-action: pan-y;
+}
