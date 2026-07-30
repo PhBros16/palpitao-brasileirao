@@ -336,7 +336,13 @@
   .goldDustFall,
   .leatherContrastShift,
   .leatherWearShift,
-  .grainJitter {
+  .grainJitter,
+  .coverVignetteBreathe,
+  .coverShadowPass,
+  .coverVarnishPass,
+  .titleShimmerPulse,
+  .buttonPulse,
+  .medallionShimmer {
     animation: none !important;
   }
 }
