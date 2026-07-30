@@ -88,4 +88,5 @@ body.overlay-escuro-ativo.luzes-ligadas::before {
 
 html, body {
   touch-action: pan-y;
+  background-color: #1f1206;
 }

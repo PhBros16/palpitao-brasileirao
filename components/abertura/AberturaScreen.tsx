@@ -254,7 +254,7 @@ export function AberturaScreen() {
       className="relative flex items-center justify-center overflow-hidden"
       style={{
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         minHeight: '-webkit-fill-available',
       }}
     >
