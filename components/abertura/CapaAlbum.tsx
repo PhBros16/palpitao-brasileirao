@@ -193,10 +193,11 @@ export function CapaAlbum({
         <div className="flex-1" />
 
         {/* botão — aparece só depois de 1.8s (dá tempo do usuário absorver a capa) */}
+        <div className={`w-full ${styles.buttonReveal}`}>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAbrir() }}
-          className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse} ${styles.buttonReveal}`}
+          className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse}`}
           style={{
             borderColor: 'var(--dourado-700)',
             padding: 16,
@@ -207,6 +208,7 @@ export function CapaAlbum({
         >
           ABRIR O ÁLBUM
         </button>
+        </div>
 
         <div className="flex-1" />
 
