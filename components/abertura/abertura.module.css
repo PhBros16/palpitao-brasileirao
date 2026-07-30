@@ -340,8 +340,7 @@
   .coverVignetteBreathe,
   .coverShadowPass,
   .coverVarnishPass,
-  .titleShimmerPulse,
-  .medallionShimmer {
+  .titleShimmerPulse {
     animation: none !important;
   }
 }
