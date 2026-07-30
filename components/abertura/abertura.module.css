@@ -337,7 +337,6 @@
   .leatherContrastShift,
   .leatherWearShift,
   .grainJitter,
-  .coverVignetteBreathe,
   .coverShadowPass,
   .coverVarnishPass {
     animation: none !important;
