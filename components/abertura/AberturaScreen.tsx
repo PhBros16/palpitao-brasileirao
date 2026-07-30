@@ -96,10 +96,12 @@ export function AberturaScreen() {
     if (outerRef.current) ro.observe(outerRef.current)
     window.addEventListener('resize', atualizar)
     window.addEventListener('orientationchange', atualizar)
+    window.visualViewport?.addEventListener('resize', atualizar)
     return () => {
       ro.disconnect()
       window.removeEventListener('resize', atualizar)
       window.removeEventListener('orientationchange', atualizar)
+      window.visualViewport?.removeEventListener('resize', atualizar)
     }
   }, [])
 
