@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import styles from './abertura.module.css'
 
 // CapaAlbum — face frontal da capa de couro: rótulo "ÁLBUM OFICIAL", medalhão
@@ -19,6 +20,12 @@ export function CapaAlbum({
   /** 0..1 — escurece a capa conforme ela gira ao abrir (controlado pelo AberturaScreen). */
   sombraAbertura: number
 }) {
+  const [botaoVisivel, setBotaoVisivel] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setBotaoVisivel(true), 1800)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <div
       className="absolute overflow-hidden"
@@ -193,22 +200,24 @@ export function CapaAlbum({
         <div className="flex-1" />
 
         {/* botão — aparece só depois de 1.8s (dá tempo do usuário absorver a capa) */}
-        <div className={`w-full ${styles.buttonReveal}`}>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAbrir() }}
-            className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse}`}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onAbrir() }}
+          className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${botaoVisivel ? styles.buttonPulse : ''}`}
           style={{
             borderColor: 'var(--dourado-700)',
             padding: 16,
             background:
               'repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.04) 1px 2px), linear-gradient(180deg, var(--dourado-200) 0%, var(--dourado-500) 50%, var(--dourado-600) 100%)',
             boxShadow: '0 3px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 0 rgba(90,60,10,0.45)',
+            opacity: botaoVisivel ? 1 : 0,
+            transform: botaoVisivel ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.96)',
+            transition: 'opacity 900ms cubic-bezier(0.32, 0.72, 0, 1), transform 900ms cubic-bezier(0.32, 0.72, 0, 1)',
+            pointerEvents: botaoVisivel ? 'auto' : 'none',
           }}
         >
           ABRIR O ÁLBUM
         </button>
-        </div>
 
         <div className="flex-1" />
 
