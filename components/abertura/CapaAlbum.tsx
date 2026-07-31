@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './abertura.module.css'
 
 // CapaAlbum — face frontal da capa de couro: rótulo "ÁLBUM OFICIAL", medalhão
@@ -21,10 +21,26 @@ export function CapaAlbum({
   sombraAbertura: number
 }) {
   const [botaoVisivel, setBotaoVisivel] = useState(false)
+  const [debug, setDebug] = useState('')
+  const botaoRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const t = setTimeout(() => setBotaoVisivel(true), 1800)
     return () => clearTimeout(t)
   }, [])
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const el = botaoRef.current
+      if (!el) { setDebug('botaoRef NULO'); return }
+      const cs = getComputedStyle(el)
+      const rect = el.getBoundingClientRect()
+      setDebug(JSON.stringify({
+        botaoVisivel, opacity: cs.opacity, display: cs.display, visibility: cs.visibility,
+        top: rect.top, left: rect.left, w: rect.width, h: rect.height,
+        winH: window.innerHeight, vvH: window.visualViewport?.height,
+      }))
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [botaoVisivel])
 
   return (
     <div
@@ -201,6 +217,7 @@ export function CapaAlbum({
 
         {/* botão — aparece só depois de 1.8s (dá tempo do usuário absorver a capa) */}
         <button
+          ref={botaoRef}
           type="button"
           onClick={(e) => { e.stopPropagation(); onAbrir() }}
           className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${botaoVisivel ? styles.buttonPulse : ''}`}
@@ -218,6 +235,9 @@ export function CapaAlbum({
         >
           ABRIR O ÁLBUM
         </button>
+        {debug && (
+          <pre style={{ position: 'fixed', top: 0, left: 0, zIndex: 999999, background: 'black', color: 'lime', fontSize: 9, padding: 6, maxWidth: '100vw', whiteSpace: 'pre-wrap' }}>{debug}</pre>
+        )}
 
         <div className="flex-1" />
 
