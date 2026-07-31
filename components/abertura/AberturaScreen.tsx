@@ -56,6 +56,7 @@ export function AberturaScreen() {
   const [fasePoeira, setFasePoeira] = useState<FasePoeira>('oculta')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const [escala, setEscala] = useState(1)
+  const [alturaViewport, setAlturaViewport] = useState<number | null>(null)
 
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
@@ -86,10 +87,11 @@ export function AberturaScreen() {
   useEffect(() => {
     const atualizar = () => {
       const el = outerRef.current
-      const w = window.innerWidth || el?.clientWidth || LARGURA_CENA
-      const h = window.innerHeight || el?.clientHeight || ALTURA_CENA
+      const w = window.visualViewport?.width || window.innerWidth || el?.clientWidth || LARGURA_CENA
+      const h = window.visualViewport?.height || window.innerHeight || el?.clientHeight || ALTURA_CENA
       const novoScale = Math.min(1, w / LARGURA_CENA, h / ALTURA_CENA)
       if (novoScale > 0) setEscala(novoScale)
+      setAlturaViewport(h)
     }
     atualizar()
     const ro = new ResizeObserver(atualizar)
@@ -256,7 +258,7 @@ export function AberturaScreen() {
       className="relative flex items-center justify-center overflow-hidden"
       style={{
         width: '100vw',
-        height: '100dvh',
+        height: alturaViewport ? `${alturaViewport}px` : '100dvh',
         minHeight: '-webkit-fill-available',
       }}
     >
