@@ -28,10 +28,12 @@ export function CapaAlbum({
       setBotaoVisivel(true)
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const el = botaoRef.current
-          if (el) {
-            void el.offsetHeight
-            el.style.webkitTransform = 'translateZ(0)'
+          const cena = document.querySelector('[data-cena-raiz]') as HTMLElement | null
+          if (cena) {
+            const prev = cena.style.display
+            cena.style.display = 'none'
+            void cena.offsetHeight
+            cena.style.display = prev
           }
         })
       })

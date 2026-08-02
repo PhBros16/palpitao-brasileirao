@@ -266,6 +266,7 @@ export function AberturaScreen() {
       <FundoMesa />
 
       <div
+        data-cena-raiz
         style={{
           width: LARGURA_CENA,
           height: ALTURA_CENA,
