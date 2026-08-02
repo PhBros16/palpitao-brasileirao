@@ -33,11 +33,18 @@ export function CapaAlbum({
       if (!el) { setDebug('botaoRef NULO'); return }
       const cs = getComputedStyle(el)
       const rect = el.getBoundingClientRect()
+      const capaRoot = el.closest('.absolute.overflow-hidden') as HTMLElement | null
+      const capaRect = capaRoot?.getBoundingClientRect()
       setDebug(JSON.stringify({
-        botaoVisivel, opacity: cs.opacity, display: cs.display, visibility: cs.visibility,
-        top: rect.top, left: rect.left, w: rect.width, h: rect.height,
-        winH: window.innerHeight, vvH: window.visualViewport?.height,
-      }))
+        botaoVisivel, opacity: cs.opacity,
+        btnLeft: Math.round(rect.left), btnTop: Math.round(rect.top), btnW: Math.round(rect.width), btnH: Math.round(rect.height),
+        capaLeft: capaRect ? Math.round(capaRect.left) : null,
+        capaTop: capaRect ? Math.round(capaRect.top) : null,
+        capaW: capaRect ? Math.round(capaRect.width) : null,
+        capaH: capaRect ? Math.round(capaRect.height) : null,
+        winW: window.innerWidth, winH: window.innerHeight,
+        vvW: window.visualViewport?.width, vvH: window.visualViewport?.height,
+      }, null, 1))
     }, 2500)
     return () => clearTimeout(t)
   }, [botaoVisivel])
