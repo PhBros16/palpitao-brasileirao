@@ -248,9 +248,11 @@ export function CapaAlbum({
               'repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.04) 1px 2px), linear-gradient(180deg, var(--dourado-200) 0%, var(--dourado-500) 50%, var(--dourado-600) 100%)',
             boxShadow: '0 3px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 0 rgba(90,60,10,0.45)',
             opacity: botaoVisivel ? 1 : 0,
-            transform: botaoVisivel ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.96)',
+            transform: botaoVisivel ? 'translateY(0) scale(1) translateZ(0)' : 'translateY(12px) scale(0.96) translateZ(0)',
             transition: 'opacity 900ms cubic-bezier(0.32, 0.72, 0, 1), transform 900ms cubic-bezier(0.32, 0.72, 0, 1)',
             pointerEvents: botaoVisivel ? 'auto' : 'none',
+            willChange: 'opacity, transform',
+            WebkitBackfaceVisibility: 'hidden',
           }}
         >
           ABRIR O ÁLBUM
