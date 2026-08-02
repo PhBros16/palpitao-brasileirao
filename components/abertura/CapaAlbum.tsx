@@ -24,7 +24,18 @@ export function CapaAlbum({
   const [debug, setDebug] = useState('')
   const botaoRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    const t = setTimeout(() => setBotaoVisivel(true), 1800)
+    const t = setTimeout(() => {
+      setBotaoVisivel(true)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = botaoRef.current
+          if (el) {
+            void el.offsetHeight
+            el.style.webkitTransform = 'translateZ(0)'
+          }
+        })
+      })
+    }, 1800)
     return () => clearTimeout(t)
   }, [])
   useEffect(() => {
