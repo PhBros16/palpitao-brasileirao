@@ -321,6 +321,16 @@
 }
 
 /* Botão "Abrir Álbum" — aparece com fade + slide após 1.8s */
+@keyframes buttonRevealLoop {
+  0% { opacity: 0; transform: translateY(12px) scale(0.96); }
+  0.05% { opacity: 0; transform: translateY(12px) scale(0.96); }
+  0.075% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.buttonRevealLoop {
+  animation: buttonRevealLoop 3600s ease-in-out infinite;
+}
+
 .buttonReveal {
   opacity: 0;
   transform: translateY(12px) scale(0.96);
