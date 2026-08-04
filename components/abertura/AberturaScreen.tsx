@@ -66,6 +66,7 @@ export function AberturaScreen() {
 
   const outerRef = useRef<HTMLDivElement>(null)
   const podeClicarCapa = useRef(false)
+  const [botaoAparente, setBotaoAparente] = useState(false)
 
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow
@@ -79,7 +80,10 @@ export function AberturaScreen() {
   }, [])
   const iniciado = useRef(false)
   useEffect(() => {
-    const t = setTimeout(() => { podeClicarCapa.current = true }, 1800)
+    const t = setTimeout(() => {
+      podeClicarCapa.current = true
+      setBotaoAparente(true)
+    }, 1800)
     return () => clearTimeout(t)
   }, [])
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
@@ -285,17 +289,19 @@ export function AberturaScreen() {
             position: 'fixed',
             left: 0,
             right: 0,
-            top: `calc(50% - 422px * ${escala} + 605px * ${escala})`,
+            top: `calc(50% - 422px * ${escala} + 560px * ${escala})`,
             margin: '0 auto',
-            width: `calc(334px * ${escala})`,
+            width: `calc(300px * ${escala})`,
             zIndex: 100,
             borderColor: 'var(--dourado-700)',
             padding: 16,
             background:
               'repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.04) 1px 2px), linear-gradient(180deg, var(--dourado-200) 0%, var(--dourado-500) 50%, var(--dourado-600) 100%)',
             boxShadow: '0 3px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 0 rgba(90,60,10,0.45)',
-            pointerEvents: aberto ? 'none' : 'auto',
-            opacity: aberto ? 0 : 1,
+            pointerEvents: (aberto || !botaoAparente) ? 'none' : 'auto',
+            opacity: aberto ? 0 : (botaoAparente ? 1 : 0),
+            transform: botaoAparente ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.96)',
+            transition: 'opacity 900ms cubic-bezier(0.32, 0.72, 0, 1), transform 900ms cubic-bezier(0.32, 0.72, 0, 1)',
           }}
         >
           ABRIR O ÁLBUM
