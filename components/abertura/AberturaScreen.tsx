@@ -65,6 +65,7 @@ export function AberturaScreen() {
   const destinoNav = useRef<string>('/inicio')
 
   const outerRef = useRef<HTMLDivElement>(null)
+  const podeClicarCapa = useRef(false)
 
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow
@@ -77,6 +78,10 @@ export function AberturaScreen() {
     }
   }, [])
   const iniciado = useRef(false)
+  useEffect(() => {
+    const t = setTimeout(() => { podeClicarCapa.current = true }, 1800)
+    return () => clearTimeout(t)
+  }, [])
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
 
   const limparTimers = useCallback(() => {
@@ -265,23 +270,32 @@ export function AberturaScreen() {
       {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
       <FundoMesa />
 
-      {/* TESTE — elemento fora de toda a árvore 3D, remover depois */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 100,
-          left: 0,
-          right: 0,
-          zIndex: 999999,
-          textAlign: 'center',
-          color: 'lime',
-          fontWeight: 'bold',
-          fontSize: 20,
-          animation: 'buttonPulse 2.6s ease-in-out infinite',
-        }}
-      >
-        TESTE FORA DO 3D
-      </div>
+      {/* botão "abrir álbum" — fica FORA da árvore 3D de propósito (bug de
+          repaint do Safari faz qualquer coisa dentro do preserve-3d aninhado
+          não pintar sem toque; fora dela, pinta normalmente). Posicionado por
+          cálculo matemático pra ficar visualmente sobre a capa. */}
+      {capaVisivel && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { if (!podeClicarCapa.current) return; e.stopPropagation(); handleAbrir() }}
+          onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && podeClicarCapa.current) { e.stopPropagation(); handleAbrir() } }}
+          className={`cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center transition-transform duration-150 ease-out active:scale-95 active:opacity-70 ${styles.buttonPulse}`}
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: `calc(50% - 422px * ${escala} + 545px * ${escala})`,
+            transform: 'translateX(-50%)',
+            width: `calc(334px * ${escala})`,
+            zIndex: 100,
+            color: 'var(--dourado-300)',
+            pointerEvents: aberto ? 'none' : 'auto',
+            opacity: aberto ? 0 : 1,
+          }}
+        >
+          ✦ toque para abrir o álbum ✦
+        </div>
+      )}
 
       <div
         data-cena-raiz

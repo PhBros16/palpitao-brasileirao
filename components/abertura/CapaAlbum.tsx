@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import styles from './abertura.module.css'
 
 // CapaAlbum — face frontal da capa de couro: rótulo "ÁLBUM OFICIAL", medalhão
@@ -20,13 +19,6 @@ export function CapaAlbum({
   /** 0..1 — escurece a capa conforme ela gira ao abrir (controlado pelo AberturaScreen). */
   sombraAbertura: number
 }) {
-  const podeClicar = useRef(false)
-  useEffect(() => {
-    const t = setTimeout(() => { podeClicar.current = true }, 1800)
-    return () => clearTimeout(t)
-  }, [])
-
-
   return (
     <div
       className="absolute overflow-hidden"
@@ -200,17 +192,7 @@ export function CapaAlbum({
 
         <div className="flex-1" />
 
-        {/* botão — visível desde o primeiro frame, com pulso contínuo */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={(e) => { if (!podeClicar.current) return; e.stopPropagation(); onAbrir() }}
-          onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && podeClicar.current) { e.stopPropagation(); onAbrir() } }}
-          className={`w-full cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center text-dourado-300 transition-transform duration-150 ease-out active:scale-95 active:text-dourado-100 ${styles.buttonPulse}`}
-          style={{ pointerEvents: 'auto', position: 'absolute', bottom: 140, left: 0, right: 0 }}
-        >
-          ✦ toque para abrir o álbum ✦
-        </div>
+        <div className="flex-1" />
 
         <div className="whitespace-nowrap font-mono text-[9px] tracking-[3px] text-couro-100">TEMPORADA 2026 · Nº 002</div>
       </div>
