@@ -206,7 +206,7 @@ export function CapaAlbum({
           tabIndex={0}
           onClick={(e) => { if (!podeClicar.current) return; e.stopPropagation(); onAbrir() }}
           onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && podeClicar.current) { e.stopPropagation(); onAbrir() } }}
-          className={`w-full cursor-pointer font-mono text-xs font-bold tracking-[4px] text-center text-dourado-300 ${styles.buttonPulse}`}
+          className={`w-full cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center text-dourado-300 transition-transform duration-150 ease-out active:scale-95 active:text-dourado-100 ${styles.buttonPulse}`}
           style={{ pointerEvents: 'auto' }}
         >
           ✦ toque para abrir o álbum ✦
