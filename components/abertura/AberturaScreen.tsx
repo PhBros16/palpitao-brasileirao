@@ -280,19 +280,25 @@ export function AberturaScreen() {
           tabIndex={0}
           onClick={(e) => { if (!podeClicarCapa.current) return; e.stopPropagation(); handleAbrir() }}
           onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && podeClicarCapa.current) { e.stopPropagation(); handleAbrir() } }}
-          className={`cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center transition-transform duration-150 ease-out active:scale-95 active:opacity-70 ${styles.buttonPulse}`}
+          className={`cursor-pointer select-none rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 text-center transition-transform duration-150 ease-out active:scale-95 ${styles.buttonPulse}`}
           style={{
             position: 'fixed',
             left: 0,
             right: 0,
-            top: `calc(50% - 422px * ${escala} + 545px * ${escala})`,
+            top: `calc(50% - 422px * ${escala} + 605px * ${escala})`,
+            margin: '0 auto',
+            width: `calc(334px * ${escala})`,
             zIndex: 100,
-            color: 'var(--dourado-300)',
+            borderColor: 'var(--dourado-700)',
+            padding: 16,
+            background:
+              'repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.04) 1px 2px), linear-gradient(180deg, var(--dourado-200) 0%, var(--dourado-500) 50%, var(--dourado-600) 100%)',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 0 rgba(90,60,10,0.45)',
             pointerEvents: aberto ? 'none' : 'auto',
             opacity: aberto ? 0 : 1,
           }}
         >
-          ✦ toque para abrir o álbum ✦
+          ABRIR O ÁLBUM
         </div>
       )}
 
