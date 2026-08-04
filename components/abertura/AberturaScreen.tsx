@@ -265,6 +265,24 @@ export function AberturaScreen() {
       {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
       <FundoMesa />
 
+      {/* TESTE — elemento fora de toda a árvore 3D, remover depois */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 100,
+          left: 0,
+          right: 0,
+          zIndex: 999999,
+          textAlign: 'center',
+          color: 'lime',
+          fontWeight: 'bold',
+          fontSize: 20,
+          animation: 'buttonPulse 2.6s ease-in-out infinite',
+        }}
+      >
+        TESTE FORA DO 3D
+      </div>
+
       <div
         data-cena-raiz
         style={{
