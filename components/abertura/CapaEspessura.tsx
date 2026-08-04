@@ -1,9 +1,9 @@
 'use client'
 
 // CapaEspessura — paredes sólidas que dão espessura real à capa (24px),
-// ligando a frente (z=0) ao verso (z=-24). Textura de "corte de páginas"
-// (listras finas simulando dezenas de folhas empilhadas) + acabamento
-// dourado na borda frontal, como um álbum de colecionador de verdade.
+// ligando a frente (z=0) ao verso (z=-24). Couro rústico, no mesmo tom
+// da lombada/capa (não dourado/página), com grão para não parecer plana
+// quando vista de canto durante o flip.
 export function CapaEspessura() {
   return (
     <>
@@ -15,8 +15,8 @@ export function CapaEspessura() {
           transformOrigin: 'right center',
           transform: 'rotateY(-90deg)',
           background:
-            'repeating-linear-gradient(0deg, rgba(255,248,224,0.9) 0 1px, rgba(60,40,15,0.4) 1px 2.2px), linear-gradient(90deg, var(--dourado-400) 0%, var(--dourado-200) 10%, var(--parede-200) 32%, var(--lombada-100) 58%, var(--parede-200) 100%)',
-          boxShadow: 'inset 0 0 12px rgba(0,0,0,0.55), inset 3px 0 0 rgba(255,220,140,0.35)',
+            'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.22) 2px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,0.08) 3px 4px), linear-gradient(90deg, var(--lombada-300) 0%, var(--lombada-100) 45%, var(--couro-500) 75%, var(--couro-600) 100%)',
+          boxShadow: 'inset 0 0 12px rgba(0,0,0,0.6), inset -2px 0 4px rgba(0,0,0,0.35)',
         }}
       />
       <div
@@ -26,7 +26,7 @@ export function CapaEspessura() {
           transformOrigin: 'center top',
           transform: 'rotateX(-90deg)',
           background:
-            'repeating-linear-gradient(90deg, rgba(255,248,224,0.5) 0 1px, rgba(60,40,15,0.3) 1px 2.2px), linear-gradient(180deg, var(--dourado-300) 0%, var(--parede-200), var(--couro-600))',
+            'repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,0.1) 3px 4px), linear-gradient(180deg, var(--couro-500), var(--couro-600))',
         }}
       />
       <div
@@ -36,7 +36,7 @@ export function CapaEspessura() {
           transformOrigin: 'center bottom',
           transform: 'rotateX(90deg)',
           background:
-            'repeating-linear-gradient(90deg, rgba(255,248,224,0.5) 0 1px, rgba(60,40,15,0.3) 1px 2.2px), linear-gradient(0deg, var(--dourado-300) 0%, var(--parede-200), var(--couro-600))',
+            'repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,0.1) 3px 4px), linear-gradient(0deg, var(--couro-500), var(--couro-600))',
         }}
       />
     </>
