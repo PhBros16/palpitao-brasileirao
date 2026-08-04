@@ -207,12 +207,10 @@ export function CapaAlbum({
           onClick={(e) => { if (!podeClicar.current) return; e.stopPropagation(); onAbrir() }}
           onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && podeClicar.current) { e.stopPropagation(); onAbrir() } }}
           className={`w-full cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center text-dourado-300 transition-transform duration-150 ease-out active:scale-95 active:text-dourado-100 ${styles.buttonPulse}`}
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'auto', position: 'absolute', bottom: 140, left: 0, right: 0 }}
         >
           ✦ toque para abrir o álbum ✦
         </div>
-
-        <div className="flex-1" />
 
         <div className="whitespace-nowrap font-mono text-[9px] tracking-[3px] text-couro-100">TEMPORADA 2026 · Nº 002</div>
       </div>
