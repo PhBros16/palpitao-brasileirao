@@ -283,10 +283,9 @@ export function AberturaScreen() {
           className={`cursor-pointer select-none font-mono text-xs font-bold tracking-[4px] text-center transition-transform duration-150 ease-out active:scale-95 active:opacity-70 ${styles.buttonPulse}`}
           style={{
             position: 'fixed',
-            left: '50%',
+            left: 0,
+            right: 0,
             top: `calc(50% - 422px * ${escala} + 545px * ${escala})`,
-            transform: 'translateX(-50%)',
-            width: `calc(334px * ${escala})`,
             zIndex: 100,
             color: 'var(--dourado-300)',
             pointerEvents: aberto ? 'none' : 'auto',
