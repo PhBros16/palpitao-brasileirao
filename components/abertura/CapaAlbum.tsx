@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
 import styles from './abertura.module.css'
 
 // CapaAlbum — face frontal da capa de couro: rótulo "ÁLBUM OFICIAL", medalhão
@@ -20,47 +19,6 @@ export function CapaAlbum({
   /** 0..1 — escurece a capa conforme ela gira ao abrir (controlado pelo AberturaScreen). */
   sombraAbertura: number
 }) {
-  const [botaoVisivel, setBotaoVisivel] = useState(false)
-  const [debug, setDebug] = useState('')
-  const botaoRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setBotaoVisivel(true)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const cena = document.querySelector('[data-cena-raiz]') as HTMLElement | null
-          if (cena) {
-            const prev = cena.style.display
-            cena.style.display = 'none'
-            void cena.offsetHeight
-            cena.style.display = prev
-          }
-        })
-      })
-    }, 1800)
-    return () => clearTimeout(t)
-  }, [])
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const el = botaoRef.current
-      if (!el) { setDebug('botaoRef NULO'); return }
-      const cs = getComputedStyle(el)
-      const rect = el.getBoundingClientRect()
-      const capaRoot = el.closest('.absolute.overflow-hidden') as HTMLElement | null
-      const capaRect = capaRoot?.getBoundingClientRect()
-      setDebug(JSON.stringify({
-        botaoVisivel, opacity: cs.opacity,
-        btnLeft: Math.round(rect.left), btnTop: Math.round(rect.top), btnW: Math.round(rect.width), btnH: Math.round(rect.height),
-        capaLeft: capaRect ? Math.round(capaRect.left) : null,
-        capaTop: capaRect ? Math.round(capaRect.top) : null,
-        capaW: capaRect ? Math.round(capaRect.width) : null,
-        capaH: capaRect ? Math.round(capaRect.height) : null,
-        winW: window.innerWidth, winH: window.innerHeight,
-        vvW: window.visualViewport?.width, vvH: window.visualViewport?.height,
-      }, null, 1))
-    }, 2500)
-    return () => clearTimeout(t)
-  }, [botaoVisivel])
 
   return (
     <div
@@ -235,9 +193,8 @@ export function CapaAlbum({
 
         <div className="flex-1" />
 
-        {/* botão — aparece só depois de 1.8s (dá tempo do usuário absorver a capa) */}
+        {/* botão — visível desde o primeiro frame, com pulso contínuo */}
         <button
-          ref={botaoRef}
           type="button"
           onClick={(e) => { e.stopPropagation(); onAbrir() }}
           className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse}`}
@@ -252,9 +209,6 @@ export function CapaAlbum({
         >
           ABRIR O ÁLBUM
         </button>
-        {debug && (
-          <pre style={{ position: 'fixed', top: 0, left: 0, zIndex: 999999, background: 'black', color: 'lime', fontSize: 9, padding: 6, maxWidth: '100vw', whiteSpace: 'pre-wrap' }}>{debug}</pre>
-        )}
 
         <div className="flex-1" />
 
