@@ -194,10 +194,12 @@ export function CapaAlbum({
         <div className="flex-1" />
 
         {/* botão — visível desde o primeiro frame, com pulso contínuo */}
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onAbrir() }}
-          className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 ${styles.buttonPulse}`}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onAbrir() } }}
+          className={`w-full cursor-pointer rounded-lg border font-mono text-sm font-bold tracking-[3px] text-couro-600 text-center ${styles.buttonPulse}`}
           style={{
             borderColor: 'var(--dourado-700)',
             padding: 16,
@@ -208,7 +210,7 @@ export function CapaAlbum({
           }}
         >
           ABRIR O ÁLBUM
-        </button>
+        </div>
 
         <div className="flex-1" />
 
