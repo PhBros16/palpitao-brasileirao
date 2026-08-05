@@ -38,8 +38,17 @@ export function CenaEstadio({
   const zDefesa = estiloZonaLuz(1, revelado)
   const zGoleiro = estiloZonaLuz(0, revelado)
 
-  const lineTransition = 'stroke-dashoffset 900ms ease-out'
-  const dotTransition = 'transform 500ms ease-out 700ms'
+  // escalona o desenho das linhas do campo pra bater com a cascata de luz das
+  // zonas (mesmo LUZ_TIER_STAGGER=180ms usado em estiloZonaLuz) — sem isso as
+  // linhas desenhavam tudo de uma vez, ficando nítidas mesmo em áreas ainda
+  // escuras, descasado da luz acendendo em cascata.
+  const lineTransitionAtaque = 'stroke-dashoffset 900ms ease-out 540ms'
+  const lineTransitionMeio = 'stroke-dashoffset 900ms ease-out 360ms'
+  const lineTransitionGoleiro = 'stroke-dashoffset 900ms ease-out 0ms'
+  const lineTransitionContorno = 'stroke-dashoffset 900ms ease-out 360ms'
+  const dotTransitionAtaque = 'transform 500ms ease-out 1080ms'
+  const dotTransitionMeio = 'transform 500ms ease-out 900ms'
+  const dotTransitionGoleiro = 'transform 500ms ease-out 540ms'
   const dotScale = revelado ? 'scale(1)' : 'scale(0)'
   const offset = (total: number) => (revelado ? 0 : total)
 
@@ -67,25 +76,25 @@ export function CenaEstadio({
       <div className="absolute" style={{ left: 12, right: 12, top: 12, height: 708, zIndex: 3 }}>
         {/* marcações do campo — traço se desenhando ao revelar */}
         <svg width={366} height={708} viewBox="0 0 366 708" className="pointer-events-none absolute inset-0 overflow-visible" fill="none">
-          <rect x={1} y={1} width={364} height={706} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.contorno, strokeDashoffset: offset(LINHAS.contorno), transition: lineTransition }} />
-          <line x1={0} y1={354} x2={366} y2={354} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.meio, strokeDashoffset: offset(LINHAS.meio), transition: lineTransition }} />
-          <circle cx={183} cy={354} r={49} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.centro, strokeDashoffset: offset(LINHAS.centro), transition: lineTransition }} />
-          <circle cx={183} cy={354} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransition }} />
+          <rect x={1} y={1} width={364} height={706} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.contorno, strokeDashoffset: offset(LINHAS.contorno), transition: lineTransitionContorno }} />
+          <line x1={0} y1={354} x2={366} y2={354} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.meio, strokeDashoffset: offset(LINHAS.meio), transition: lineTransitionMeio }} />
+          <circle cx={183} cy={354} r={49} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.centro, strokeDashoffset: offset(LINHAS.centro), transition: lineTransitionMeio }} />
+          <circle cx={183} cy={354} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransitionMeio }} />
 
-          <path d="M76,0 L76,98 L290,98 L290,0" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.grandeArea, strokeDashoffset: offset(LINHAS.grandeArea), transition: lineTransition }} />
-          <path d="M134,0 L134,33 L232,33 L232,0" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.pequenaArea, strokeDashoffset: offset(LINHAS.pequenaArea), transition: lineTransition }} />
-          <circle cx={183} cy={65} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransition }} />
-          <path d="M157,96 Q183,118 209,96" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.arcoCentral, strokeDashoffset: offset(LINHAS.arcoCentral), transition: lineTransition }} />
+          <path d="M76,0 L76,98 L290,98 L290,0" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.grandeArea, strokeDashoffset: offset(LINHAS.grandeArea), transition: lineTransitionAtaque }} />
+          <path d="M134,0 L134,33 L232,33 L232,0" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.pequenaArea, strokeDashoffset: offset(LINHAS.pequenaArea), transition: lineTransitionAtaque }} />
+          <circle cx={183} cy={65} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransitionAtaque }} />
+          <path d="M157,96 Q183,118 209,96" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.arcoCentral, strokeDashoffset: offset(LINHAS.arcoCentral), transition: lineTransitionAtaque }} />
 
-          <path d="M76,708 L76,610 L290,610 L290,708" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.grandeArea, strokeDashoffset: offset(LINHAS.grandeArea), transition: lineTransition }} />
-          <path d="M134,708 L134,675 L232,675 L232,708" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.pequenaArea, strokeDashoffset: offset(LINHAS.pequenaArea), transition: lineTransition }} />
-          <circle cx={183} cy={643} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransition }} />
-          <path d="M157,612 Q183,590 209,612" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.arcoCentral, strokeDashoffset: offset(LINHAS.arcoCentral), transition: lineTransition }} />
+          <path d="M76,708 L76,610 L290,610 L290,708" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.grandeArea, strokeDashoffset: offset(LINHAS.grandeArea), transition: lineTransitionGoleiro }} />
+          <path d="M134,708 L134,675 L232,675 L232,708" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.pequenaArea, strokeDashoffset: offset(LINHAS.pequenaArea), transition: lineTransitionGoleiro }} />
+          <circle cx={183} cy={643} r={3} fill="rgba(255,255,255,0.85)" style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: dotScale, transition: dotTransitionGoleiro }} />
+          <path d="M157,612 Q183,590 209,612" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.arcoCentral, strokeDashoffset: offset(LINHAS.arcoCentral), transition: lineTransitionGoleiro }} />
 
-          <path d="M1,13 A12,12 0 0 0 13,1" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransition }} />
-          <path d="M353,1 A12,12 0 0 0 365,13" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransition }} />
-          <path d="M13,707 A12,12 0 0 0 1,695" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransition }} />
-          <path d="M365,695 A12,12 0 0 0 353,707" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransition }} />
+          <path d="M1,13 A12,12 0 0 0 13,1" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransitionAtaque }} />
+          <path d="M353,1 A12,12 0 0 0 365,13" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransitionAtaque }} />
+          <path d="M13,707 A12,12 0 0 0 1,695" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransitionGoleiro }} />
+          <path d="M365,695 A12,12 0 0 0 353,707" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransitionGoleiro }} />
         </svg>
 
         {/* gols — rede em hachura, acende junto com a zona correspondente */}
