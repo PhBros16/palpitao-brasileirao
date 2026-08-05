@@ -75,7 +75,7 @@ export function BancoReservas({
         />
       </div>
 
-      <div className="relative flex items-start justify-evenly gap-2.5">
+      <div className="relative grid grid-cols-4 items-start justify-items-center gap-2.5">
         <ChipJogador
           iniciais={tecnico.iniciais}
           nome={tecnico.nome}

@@ -91,11 +91,12 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
             className="absolute -right-2 -top-2 flex h-[17px] w-[17px] items-center justify-center bg-couro-600"
             style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
           >
-            {/* apito — corpo circular + bocal + pérola, mais temático pra técnico que a lupa antiga */}
-            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="15" cy="11" r="5" />
-              <path d="M10 11H4v3h6" />
-              <circle cx="17" cy="10" r="1" fill="var(--dourado-100)" stroke="none" />
+            {/* prancheta — mais reconhecível como "técnico" que o apito na miniatura */}
+            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="4" width="14" height="17" rx="2" />
+              <rect x="9" y="2" width="6" height="3" rx="1" fill="var(--dourado-100)" stroke="none" />
+              <line x1="8" y1="11" x2="16" y2="11" />
+              <line x1="8" y1="15" x2="13" y2="15" />
             </svg>
           </span>
         ) : (
@@ -108,16 +109,26 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
         )}
       </div>
       <span
-        className="whitespace-nowrap font-mono uppercase text-papel-100"
+        className="flex flex-col items-center"
         style={{
-          fontSize: 8,
-          letterSpacing: variante === 'titular' ? '1px' : '0.3px',
-          textShadow: '0 1px 2px rgba(0,0,0,0.9)',
           opacity: entrada.nomeOpacity,
           transition: `opacity 350ms ease-out ${entrada.nomeTransitionDelay}`,
         }}
       >
-        {variante === 'admin' ? 'ADM' : nome}
+        {isTecnico && (
+          <span
+            className="whitespace-nowrap font-mono uppercase text-dourado-300"
+            style={{ fontSize: 6.5, letterSpacing: '1.5px', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+          >
+            TÉCNICO
+          </span>
+        )}
+        <span
+          className="whitespace-nowrap font-mono uppercase text-papel-100"
+          style={{ fontSize: 8, letterSpacing: variante === 'titular' ? '1px' : '0.3px', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+        >
+          {variante === 'admin' ? 'ADM' : nome}
+        </span>
       </span>
     </div>
   )
