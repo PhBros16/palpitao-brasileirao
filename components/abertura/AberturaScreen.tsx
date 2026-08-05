@@ -305,7 +305,7 @@ export function AberturaScreen() {
             pointerEvents: (aberto || !botaoAparente) ? 'none' : 'auto',
             opacity: aberto ? 0 : (botaoAparente ? 1 : 0),
             transform: botaoAparente ? 'translateY(0) scale(1)' : 'translateY(22px) scale(0.94)',
-            transition: 'opacity 1600ms ease-out, transform 1600ms ease-out',
+            transition: aberto ? 'opacity 250ms ease-in, transform 250ms ease-in' : 'opacity 1600ms ease-out, transform 1600ms ease-out',
           }}
         >
           ABRIR O ÁLBUM

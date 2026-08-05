@@ -87,10 +87,15 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
             </svg>
           </span>
         ) : isTecnico ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-[15px] w-[15px] items-center justify-center rounded-full border border-dourado-300 bg-couro-600">
-            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 4 L4 8 a6 6 0 1 0 6-6 Z" />
-              <circle cx="14" cy="10" r="4" />
+          <span
+            className="absolute -right-2 -top-2 flex h-[17px] w-[17px] items-center justify-center bg-couro-600"
+            style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+          >
+            {/* apito — corpo circular + bocal + pérola, mais temático pra técnico que a lupa antiga */}
+            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="15" cy="11" r="5" />
+              <path d="M10 11H4v3h6" />
+              <circle cx="17" cy="10" r="1" fill="var(--dourado-100)" stroke="none" />
             </svg>
           </span>
         ) : (

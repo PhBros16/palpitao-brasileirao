@@ -45,6 +45,7 @@ export function BancoReservas({
           background: 'rgba(4,7,12,0.92)',
           opacity: zBanco.escuroOpacity,
           transition: zBanco.escuroTransition,
+          zIndex: 10,
         }}
       />
 
@@ -56,6 +57,7 @@ export function BancoReservas({
           opacity: zBanco.brilhoOpacity,
           transform: zBanco.brilhoScale,
           transition: zBanco.brilhoTransition,
+          zIndex: 11,
         }}
       />
 
