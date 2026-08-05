@@ -37,6 +37,7 @@ export function BancoReservas({
         bottom: 12,
         background: 'var(--parede-100)',
         padding: '9px 14px',
+        zIndex: 0,
       }}
     >
       <div

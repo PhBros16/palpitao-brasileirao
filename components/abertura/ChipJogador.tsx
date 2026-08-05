@@ -117,7 +117,7 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           transition: `opacity 350ms ease-out ${entrada.nomeTransitionDelay}`,
         }}
       >
-        {variante === 'admin' ? 'ADM' : variante === 'tecnico' ? 'TÉC' : nome}
+        {variante === 'admin' ? 'ADM' : nome}
       </span>
     </div>
   )
