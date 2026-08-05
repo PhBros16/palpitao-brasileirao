@@ -14,12 +14,16 @@ export function BancoReservas({
   admin,
   tecnico,
   onEntrarAdmin,
+  onEntrarJogador,
+  carregandoId,
 }: {
   revelado: boolean
   reservas: Array<JogadorBanco & { entrada: EstiloEntrada }>
   admin: { entrada: EstiloEntrada }
-  tecnico: { entrada: EstiloEntrada }
+  tecnico: JogadorBanco & { entrada: EstiloEntrada }
   onEntrarAdmin?: () => void
+  onEntrarJogador?: (j: { id: string; nome: string }) => void
+  carregandoId?: string | null
 }) {
   const zBanco = estiloZonaLuz(4, revelado)
 
@@ -70,11 +74,13 @@ export function BancoReservas({
 
       <div className="relative flex items-start justify-evenly gap-2.5">
         <ChipJogador
-          iniciais="PC"
-          nome="Cardoso"
+          iniciais={tecnico.iniciais}
+          nome={tecnico.nome}
           numero=""
           entrada={tecnico.entrada}
           variante="tecnico"
+          onClick={onEntrarJogador ? () => onEntrarJogador(tecnico) : undefined}
+          carregando={carregandoId === tecnico.id}
         />
 
         {reservas.map((r) => (
@@ -85,6 +91,8 @@ export function BancoReservas({
             numero={r.numero}
             entrada={r.entrada}
             variante="reserva"
+            onClick={onEntrarJogador ? () => onEntrarJogador(r) : undefined}
+            carregando={carregandoId === r.id}
           />
         ))}
 
@@ -94,7 +102,7 @@ export function BancoReservas({
           numero=""
           entrada={admin.entrada}
           variante="admin"
-          onClick={onEntrarAdmin ? (e) => { e.stopPropagation(); onEntrarAdmin() } : undefined}
+          onClick={onEntrarAdmin}
         />
       </div>
     </div>

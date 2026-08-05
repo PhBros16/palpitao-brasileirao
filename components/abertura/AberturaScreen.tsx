@@ -188,14 +188,18 @@ export function AberturaScreen() {
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
-  const handleClickJogador = useCallback(async (j: JogadorCampo) => {
+  const [carregandoId, setCarregandoId] = useState<string | null>(null)
+
+  const handleClickJogador = useCallback(async (j: { id: string; nome: string }) => {
     if (buscandoPin || pinPlayer || rasgando) return
     setBuscandoPin(true)
+    setCarregandoId(j.id)
     try {
       const player = await buscarPinPorNome(j.nome)
       if (player) setPinPlayer(player)
     } finally {
       setBuscandoPin(false)
+      setCarregandoId(null)
     }
   }, [buscandoPin, pinPlayer, rasgando])
 
@@ -257,7 +261,7 @@ export function AberturaScreen() {
     [inicioTiers, revelado],
   )
   const tecnicoComEntrada = useMemo(
-    () => ({ entrada: estiloEntrada(TECNICO.xpx, TECNICO.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO], revelado) }),
+    () => ({ ...TECNICO, entrada: estiloEntrada(TECNICO.xpx, TECNICO.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO], revelado) }),
     [inicioTiers, revelado],
   )
 
@@ -346,13 +350,15 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} />
+              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
               <BancoReservas
                 revelado={revelado}
                 reservas={reservasComEntrada}
                 admin={adminComEntrada}
                 tecnico={tecnicoComEntrada}
                 onEntrarAdmin={handleClickAdmin}
+                onEntrarJogador={handleClickJogador}
+                carregandoId={carregandoId}
               />
 
               <div

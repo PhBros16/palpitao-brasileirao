@@ -18,13 +18,15 @@ export interface ChipJogadorProps {
   /** Posição absoluta em % do campo (left/top) — omitir pros chips do banco (flex). */
   posicaoCampo?: { left: string; top: string }
   onClick?: () => void
+  /** true enquanto busca o PIN desse jogador — dá feedback visual imediato ao toque. */
+  carregando?: boolean
 }
 
 /** Marcador circular de jogador — "ficha tática": círculo com iniciais + selo
  *  de número, nome abaixo. Usado tanto no campo (titulares) quanto no banco
  *  (reservas + ADM). Entrada calculada por coreografia.estiloEntrada; idle
  *  (respiração sutil) só liga depois que a corrida individual termina. */
-export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick }: ChipJogadorProps) {
+export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick, carregando }: ChipJogadorProps) {
   const tamanho = variante === 'titular' ? 44 : 38
   const isAdmin = variante === 'admin'
   const isTecnico = variante === 'tecnico'
@@ -66,6 +68,9 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           background: 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
           boxShadow: temSeloEspecial ? '0 1px 3px rgba(0,0,0,0.45), 0 0 0 1.5px color-mix(in srgb, var(--dourado-300) 35%, transparent)' : undefined,
           animationDelay: entrada.animar ? entrada.idleDelay : undefined,
+          opacity: carregando ? 0.55 : 1,
+          transform: carregando ? 'scale(0.9)' : undefined,
+          transition: 'opacity 180ms ease-out, transform 180ms ease-out',
         }}
       >
         <span

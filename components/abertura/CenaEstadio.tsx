@@ -26,12 +26,14 @@ export function CenaEstadio({
   revelado,
   titulares,
   onEntrar,
+  carregandoId,
 }: {
   revelado: boolean
   titulares: Array<JogadorCampo & { entrada: EstiloEntrada }>
   /** Chamado ao tocar em qualquer titular no campo revelado — abre o PIN modal
    *  daquele jogador. Recebe o titular clicado. */
   onEntrar?: (jogador: JogadorCampo) => void
+  carregandoId?: string | null
 }) {
   const zAtaque = estiloZonaLuz(3, revelado)
   const zMeio = estiloZonaLuz(2, revelado)
@@ -164,6 +166,7 @@ export function CenaEstadio({
             variante="titular"
             posicaoCampo={{ left: j.left, top: j.top }}
             onClick={revelado ? () => onEntrar?.(j) : undefined}
+            carregando={carregandoId === j.id}
           />
         ))}
       </div>
