@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo, type PodioLinha } from '@/lib/homeReal'
 import { AvatarCirculo } from './HeaderUsuario'
-import { AppLayout } from './AppLayout'
+import { useRegistrarAtualizar } from './AtualizarContext'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -76,8 +76,10 @@ export function HomeReal() {
     }
   }
 
+  useRegistrarAtualizar(participantId ? atualizar : null, atualizando)
+
   return (
-    <AppLayout onAtualizar={atualizar} atualizando={atualizando}>
+    <>
       {erro && (
         <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
           {erro}
@@ -121,7 +123,7 @@ export function HomeReal() {
           {dados.podio.length > 0 && <BlocoPodio podio={dados.podio} />}
         </>
       )}
-    </AppLayout>
+    </>
   )
 }
 

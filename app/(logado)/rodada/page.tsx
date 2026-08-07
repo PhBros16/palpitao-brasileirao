@@ -5,7 +5,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RodadaAoVivo } from '@/components/rodada/RodadaAoVivo'
-import { AppLayout } from '@/components/home/AppLayout'
 
 export default function RodadaPage() {
   const router = useRouter()
@@ -22,8 +21,6 @@ export default function RodadaPage() {
   }, [router])
 
   return (
-    <AppLayout>
       <RodadaAoVivo />
-    </AppLayout>
   )
 }

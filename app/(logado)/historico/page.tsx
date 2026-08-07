@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AppLayout } from '@/components/home/AppLayout'
 import { HistoricoScreen } from '@/components/historico'
 
 export default function HistoricoPage() {
@@ -29,8 +28,6 @@ export default function HistoricoPage() {
   if (!pronto) return null
 
   return (
-    <AppLayout>
       <HistoricoScreen meuParticipantId={meuId} />
-    </AppLayout>
   )
 }

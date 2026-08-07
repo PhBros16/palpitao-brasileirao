@@ -19,6 +19,7 @@ import { PlayerMusica } from './PlayerMusica'
 import { FundoAnimado } from './FundoAnimado'
 import { SkeletonHeader, SkeletonNav, SkeletonConteudo } from './AppLayoutSkeleton'
 import { LuzesAmbiente } from './LuzesAmbiente'
+import { useAtualizarHeader } from './AtualizarContext'
 
 interface Sessao {
   id: string
@@ -27,13 +28,10 @@ interface Sessao {
 
 export function AppLayout({
   children,
-  onAtualizar,
-  atualizando = false,
 }: {
   children: React.ReactNode
-  onAtualizar?: () => void
-  atualizando?: boolean
 }) {
+  const { onAtualizar, atualizando } = useAtualizarHeader()
   const router = useRouter()
   const pathname = usePathname()
   const [sessao, setSessao] = useState<Sessao | null>(null)

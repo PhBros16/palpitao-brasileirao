@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AdminScreen } from '@/components/admin/AdminScreen'
-import { AppLayout } from '@/components/home/AppLayout'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -52,8 +51,6 @@ export default function AdminPage() {
   if (!isAdmin) return null
 
   return (
-    <AppLayout>
       <AdminScreen isAdmin={true} />
-    </AppLayout>
   )
 }

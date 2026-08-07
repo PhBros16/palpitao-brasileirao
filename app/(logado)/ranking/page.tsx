@@ -8,7 +8,6 @@ import { RankingScreen } from '@/components/ranking/RankingScreen'
 import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 import { buscarRankingReal, type LinhaRanking } from '@/lib/rankingReal'
 import { buscarTrofeusJogador, type TrofeuReal } from '@/lib/trofeusReal'
-import { AppLayout } from '@/components/home/AppLayout'
 import { Confete } from '@/components/home/Confete'
 import type { DadosRanking } from '@/components/ranking/tipos'
 
@@ -74,7 +73,7 @@ export default function RankingPage() {
   }
 
   return (
-    <AppLayout>
+    <>
       {erro && (
         <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
           {erro}
@@ -103,7 +102,7 @@ export default function RankingPage() {
           )}
         </>
       )}
-    </AppLayout>
+    </>
   )
 }
 

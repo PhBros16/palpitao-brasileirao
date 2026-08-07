@@ -5,7 +5,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PalpitesRodada } from '@/components/palpites'
-import { AppLayout } from '@/components/home/AppLayout'
 import type { Palpite } from '@/components/palpites/CardJogo'
 import { buscarRodadaAtivaPalpites, buscarPalpitesExistentes, salvarPalpitesReais, type RodadaPalpites } from '@/lib/palpitesReais'
 
@@ -37,7 +36,7 @@ export default function PalpitesPage() {
   }, [router])
 
   return (
-    <AppLayout>
+    <>
       {erro && (
         <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
           {erro}
@@ -61,6 +60,6 @@ export default function PalpitesPage() {
           onSalvar={(palpites) => salvarPalpitesReais(participantId, palpites)}
         />
       )}
-    </AppLayout>
+    </>
   )
 }
