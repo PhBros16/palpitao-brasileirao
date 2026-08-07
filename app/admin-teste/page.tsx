@@ -5,11 +5,14 @@
 
 import { AdminScreen } from '@/components/admin/AdminScreen'
 import { AppLayout } from '@/components/home/AppLayout'
+import { AtualizarProvider } from '@/components/home/AtualizarContext'
 
 export default function AdminTestePage() {
   return (
-    <AppLayout>
-      <AdminScreen isAdmin={true} />
-    </AppLayout>
+    <AtualizarProvider>
+      <AppLayout>
+        <AdminScreen isAdmin={true} />
+      </AppLayout>
+    </AtualizarProvider>
   )
 }
