@@ -46,7 +46,6 @@ import { FundoMesa } from './FundoMesa'
 import { AppLayout } from '@/components/home/AppLayout'
 import { AtualizarProvider } from '@/components/home/AtualizarContext'
 import { HomeReal } from '@/components/home/HomeReal'
-import { AdminScreen } from '@/components/admin/AdminScreen'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 import type { FasePoeira, JogadorCampo } from './tipos'
@@ -56,6 +55,8 @@ const ALTURA_CENA = 844
 
 export function AberturaScreen() {
   const router = useRouter()
+  const [montarHomeAtras, setMontarHomeAtras] = useState(false)
+  const [sessaoKey, setSessaoKey] = useState('anon')
   const [destinoAdmin, setDestinoAdmin] = useState(false)
   const [aberto, setAberto] = useState(false)
   const [mostrarVerso, setMostrarVerso] = useState(false)
@@ -236,11 +237,20 @@ export function AberturaScreen() {
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
     setDestinoAdmin(!!player.isAdmin)
-    setVirandoCampo(true)
+    if (!player.isAdmin) {
+      setSessaoKey(player.id)
+      setMontarHomeAtras(true)
+    }
+
     timers.current.push(
       setTimeout(() => {
-        router.push(player.isAdmin ? '/admin' : '/inicio')
-      }, DUR_FLIP + 80),
+        setVirandoCampo(true)
+        timers.current.push(
+          setTimeout(() => {
+            router.push(player.isAdmin ? '/admin' : '/inicio')
+          }, DUR_FLIP + 80),
+        )
+      }, 120),
     )
   }, [router])
 
@@ -284,21 +294,27 @@ export function AberturaScreen() {
         minHeight: '-webkit-fill-available',
       }}
     >
-      {/* Cenário externo: mesa de madeira ANTES do PIN certo. Assim que o
-          campo começa a virar, troca pela Home real pré-renderizada (mesmos
-          componentes de /inicio, não uma cópia) — assim, quando o campo
-          revela o que está atrás, é a Home de verdade, não madeira; e o
-          router.push que acontece no fim do giro fica invisível, porque o
-          conteúdo já bate com o que já está na tela. */}
-      {virandoCampo ? (
-        <div className="absolute inset-0 overflow-hidden">
+      {/* Home real montada por baixo, ainda escondida pela madeira opaca em
+          cima dela (monta ~120ms antes do giro visual começar, de propósito
+          — dá tempo do trabalho síncrono pesado (AppLayout+Nav+HomeReal)
+          assentar sem atropelar o frame que inicia a transição do giro). */}
+      {montarHomeAtras && (
+        <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: 'none' }}>
           <AtualizarProvider>
-            <AppLayout>{destinoAdmin ? <AdminScreen isAdmin /> : <HomeReal />}</AppLayout>
+            <AppLayout>
+              <HomeReal key={sessaoKey} />
+            </AppLayout>
           </AtualizarProvider>
         </div>
-      ) : (
-        <FundoMesa />
       )}
+
+      {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira.
+          Só some (opacidade, barato) quando o giro começa de verdade — pro
+          jogador comum revela a Home real; pro admin (ainda sem versão
+          pré-montada) continua mostrando a madeira normalmente. */}
+      <div style={{ position: 'absolute', inset: 0, opacity: virandoCampo && !destinoAdmin ? 0 : 1 }}>
+        <FundoMesa />
+      </div>
 
       {/* botão "abrir álbum" — fica FORA da árvore 3D de propósito (bug de
           repaint do Safari faz qualquer coisa dentro do preserve-3d aninhado
