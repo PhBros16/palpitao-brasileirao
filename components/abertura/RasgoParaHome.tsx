@@ -100,10 +100,10 @@ export function RasgoParaHome({ onCompleto }: Props) {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 25%, #F7E6BA 0%, #EBD9A4 45%, #D4C088 100%)',
+            'radial-gradient(ellipse at 35% 20%, var(--campo-50) 0%, var(--campo-200) 55%, var(--campo-300) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 42px, rgba(0,0,0,0.06) 42px 84px)',
           clipPath,
           WebkitClipPath: clipPath,
-          boxShadow: 'inset 0 0 40px rgba(58,37,21,0.35)',
+          boxShadow: 'inset 0 0 50px rgba(0,0,0,0.45)',
         }}
         initial={{ x: 0, rotate: 0, opacity: 1 }}
         animate={{
@@ -133,16 +133,12 @@ export function RasgoParaHome({ onCompleto }: Props) {
           />
         ))}
 
-        {/* grão de papel — camada sólida (sem blend mode), bem sutil */}
+        {/* linha central do campo, sugerindo que é a mesma cena que estava atrás */}
         <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.28 0 0 0 0 0.13 0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E\")",
-            backgroundSize: '300px 300px',
-            opacity: 0.5,
-          }}
+          className="absolute rounded-full border border-white/25"
+          style={{ left: '50%', top: '50%', width: '38%', aspectRatio: '1', transform: 'translate(-50%, -50%)' }}
         />
+        <div className="absolute inset-x-0 top-1/2 h-px bg-white/25" />
       </motion.div>
 
       {/* Partículas de papel se soltando perto da borda rasgada */}
@@ -155,7 +151,7 @@ export function RasgoParaHome({ onCompleto }: Props) {
             top: `${p.top}%`,
             width: p.tamanho,
             height: p.tamanho,
-            background: '#D4C088',
+            background: 'var(--campo-50)',
             borderRadius: '20%',
           }}
           initial={{ opacity: 0, x: 0, y: 0, rotate: 0 }}
