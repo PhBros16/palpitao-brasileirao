@@ -43,6 +43,10 @@ import { somKit } from './somKit'
 import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
+import { AppLayout } from '@/components/home/AppLayout'
+import { AtualizarProvider } from '@/components/home/AtualizarContext'
+import { HomeReal } from '@/components/home/HomeReal'
+import { AdminScreen } from '@/components/admin/AdminScreen'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 import type { FasePoeira, JogadorCampo } from './tipos'
@@ -52,6 +56,7 @@ const ALTURA_CENA = 844
 
 export function AberturaScreen() {
   const router = useRouter()
+  const [destinoAdmin, setDestinoAdmin] = useState(false)
   const [aberto, setAberto] = useState(false)
   const [mostrarVerso, setMostrarVerso] = useState(false)
   const [capaVisivel, setCapaVisivel] = useState(true)
@@ -230,6 +235,7 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
+    setDestinoAdmin(!!player.isAdmin)
     setVirandoCampo(true)
     timers.current.push(
       setTimeout(() => {
@@ -278,8 +284,21 @@ export function AberturaScreen() {
         minHeight: '-webkit-fill-available',
       }}
     >
-      {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
-      <FundoMesa />
+      {/* Cenário externo: mesa de madeira ANTES do PIN certo. Assim que o
+          campo começa a virar, troca pela Home real pré-renderizada (mesmos
+          componentes de /inicio, não uma cópia) — assim, quando o campo
+          revela o que está atrás, é a Home de verdade, não madeira; e o
+          router.push que acontece no fim do giro fica invisível, porque o
+          conteúdo já bate com o que já está na tela. */}
+      {virandoCampo ? (
+        <div className="absolute inset-0 overflow-hidden">
+          <AtualizarProvider>
+            <AppLayout>{destinoAdmin ? <AdminScreen isAdmin /> : <HomeReal />}</AppLayout>
+          </AtualizarProvider>
+        </div>
+      ) : (
+        <FundoMesa />
+      )}
 
       {/* botão "abrir álbum" — fica FORA da árvore 3D de propósito (bug de
           repaint do Safari faz qualquer coisa dentro do preserve-3d aninhado
