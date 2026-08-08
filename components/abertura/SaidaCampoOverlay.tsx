@@ -1,65 +1,47 @@
 'use client'
 
-// SaidaCampoOverlay — o rasgo de verdade. Montado no layout raiz (fora da
-// árvore de qualquer rota, ver SaidaContext), então sobrevive ao router.push
-// que troca "/" por "/inicio" — a Home real já está sendo montada por trás
-// dele desde o primeiro frame, não um fundo de madeira.
+// SaidaCampoOverlay — o campo É a página, e ela vira exatamente como a capa
+// virou pra abrir o álbum. Mesma mecânica, espelhada: pivô na esquerda,
+// preserve-3d, rotateY(0) -> rotateY(-180deg), frente/verso trocando de
+// visibility na metade do giro, espessura própria com as paredes 3D — só
+// que fina (página de papel), não os 24px de couro da capa.
 //
-// Reconstrói uma cópia estática (sem animação de entrada — já "revelada")
-// do mesmo campo que a AberturaScreen mostra, na mesma escala/posição, e
-// aplica o rasgo nela:
+// Montado no layout raiz (fora da árvore de qualquer rota, ver SaidaContext),
+// então sobrevive ao router.push que troca "/" por "/inicio" — a Home real
+// já está sendo montada por trás dele desde o primeiro frame.
 //
-//   0-120ms   tremor (o "rasgando de fato", ainda inteiro)
-//   120-400ms a costura abre: clip-path morfa de borda reta -> borda
-//             irregular (mesmo número de vértices nos dois estados, pra
-//             interpolar suave em vez de saltar) — é isso que vende
-//             "rasgando progressivamente" em vez de "cortando"
-//   400-1000ms desliza pra fora (translateX + rotate), a rebarba se solta
-//             ~150ms depois do início da costura e cai com física própria
-//             (rotação crescente, queda, fade), separada da trajetória da
-//             página principal — é a tira fina de papel que sobra quando
-//             se rasga uma folha de caderno pela perfuração.
-//
-// clip-path tem que ter o MESMO número de pontos nos dois estados (reto vs
-// rasgado) pra o navegador conseguir interpolar entre os dois; se os counts
-// não baterem, o clip só troca de estado de uma vez, sem transição visível.
+// Timeline (DUR_FLIP = 1200ms, igual ao flip da capa):
+//   frame 0        monta com rotateY(0) (precisa de 2x requestAnimationFrame
+//                   antes de setar o alvo, senão o navegador não tem uma
+//                   pintura intermediária pra animar a partir dela e o giro
+//                   "salta" direto pro final sem transição visível)
+//   0-1200ms        gira até rotateY(-180deg)
+//   600ms (metade)  troca frente (campo) por verso (PaginaVerso) — o exato
+//                   instante em que a página está de canto pro espectador
+//   1200+140ms      finalizarSaida() — a Home (já montada por trás) fica
+//                   visível sozinha
 
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { BancoReservas } from './BancoReservas'
 import { CenaEstadio } from './CenaEstadio'
-import { estiloEntrada, ENCOLHER_BANCO, CONTAGEM_TIERS, calcularInicioTiers, INTERVALO_FILA } from './coreografia'
+import { PaginaEspessura } from './PaginaEspessura'
+import { PaginaVerso } from './PaginaVerso'
+import { estiloEntrada, ENCOLHER_BANCO, CONTAGEM_TIERS, calcularInicioTiers, DUR_FLIP, EASE_LUZ } from './coreografia'
 import { BANCO, TECNICO, TITULARES } from './elencoMock'
 import { useSaida } from './SaidaContext'
 
 const LARGURA_CENA = 390
 const ALTURA_CENA = 844
 const TIER_BANCO = 4
-
-// Duração total do rasgo — some do estado global essa quantidade de ms
-// depois de iniciarSaida(). Deixa uma folga de 80ms sobre a última fase.
-const DURACAO_MS = 1080
-
-const FUROS_Y = [8, 20, 32, 44, 56, 68, 80, 92]
-
-/** Gera as duas bordas (reta e rasgada) com o MESMO número de vértices —
- *  condição pra o navegador interpolar (morfar) entre elas em vez de saltar. */
-function gerarBordas() {
-  const pontos = 14
-  let s = 4242
-  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280 }
-  const ys = Array.from({ length: pontos + 1 }, (_, i) => (i / pontos) * 100)
-  const xsJagged = ys.map(() => rand() * 9)
-
-  const reta = `polygon(100% 0%, ${ys.map((y) => `0% ${y.toFixed(1)}%`).join(', ')}, 100% 100%)`
-  const rasgada = `polygon(100% 0%, ${ys.map((y, i) => `${xsJagged[i].toFixed(1)}% ${y.toFixed(1)}%`).join(', ')}, 100% 100%)`
-  return { reta, rasgada }
-}
+const ESPESSURA_PAGINA = 7
 
 export function SaidaCampoOverlay() {
   const { saindo, finalizarSaida } = useSaida()
   const [escala, setEscala] = useState(1)
   const [alturaViewport, setAlturaViewport] = useState<number | null>(null)
+  const [virado, setVirado] = useState(false)
+  const [mostrarVerso, setMostrarVerso] = useState(false)
 
   useEffect(() => {
     const atualizar = () => {
@@ -79,12 +61,26 @@ export function SaidaCampoOverlay() {
   }, [])
 
   useEffect(() => {
-    if (!saindo) return
-    const t = setTimeout(() => finalizarSaida(), DURACAO_MS)
-    return () => clearTimeout(t)
+    if (!saindo) {
+      setVirado(false)
+      setMostrarVerso(false)
+      return
+    }
+    // dupla rAF: garante que o navegador pinta o frame em rotateY(0) antes
+    // de setar o alvo -180deg, senão não existe "de onde" animar.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setVirado(true))
+    })
+    const tVerso = setTimeout(() => setMostrarVerso(true), DUR_FLIP / 2)
+    const tFim = setTimeout(() => finalizarSaida(), DUR_FLIP + 140)
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      clearTimeout(tVerso)
+      clearTimeout(tFim)
+    }
   }, [saindo, finalizarSaida])
-
-  const { reta, rasgada } = useMemo(() => gerarBordas(), [])
 
   // Elenco na posição final, já "revelado" — sem tocar a coreografia de
   // entrada (animar: false força o transform estático final, sem reanimar).
@@ -110,21 +106,18 @@ export function SaidaCampoOverlay() {
 
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 300 }}>
-      {/* Flash dourado — luz "por trás" no instante em que o campo rasga.
-          Emana da esquerda porque é o lado por onde a costura abre. */}
+      {/* Brilho de canto — a luz pegando a borda da página bem no instante
+          em que ela está de perfil pro espectador (meio do giro). */}
       <motion.div
         className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse at 25% 50%, #FFF4C4 0%, #FFD870 30%, #E8A020 70%, transparent 100%)',
-        }}
+        style={{ background: 'radial-gradient(ellipse at 50% 50%, #FFF4C4 0%, #FFD870 25%, transparent 65%)' }}
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0, 0.85, 0.35, 0] }}
-        transition={{ duration: DURACAO_MS / 1000, times: [0, 0.1, 0.3, 0.55, 1], ease: 'easeOut' }}
+        animate={{ opacity: [0, 0, 0.55, 0.55, 0] }}
+        transition={{ duration: (DUR_FLIP + 140) / 1000, times: [0, 0.42, 0.5, 0.58, 0.75], ease: 'easeOut' }}
       />
 
-      {/* Caixa da cena — mesma escala/centralização usada na AberturaScreen,
-          pra encaixar sem salto visual no momento da troca de rota. */}
+      {/* Caixa da cena — mesma escala/centralização/perspectiva usada na
+          AberturaScreen, pra encaixar sem salto visual na troca de rota. */}
       <div
         style={{
           position: 'absolute',
@@ -134,74 +127,45 @@ export function SaidaCampoOverlay() {
           height: ALTURA_CENA,
           transform: `translate(-50%, -50%) scale(${escala})`,
           transformOrigin: 'center center',
+          perspective: 1700,
+          perspectiveOrigin: '52% 45%',
         }}
       >
-        {/* A página que rasga e sai */}
-        <motion.div
+        {/* A página que vira — mesmíssima mecânica da capa, espelhada */}
+        <div
           style={{
             position: 'absolute',
             inset: 0,
-            filter: 'drop-shadow(-8px 6px 14px rgba(0,0,0,0.55))',
-          }}
-          initial={{ x: '0%', rotate: 0, clipPath: reta }}
-          animate={{
-            x: ['0%', '-0.6%', '0.6%', '0%', '0%', '-115%'],
-            rotate: [0, -0.5, 0.5, 0, 0, -7],
-            clipPath: [reta, reta, reta, reta, rasgada, rasgada],
-          }}
-          transition={{
-            duration: DURACAO_MS / 1000,
-            times: [0, 0.035, 0.07, 0.11, 0.37, 1],
-            ease: [0.5, 0, 0.4, 1],
+            transformOrigin: 'left center',
+            transformStyle: 'preserve-3d',
+            willChange: 'transform',
+            transition: `transform ${DUR_FLIP}ms ${EASE_LUZ}`,
+            transform: virado ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+            boxShadow: '0 30px 70px rgba(0,0,0,0.5)',
           }}
         >
-          <CenaEstadio revelado titulares={titulares} carregandoId={null} />
-          <BancoReservas revelado reservas={reservas} admin={admin} tecnico={tecnico} carregandoId={null} />
+          {/* frente — o campo de verdade */}
+          <div style={{ position: 'absolute', inset: 0, visibility: mostrarVerso ? 'hidden' : 'visible', backfaceVisibility: 'hidden' }}>
+            <CenaEstadio revelado titulares={titulares} carregandoId={null} />
+            <BancoReservas revelado reservas={reservas} admin={admin} tecnico={tecnico} carregandoId={null} />
+          </div>
 
-          {/* furos de perfuração — borda direita, o lado que "fica" */}
-          {FUROS_Y.map((y) => (
-            <div
-              key={y}
-              className="absolute rounded-full"
-              style={{ right: 6, top: `${y}%`, width: 10, height: 10, background: 'rgba(0,0,0,0.5)' }}
-            />
-          ))}
-        </motion.div>
+          {/* verso — página de papel, não couro */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              visibility: mostrarVerso ? 'visible' : 'hidden',
+              transformOrigin: 'left center',
+              transform: `rotateY(180deg) translateZ(${ESPESSURA_PAGINA}px)`,
+              backfaceVisibility: 'hidden',
+            }}
+          >
+            <PaginaVerso />
+          </div>
 
-        {/* Rebarba — a tira fina que se solta da costura e cai separada,
-            com física própria (não segue a página: some pra baixo enquanto
-            a página desliza pro lado). */}
-        <motion.div
-          className="pointer-events-none absolute"
-          style={{
-            left: -4,
-            top: 0,
-            bottom: 0,
-            width: 26,
-            background: 'rgba(20,14,8,0.55)',
-            clipPath: 'polygon(0% 0%, 100% 6%, 82% 14%, 100% 24%, 84% 34%, 100% 46%, 86% 58%, 100% 70%, 82% 82%, 100% 92%, 0% 100%)',
-          }}
-          initial={{ x: '0%', y: 0, rotate: 0, opacity: 0 }}
-          animate={{
-            x: ['0%', '0%', '-6%', '-22%', '-48%'],
-            y: [0, 0, 20, 90, 220],
-            rotate: [0, 0, 18, 55, 130],
-            opacity: [0, 1, 1, 0.6, 0],
-          }}
-          transition={{
-            duration: DURACAO_MS / 1000,
-            times: [0, 0.14, 0.32, 0.6, 1],
-            ease: 'easeIn',
-          }}
-        >
-          {FUROS_Y.map((y) => (
-            <div
-              key={y}
-              className="absolute rounded-full"
-              style={{ left: 4, top: `${y}%`, width: 8, height: 8, background: 'rgba(0,0,0,0.6)' }}
-            />
-          ))}
-        </motion.div>
+          <PaginaEspessura largura={ESPESSURA_PAGINA} />
+        </div>
       </div>
     </div>
   )
