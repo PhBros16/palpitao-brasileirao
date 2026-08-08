@@ -230,11 +230,11 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    setVirandoCampo(true)
+    sessionStorage.setItem('palpitao_flip_transicao', '1')
     timers.current.push(
       setTimeout(() => {
         router.push(player.isAdmin ? '/admin' : '/inicio')
-      }, DUR_FLIP + 80),
+      }, 380),
     )
   }, [router])
 
@@ -353,34 +353,16 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  transformOrigin: 'left center',
-                  transformStyle: 'preserve-3d',
-                  willChange: 'transform',
-                  transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
-                  transform: virandoCampo ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-                }}
-              >
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
-                  <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
-                  <BancoReservas
-                    revelado={revelado}
-                    reservas={reservasComEntrada}
-                    admin={adminComEntrada}
-                    tecnico={tecnicoComEntrada}
-                    onEntrarAdmin={handleClickAdmin}
-                    onEntrarJogador={handleClickJogador}
-                    carregandoId={carregandoId}
-                  />
-                </div>
-                {/* espessura — mesma peça 3D já usada na capa (paredes
-                    rotateY/rotateX ligando frente a verso), só reaproveitada
-                    aqui pro campo também ter volume real ao virar de canto */}
-                <CapaEspessura />
-              </div>
+              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
+              <BancoReservas
+                revelado={revelado}
+                reservas={reservasComEntrada}
+                admin={adminComEntrada}
+                tecnico={tecnicoComEntrada}
+                onEntrarAdmin={handleClickAdmin}
+                onEntrarJogador={handleClickJogador}
+                carregandoId={carregandoId}
+              />
 
               <div
                 className="pointer-events-none absolute bottom-0 left-0 top-0"

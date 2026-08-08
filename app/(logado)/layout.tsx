@@ -7,11 +7,13 @@
 // UMA VEZ aqui; só {children} troca ao navegar entre abas.
 import { AppLayout } from '@/components/home/AppLayout'
 import { AtualizarProvider } from '@/components/home/AtualizarContext'
+import { CampoFlipOverlay } from '@/components/home/CampoFlipOverlay'
 
 export default function LogadoLayout({ children }: { children: React.ReactNode }) {
   return (
     <AtualizarProvider>
       <AppLayout>{children}</AppLayout>
+      <CampoFlipOverlay />
     </AtualizarProvider>
   )
 }
