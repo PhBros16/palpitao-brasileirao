@@ -376,6 +376,10 @@ export function AberturaScreen() {
                     carregandoId={carregandoId}
                   />
                 </div>
+                {/* espessura — mesma peça 3D já usada na capa (paredes
+                    rotateY/rotateX ligando frente a verso), só reaproveitada
+                    aqui pro campo também ter volume real ao virar de canto */}
+                <CapaEspessura />
               </div>
 
               <div
