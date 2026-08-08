@@ -66,6 +66,23 @@ export function AberturaScreen() {
 
   const outerRef = useRef<HTMLDivElement>(null)
   const podeClicarCapa = useRef(false)
+
+  // Borda rasgada do campo (lado esquerdo — jagged; direita fica reta e é
+  // onde ficam os furos de perfuração, o lado que "fica"). O campo inteiro
+  // sai por essa borda esquerda. Gerada uma vez, não recalcula em re-render.
+  const bordaRasgo = useMemo(() => {
+    let s = 4242
+    const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280 }
+    const pontos = 14
+    const partes: string[] = ['100% 0%']
+    for (let i = 0; i <= pontos; i++) {
+      const y = (i / pontos) * 100
+      const x = rand() * 9
+      partes.push(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
+    }
+    partes.push('100% 100%')
+    return `polygon(${partes.join(', ')})`
+  }, [])
   const [botaoAparente, setBotaoAparente] = useState(false)
 
   useEffect(() => {
@@ -350,16 +367,35 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
-              <BancoReservas
-                revelado={revelado}
-                reservas={reservasComEntrada}
-                admin={adminComEntrada}
-                tecnico={tecnicoComEntrada}
-                onEntrarAdmin={handleClickAdmin}
-                onEntrarJogador={handleClickJogador}
-                carregandoId={carregandoId}
-              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  clipPath: rasgando ? bordaRasgo : undefined,
+                  WebkitClipPath: rasgando ? bordaRasgo : undefined,
+                  transform: rasgando ? 'translateX(-115%) rotate(-7deg)' : 'translateX(0) rotate(0deg)',
+                  transition: rasgando ? 'transform 950ms cubic-bezier(0.5,0,0.4,1)' : undefined,
+                }}
+              >
+                <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
+                <BancoReservas
+                  revelado={revelado}
+                  reservas={reservasComEntrada}
+                  admin={adminComEntrada}
+                  tecnico={tecnicoComEntrada}
+                  onEntrarAdmin={handleClickAdmin}
+                  onEntrarJogador={handleClickJogador}
+                  carregandoId={carregandoId}
+                />
+                {/* furos de perfuração — borda direita (lado que "fica") */}
+                {rasgando && [8, 20, 32, 44, 56, 68, 80, 92].map((y) => (
+                  <div
+                    key={y}
+                    className="pointer-events-none absolute rounded-full"
+                    style={{ right: 6, top: `${y}%`, width: 10, height: 10, background: 'rgba(0,0,0,0.5)', zIndex: 60 }}
+                  />
+                ))}
+              </div>
 
               <div
                 className="pointer-events-none absolute bottom-0 left-0 top-0"
