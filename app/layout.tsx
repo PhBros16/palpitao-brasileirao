@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { ToastProvider } from '@/components/home/Toast'
-import { SaidaProvider } from '@/components/abertura/SaidaContext'
-import { SaidaCampoOverlay } from '@/components/abertura/SaidaCampoOverlay'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -39,10 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ margin: 0, padding: 0 }}>
         <ToastProvider>
-          <SaidaProvider>
-            {children}
-            <SaidaCampoOverlay />
-          </SaidaProvider>
+          {children}
         </ToastProvider>
       </body>
     </html>

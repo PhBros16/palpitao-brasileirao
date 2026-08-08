@@ -1,7 +1,11 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
-// campinho revelado. PIN correto → efeito de RASGO DE PÁGINA → navega pra Home.
+// campinho revelado. PIN correto → o CAMPO (já montado, com tudo que ele já
+// tem) vira como página — mesmíssima mecânica da capa (pivô esquerdo,
+// preserve-3d, rotateY 0 → -180), só que aplicada aos elementos que já
+// existem e já pintaram na tela, não uma cópia recriada — depois navega pra
+// Home.
 //
 // Estrutura da hierarquia 3D (crítico — não mexer sem testar em mobile):
 //   root outerRef (fixed, contém FundoMesa e a cena escalada)
@@ -9,8 +13,8 @@
 //        └─ wrapper 3D (preserve-3d)
 //           └─ div (backfaceVisibility hidden)
 //              └─ onClick=handleFechar (cursor-pointer, overflow-hidden)
-//                 ├─ CenaEstadio (revelado)
-//                 ├─ BancoReservas
+//                 ├─ wrapper flip do CAMPO (rotateY 0 → -180, no PIN certo)
+//                 │  └─ CenaEstadio (revelado) + BancoReservas
 //                 ├─ gradiente sombra esquerda
 //                 ├─ PoeiraTransicao
 //                 └─ wrapper flip da CAPA (rotateY 0 → -180)
@@ -39,7 +43,6 @@ import { somKit } from './somKit'
 import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
-import { useSaida } from './SaidaContext'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 import type { FasePoeira, JogadorCampo } from './tipos'
@@ -49,7 +52,6 @@ const ALTURA_CENA = 844
 
 export function AberturaScreen() {
   const router = useRouter()
-  const { iniciarSaida } = useSaida()
   const [aberto, setAberto] = useState(false)
   const [mostrarVerso, setMostrarVerso] = useState(false)
   const [capaVisivel, setCapaVisivel] = useState(true)
@@ -62,7 +64,7 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  const [rasgando, setRasgando] = useState(false)
+  const [virandoCampo, setVirandoCampo] = useState(false)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const podeClicarCapa = useRef(false)
@@ -173,7 +175,7 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
-    if (pinPlayer || rasgando) return
+    if (pinPlayer || virandoCampo) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -185,14 +187,14 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers, pinPlayer, rasgando])
+  }, [limparTimers, pinPlayer, virandoCampo])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
   const [carregandoId, setCarregandoId] = useState<string | null>(null)
 
   const handleClickJogador = useCallback(async (j: { id: string; nome: string }) => {
-    if (buscandoPin || pinPlayer || rasgando) return
+    if (buscandoPin || pinPlayer || virandoCampo) return
     setBuscandoPin(true)
     setCarregandoId(j.id)
     try {
@@ -202,10 +204,10 @@ export function AberturaScreen() {
       setBuscandoPin(false)
       setCarregandoId(null)
     }
-  }, [buscandoPin, pinPlayer, rasgando])
+  }, [buscandoPin, pinPlayer, virandoCampo])
 
   const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer || rasgando) return
+    if (buscandoPin || pinPlayer || virandoCampo) return
     setBuscandoPin(true)
     try {
       const admin = await buscarPinPorNome('Administração')
@@ -213,7 +215,7 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer, rasgando])
+  }, [buscandoPin, pinPlayer, virandoCampo])
 
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
@@ -228,10 +230,13 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    setRasgando(true)
-    iniciarSaida()
-    router.push(player.isAdmin ? '/admin' : '/inicio')
-  }, [iniciarSaida, router])
+    setVirandoCampo(true)
+    timers.current.push(
+      setTimeout(() => {
+        router.push(player.isAdmin ? '/admin' : '/inicio')
+      }, DUR_FLIP + 80),
+    )
+  }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
 
@@ -348,17 +353,29 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              <div style={{ position: 'absolute', inset: 0, opacity: rasgando ? 0 : 1 }}>
-                <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
-                <BancoReservas
-                  revelado={revelado}
-                  reservas={reservasComEntrada}
-                  admin={adminComEntrada}
-                  tecnico={tecnicoComEntrada}
-                  onEntrarAdmin={handleClickAdmin}
-                  onEntrarJogador={handleClickJogador}
-                  carregandoId={carregandoId}
-                />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  transformOrigin: 'left center',
+                  transformStyle: 'preserve-3d',
+                  willChange: 'transform',
+                  transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
+                  transform: virandoCampo ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+                  <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
+                  <BancoReservas
+                    revelado={revelado}
+                    reservas={reservasComEntrada}
+                    admin={adminComEntrada}
+                    tecnico={tecnicoComEntrada}
+                    onEntrarAdmin={handleClickAdmin}
+                    onEntrarJogador={handleClickJogador}
+                    carregandoId={carregandoId}
+                  />
+                </div>
               </div>
 
               <div
