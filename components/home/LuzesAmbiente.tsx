@@ -281,7 +281,7 @@ export function LuzesAmbiente() {
         novo[l] = true
         return { ...r, [idxRefletor]: novo }
       })
-      await new Promise((res) => setTimeout(res, 180 + Math.random() * 200))
+      await new Promise((res) => setTimeout(res, 90 + Math.random() * 110))
       if (!mounted()) return
     }
   }
@@ -475,11 +475,11 @@ export function LuzesAmbiente() {
 
       setFase('inicial')
 
-      await new Promise((r) => setTimeout(r, 800))
+      await new Promise((r) => setTimeout(r, 450))
       if (!alive) return
 
       setFase('refletoresDescendo')
-      await new Promise((r) => setTimeout(r, 1600))
+      await new Promise((r) => setTimeout(r, 900))
       if (!alive) return
 
       setFase('refletoresLigando')
@@ -488,21 +488,21 @@ export function LuzesAmbiente() {
       if (!alive) return
       setHalosBrilho((h) => ({ ...h, 0: 1 }))
       setEscuridaoGlobal(0.5)
-      await new Promise((r) => setTimeout(r, 400))
+      await new Promise((r) => setTimeout(r, 220))
       if (!alive) return
 
       await ligarRefletorGradual(2, isMounted)
       if (!alive) return
       setHalosBrilho((h) => ({ ...h, 2: 1 }))
       setEscuridaoGlobal(0.3)
-      await new Promise((r) => setTimeout(r, 400))
+      await new Promise((r) => setTimeout(r, 220))
       if (!alive) return
 
       await ligarRefletorGradual(1, isMounted)
       if (!alive) return
       setHalosBrilho((h) => ({ ...h, 1: 1 }))
       setEscuridaoGlobal(0.15)
-      await new Promise((r) => setTimeout(r, 900))
+      await new Promise((r) => setTimeout(r, 500))
       if (!alive) return
 
       setFase('refletoresSubindo')
@@ -512,13 +512,13 @@ export function LuzesAmbiente() {
         document.body.classList.add('luzes-ligadas')
       } catch { /* ignora */ }
 
-      await new Promise((r) => setTimeout(r, 1800))
+      await new Promise((r) => setTimeout(r, 900))
       if (!alive) return
 
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
 
-      await new Promise((r) => setTimeout(r, 1000))
+      await new Promise((r) => setTimeout(r, 600))
       if (!alive) return
 
       try {
@@ -715,9 +715,6 @@ export function LuzesAmbiente() {
             background: `rgba(10, 6, 2, ${escuridaoGlobal})`,
           }}
           transition={{ duration: 1.2, ease: 'easeInOut' }}
-          style={{
-            mixBlendMode: 'multiply',
-          }}
         />
 
         {HALOS.map((h) => {
@@ -736,7 +733,6 @@ export function LuzesAmbiente() {
                   transform: 'translate(-50%, -50%)',
                   background: 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.5) 30%, transparent 65%)',
                   filter: 'blur(30px)',
-                  mixBlendMode: 'screen',
                 }}
                 animate={{ opacity: brilho }}
                 transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -755,7 +751,6 @@ export function LuzesAmbiente() {
                   transform: 'translate(-50%, -50%)',
                   background: 'radial-gradient(circle, rgba(5, 3, 1, 0.7) 0%, rgba(5, 3, 1, 0.35) 40%, transparent 70%)',
                   filter: 'blur(30px)',
-                  mixBlendMode: 'multiply',
                 }}
                 animate={{ opacity: Math.abs(brilho) }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
