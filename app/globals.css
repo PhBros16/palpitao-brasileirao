@@ -59,33 +59,6 @@ body {
   min-height: 100vh;
 }
 
-/* ─── Overlay escuro inicial (só ativo dentro do AppLayout) ───────────
- *
- * Gerenciado 100% pelo componente LuzesAmbiente:
- *   - .overlay-escuro-ativo → adicionado quando precisa escurecer
- *   - .luzes-ligadas        → adicionado quando refletores completaram
- *                             a sequência de acender (fade-out do overlay)
- *
- * z-index 40: fica acima do conteúdo comum (que vai até ~30) mas abaixo
- * de modais/toasts (que ficam em 50+). Como a sequência inicial dura ~5s,
- * o usuário vê refletores DESCEREM e ACENDEREM antes do overlay dissipar.
- */
-
-body.overlay-escuro-ativo::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 6, 2, 0.65);
-  pointer-events: none;
-  z-index: 40;
-  transition: opacity 1s ease-out;
-  opacity: 1;
-}
-
-body.overlay-escuro-ativo.luzes-ligadas::before {
-  opacity: 0;
-}
-
 html, body {
   touch-action: pan-y;
   background-color: #1f1206;

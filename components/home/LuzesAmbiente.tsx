@@ -2,7 +2,26 @@
 
 // LuzesAmbiente — Sistema completo de iluminação "estádio velho".
 //
-// Features:
+// Reescrito (v2) — mesmas animações/ideia da versão anterior, arquitetura de
+// estado corrigida na raiz. O bug real: a versão anterior tinha 3 useState
+// com inicializadores independentes, cada um lendo sessionStorage do seu
+// jeito (um checava só CHAVE_SESSAO, outro CHAVE_SESSAO+CHAVE_INTERRUPTOR,
+// outro só CHAVE_INTERRUPTOR) — bastava as duas chaves ficarem numa
+// combinação que nenhum teste cobriu pra travar tudo, sem forma de
+// recuperar. Além disso, a escuridão era controlada em DOIS lugares ao
+// mesmo tempo (classe CSS no <body> E o estado React `escuridaoGlobal`,
+// que já renderiza seu próprio overlay) — redundante e mais uma fonte de
+// dessincronia.
+//
+// Agora:
+//   - UMA leitura de sessionStorage no mount, usada pra derivar os 3
+//     estados iniciais (fase/refletores/escuridão) de forma consistente
+//   - UMA chave de sessionStorage pro "ligado/desligado" (não mais duas
+//     cruzadas)
+//   - Escuridão controlada só pelo estado React (o overlay já renderizado
+//     abaixo) — nada de mexer em classe de <body>/CSS externo
+//
+// Features (preservadas):
 // 1. Sequência inicial (1x/sessão) — refletores descem, ligam gradualmente,
 //    dissipam a escuridão global e sobem.
 // 2. Loop de queima com cansaço acumulado — halos gaguejam e piscam.
@@ -12,14 +31,6 @@
 // 6. Eventos externos:
 //    - 'palpitao:chamarTI' → conserta tudo, roda mini-sequência
 //    - 'palpitao:alternarInterruptor' → liga/desliga tudo
-//
-// Regra de overlay CSS (globals.css):
-//   - Adiciona 'overlay-escuro-ativo' APENAS quando vai rodar sequência
-//     inicial ou quando interruptor está desligado.
-//   - Adiciona 'luzes-ligadas' quando os refletores terminaram de acender
-//     (dispara fade-out do overlay).
-//   - Se a sessão já rodou (usuário navegou entre abas), NÃO adiciona
-//     nenhuma classe → nada de overlay → Home aparece limpa.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
@@ -37,13 +48,10 @@ const HALOS: Halo[] = [
   { id: 2, x: '85%', y: '22%', raio: 600 },
 ]
 
-const CHAVE_SESSAO = 'palpitao_luzes_ligadas'
+const CHAVE_LUZES = 'palpitao_luzes_estado_v2'
 const CHAVE_SILENCIO = 'palpitao_silencio_ocorreu'
 const CHAVE_CANSACO = 'palpitao_cansaco_halos'
 const CHAVE_LAMPADA_QUEIMADA = 'palpitao_lampada_queimada'
-const CHAVE_INTERRUPTOR = 'palpitao_interruptor_desligado'
-
-// ─── Refletor cartoon ──────────────────────────────────────────────
 
 function Refletor({
   lampadas,
@@ -115,8 +123,6 @@ function Refletor({
   )
 }
 
-// ─── Helpers pra sessionStorage ──────────────────────────────────────
-
 type EstadoLampadas = [boolean, boolean, boolean]
 
 function lerCansaco(): Record<number, number> {
@@ -154,21 +160,36 @@ function lerLampadaQueimada(): [number, number] {
   return sorteio
 }
 
-// ─── Componente principal ──────────────────────────────────────────────
+interface EstadoInicial {
+  ligado: boolean
+  jaRodouSequencia: boolean
+}
+
+function lerEstadoInicial(): EstadoInicial {
+  if (typeof window === 'undefined') return { ligado: true, jaRodouSequencia: false }
+  try {
+    const raw = sessionStorage.getItem(CHAVE_LUZES)
+    if (raw === '0') return { ligado: false, jaRodouSequencia: true }
+    if (raw === '1') return { ligado: true, jaRodouSequencia: true }
+  } catch { /* ignora */ }
+  return { ligado: true, jaRodouSequencia: false }
+}
+
+function salvarEstadoLuzes(ligado: boolean): void {
+  try {
+    sessionStorage.setItem(CHAVE_LUZES, ligado ? '1' : '0')
+  } catch { /* ignora */ }
+}
 
 export function LuzesAmbiente() {
-  const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>(() => {
-    if (typeof window === 'undefined') return 'esperando'
-    try {
-      return sessionStorage.getItem(CHAVE_SESSAO) === '1' ? 'operando' : 'esperando'
-    } catch {
-      return 'esperando'
-    }
-  })
+  const [estadoInicial] = useState<EstadoInicial>(lerEstadoInicial)
+
+  const [fase, setFase] = useState<'esperando' | 'inicial' | 'refletoresDescendo' | 'refletoresLigando' | 'refletoresSubindo' | 'operando'>(
+    estadoInicial.jaRodouSequencia ? 'operando' : 'esperando',
+  )
 
   const lampadaQueimada = useRef<[number, number]>(lerLampadaQueimada())
 
-  // Estado final das lâmpadas quando "operando" (todas acesas, exceto a queimada)
   function estadoFinalRefletor(idx: number): EstadoLampadas {
     const base: EstadoLampadas = [true, true, true]
     if (lampadaQueimada.current[0] === idx) {
@@ -179,74 +200,26 @@ export function LuzesAmbiente() {
   }
 
   const [refletores, setRefletores] = useState<{ 0: EstadoLampadas; 1: EstadoLampadas; 2: EstadoLampadas }>(() => {
-    // Se sessão já rodou, começa com lâmpadas acesas (mesmo estado visual do final da sequência)
-    if (typeof window !== 'undefined') {
-      try {
-        if (sessionStorage.getItem(CHAVE_SESSAO) === '1' && sessionStorage.getItem(CHAVE_INTERRUPTOR) !== '1') {
-          return {
-            0: [true, true, true],
-            1: [true, true, true],
-            2: [true, true, true],
-          }
-        }
-      } catch { /* ignora */ }
-    }
+    const aceso = estadoInicial.jaRodouSequencia && estadoInicial.ligado
     return {
-      0: [false, false, false],
-      1: [false, false, false],
-      2: [false, false, false],
+      0: aceso ? [true, true, true] : [false, false, false],
+      1: aceso ? [true, true, true] : [false, false, false],
+      2: aceso ? [true, true, true] : [false, false, false],
     }
   })
 
   const [halosBrilho, setHalosBrilho] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 })
 
   const [escuridaoGlobal, setEscuridaoGlobal] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    try {
-      if (sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1') return 0.7
-      return sessionStorage.getItem(CHAVE_SESSAO) === '1' ? 0 : 0.65
-    } catch {
-      return 0.65
-    }
+    if (!estadoInicial.jaRodouSequencia) return 0.65
+    return estadoInicial.ligado ? 0 : 0.7
   })
 
-  // Refletores extras (chamar TI / interruptor)
   const [refletoresExtras, setRefletoresExtras] = useState<'nenhum' | 'descendo' | 'ligando' | 'apagando' | 'subindo'>('nenhum')
 
   const eventoAtivo = useRef(false)
   const cansacoHalos = useRef<Record<number, number>>(lerCansaco())
-  const interruptorDesligado = useRef<boolean>(false)
-
-  useEffect(() => {
-    // Decide qual classe adicionar ao body baseado no estado da sessão
-    try {
-      interruptorDesligado.current = sessionStorage.getItem(CHAVE_INTERRUPTOR) === '1'
-      const sessaoJaRodou = sessionStorage.getItem(CHAVE_SESSAO) === '1'
-
-      if (interruptorDesligado.current) {
-        // Interruptor desligado → escurece manualmente
-        document.body.classList.add('overlay-escuro-ativo')
-        // NÃO adiciona luzes-ligadas → overlay fica opaco
-      } else if (sessaoJaRodou) {
-        // Sessão já rodou (navegação entre abas) → sem overlay
-        // Home fica limpa, luzes já estão "ligadas" no estado inicial
-        document.body.classList.remove('overlay-escuro-ativo')
-        document.body.classList.remove('luzes-ligadas')
-      } else {
-        // Primeira vez na sessão → ativa overlay pra sequência rodar
-        document.body.classList.add('overlay-escuro-ativo')
-        // luzes-ligadas será adicionada ao final da sequência
-      }
-    } catch { /* ignora */ }
-
-    // Cleanup: remove classes ao desmontar (ex: sair pra abertura)
-    return () => {
-      try {
-        document.body.classList.remove('overlay-escuro-ativo')
-        document.body.classList.remove('luzes-ligadas')
-      } catch { /* ignora */ }
-    }
-  }, [])
+  const interruptorDesligado = useRef<boolean>(!estadoInicial.ligado)
 
   async function ligarRefletorGradual(
     idxRefletor: 0 | 1 | 2,
@@ -286,7 +259,6 @@ export function LuzesAmbiente() {
     }
   }
 
-  // Eventos externos
   useEffect(() => {
     if (fase !== 'operando') return
 
@@ -296,7 +268,6 @@ export function LuzesAmbiente() {
       if (!alive || eventoAtivo.current) return
       eventoAtivo.current = true
 
-      // Conserta lâmpada queimada + reseta cansaço
       lampadaQueimada.current = [-1, -1]
       cansacoHalos.current = { 0: 0, 1: 0, 2: 0 }
       try {
@@ -304,11 +275,9 @@ export function LuzesAmbiente() {
         sessionStorage.setItem(CHAVE_CANSACO, JSON.stringify({ 0: 0, 1: 0, 2: 0 }))
       } catch { /* ignora */ }
 
-      // Reseta halos e escuridão pra estado limpo
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
       setEscuridaoGlobal(0)
 
-      // Mini-sequência visual: refletores descem, ligam todas as lâmpadas, sobem
       setRefletores({
         0: [false, false, false],
         1: [false, false, false],
@@ -319,7 +288,6 @@ export function LuzesAmbiente() {
       if (!alive) { eventoAtivo.current = false; return }
 
       setRefletoresExtras('ligando')
-      // Liga todas as 9 lâmpadas com pequeno delay
       for (let ref = 0; ref < 3; ref++) {
         for (let l = 0; l < 3; l++) {
           setRefletores((r) => {
@@ -332,7 +300,6 @@ export function LuzesAmbiente() {
         }
       }
 
-      // Flash de halos brilhantes rápido
       setHalosBrilho({ 0: 1, 1: 1, 2: 1 })
       await new Promise((r) => setTimeout(r, 800))
       if (!alive) { eventoAtivo.current = false; return }
@@ -344,6 +311,9 @@ export function LuzesAmbiente() {
       setRefletoresExtras('nenhum')
       setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
 
+      interruptorDesligado.current = false
+      salvarEstadoLuzes(true)
+
       eventoAtivo.current = false
     }
 
@@ -353,13 +323,9 @@ export function LuzesAmbiente() {
 
       const desligarAgora = !interruptorDesligado.current
       interruptorDesligado.current = desligarAgora
-
-      try {
-        sessionStorage.setItem(CHAVE_INTERRUPTOR, desligarAgora ? '1' : '0')
-      } catch { /* ignora */ }
+      salvarEstadoLuzes(!desligarAgora)
 
       if (desligarAgora) {
-        // Desligando — refletores descem, apagam, sobem
         setRefletores({
           0: estadoFinalRefletor(0),
           1: estadoFinalRefletor(1),
@@ -370,14 +336,12 @@ export function LuzesAmbiente() {
         if (!alive) { eventoAtivo.current = false; return }
 
         setRefletoresExtras('apagando')
-        // Apaga todas as lâmpadas
         setRefletores({
           0: [false, false, false],
           1: [false, false, false],
           2: [false, false, false],
         })
 
-        // Escurece progressivamente
         setEscuridaoGlobal(0.35)
         setHalosBrilho({ 0: -0.5, 1: -0.5, 2: -0.5 })
         await new Promise((r) => setTimeout(r, 400))
@@ -393,14 +357,7 @@ export function LuzesAmbiente() {
         if (!alive) { eventoAtivo.current = false; return }
 
         setRefletoresExtras('nenhum')
-
-        // Ativa overlay CSS pra escuridão persistir
-        try {
-          document.body.classList.remove('luzes-ligadas')
-          document.body.classList.add('overlay-escuro-ativo')
-        } catch { /* ignora */ }
       } else {
-        // Ligando de volta
         setRefletores({
           0: [false, false, false],
           1: [false, false, false],
@@ -412,13 +369,11 @@ export function LuzesAmbiente() {
 
         setRefletoresExtras('ligando')
 
-        // Liga uma por uma
         for (let ref = 0; ref < 3; ref++) {
           await ligarRefletorGradual(ref as 0 | 1 | 2, () => alive)
           if (!alive) { eventoAtivo.current = false; return }
         }
 
-        // Halos acendem
         setHalosBrilho({ 0: 1, 1: 1, 2: 1 })
         setEscuridaoGlobal(0.2)
         await new Promise((r) => setTimeout(r, 700))
@@ -428,19 +383,10 @@ export function LuzesAmbiente() {
         setEscuridaoGlobal(0)
         setHalosBrilho({ 0: 0, 1: 0, 2: 0 })
 
-        try {
-          document.body.classList.add('luzes-ligadas')
-        } catch { /* ignora */ }
-
         await new Promise((r) => setTimeout(r, 1400))
         if (!alive) { eventoAtivo.current = false; return }
 
         setRefletoresExtras('nenhum')
-
-        // Como está ligado, dissipa overlay
-        try {
-          document.body.classList.remove('overlay-escuro-ativo')
-        } catch { /* ignora */ }
       }
 
       eventoAtivo.current = false
@@ -456,7 +402,6 @@ export function LuzesAmbiente() {
     }
   }, [fase])
 
-  // Sequência inicial
   useEffect(() => {
     if (fase !== 'esperando') return
 
@@ -464,12 +409,9 @@ export function LuzesAmbiente() {
     const isMounted = () => alive
 
     async function sequenciaInicial() {
-      // Se interruptor está desligado, pula tudo direto pra operando (escuro)
       if (interruptorDesligado.current) {
         setFase('operando')
-        try {
-          sessionStorage.setItem(CHAVE_SESSAO, '1')
-        } catch { /* ignora */ }
+        salvarEstadoLuzes(false)
         return
       }
 
@@ -507,11 +449,6 @@ export function LuzesAmbiente() {
 
       setFase('refletoresSubindo')
 
-      // Ao iniciar subida, dissipa overlay CSS
-      try {
-        document.body.classList.add('luzes-ligadas')
-      } catch { /* ignora */ }
-
       await new Promise((r) => setTimeout(r, 900))
       if (!alive) return
 
@@ -521,14 +458,7 @@ export function LuzesAmbiente() {
       await new Promise((r) => setTimeout(r, 600))
       if (!alive) return
 
-      try {
-        sessionStorage.setItem(CHAVE_SESSAO, '1')
-        // Depois da sequência completa, pode remover overlay (luzes-ligadas
-        // já mantém opacity:0, mas remover a classe base evita reflow futuro)
-        document.body.classList.remove('overlay-escuro-ativo')
-        document.body.classList.remove('luzes-ligadas')
-      } catch { /* ignora */ }
-
+      salvarEstadoLuzes(true)
       setFase('operando')
     }
 
@@ -536,7 +466,6 @@ export function LuzesAmbiente() {
     return () => { alive = false }
   }, [fase])
 
-  // Loop de queima
   useEffect(() => {
     if (fase !== 'operando') return
     if (interruptorDesligado.current) return
@@ -603,7 +532,6 @@ export function LuzesAmbiente() {
     return () => { alive = false }
   }, [fase])
 
-  // Rajada de vento
   useEffect(() => {
     if (fase !== 'operando') return
     if (interruptorDesligado.current) return
@@ -647,7 +575,6 @@ export function LuzesAmbiente() {
     return () => { alive = false }
   }, [fase])
 
-  // Momento de silêncio
   useEffect(() => {
     if (fase !== 'operando') return
     if (interruptorDesligado.current) return
