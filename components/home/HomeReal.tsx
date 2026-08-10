@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo, type PodioLinha } from '@/lib/homeReal'
 import { AvatarCirculo } from './HeaderUsuario'
 import { useRegistrarAtualizar } from './AtualizarContext'
+import { BotoesLuz } from './BotoesLuz'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -121,6 +122,9 @@ export function HomeReal() {
 
           {/* Pódio */}
           {dados.podio.length > 0 && <BlocoPodio podio={dados.podio} />}
+
+          {/* Botões de Luz (Chamar TI + Interruptor) */}
+          <BotoesLuz />
         </>
       )}
     </>
