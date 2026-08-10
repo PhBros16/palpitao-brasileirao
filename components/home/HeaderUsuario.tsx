@@ -3,7 +3,8 @@
 // HeaderUsuario — cabeçalho com foto/emoji + nome + botões.
 // Agora com micro-interações, toasts e Modal animado.
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { lerLuzesLigadas } from './LuzesAmbiente'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { processarFoto, salvarFotoPerfil, salvarEmoji } from '@/lib/avatarUpload'
@@ -13,6 +14,33 @@ import { vibrar } from '@/lib/haptic'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
+}
+
+function BotaoInterruptor() {
+  const [ligado, setLigado] = useState(true)
+
+  useEffect(() => {
+    setLigado(lerLuzesLigadas())
+  }, [])
+
+  function alternar() {
+    vibrar('leve')
+    window.dispatchEvent(new Event('palpitao:alternarLuzes'))
+    setLigado((l) => !l)
+  }
+
+  return (
+    <motion.button
+      type="button"
+      onClick={alternar}
+      whileTap={{ scale: 0.94 }}
+      transition={{ duration: 0.12 }}
+      className="flex items-center justify-center rounded-md border border-dourado-300 bg-papel-50 px-2 py-1 font-mono text-xs hover:bg-dourado-50"
+      title={ligado ? 'Apagar luzes' : 'Acender luzes'}
+    >
+      {ligado ? '💡' : '🔦'}
+    </motion.button>
+  )
 }
 
 function getIniciais(nome: string): string {
@@ -76,6 +104,7 @@ export function HeaderUsuario({
           <p className="truncate font-display text-base font-bold text-tinta-300">{nome}</p>
           <p className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Participante</p>
         </div>
+        <BotaoInterruptor />
         <motion.button
           type="button"
           onClick={handleAtualizar}
