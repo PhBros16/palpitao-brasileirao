@@ -27,6 +27,14 @@ export function lerLuzesLigadas(): boolean {
 export function LuzesAmbiente() {
   const [ligado, setLigado] = useState(true)
   const [pronto, setPronto] = useState(false)
+  // Halo é só um flash bonito ao ligar — aparece e some sozinho, não fica
+  // permanentemente escurecendo metade da tela.
+  const [haloOpacidade, setHaloOpacidade] = useState(0)
+
+  function piscarHalo() {
+    setHaloOpacidade(0.55)
+    setTimeout(() => setHaloOpacidade(0), 1800)
+  }
 
   useEffect(() => {
     let jaConfigurado = false
@@ -44,6 +52,7 @@ export function LuzesAmbiente() {
     setPronto(true)
     const t = setTimeout(() => {
       setLigado(true)
+      piscarHalo()
       try { sessionStorage.setItem(CHAVE_LUZES, '1') } catch { /* ignora */ }
     }, 300)
     return () => clearTimeout(t)
@@ -53,6 +62,7 @@ export function LuzesAmbiente() {
     function handleToggle() {
       setLigado((atual) => {
         const novo = !atual
+        if (novo) piscarHalo()
         try { sessionStorage.setItem(CHAVE_LUZES, novo ? '1' : '0') } catch { /* ignora */ }
         return novo
       })
@@ -74,15 +84,15 @@ export function LuzesAmbiente() {
         className="absolute rounded-full"
         style={{
           left: '50%',
-          top: '30%',
-          width: 1100,
-          height: 1100,
+          top: '15%',
+          width: 900,
+          height: 900,
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.4) 35%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.35) 35%, transparent 65%)',
           filter: 'blur(40px)',
         }}
-        animate={{ opacity: ligado ? 0.8 : 0 }}
-        transition={{ duration: 1.4, ease: 'easeInOut' }}
+        animate={{ opacity: haloOpacidade }}
+        transition={{ duration: haloOpacidade > 0 ? 0.6 : 1.4, ease: 'easeInOut' }}
       />
     </div>
   )

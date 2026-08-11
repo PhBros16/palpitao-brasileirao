@@ -11,7 +11,7 @@
 //   5. Distribuição de palpites
 //   6. Pódio atual
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo, type PodioLinha } from '@/lib/homeReal'
 import { AvatarCirculo } from './HeaderUsuario'
 import { useRegistrarAtualizar } from './AtualizarContext'
@@ -63,7 +63,7 @@ export function HomeReal() {
     }
   }
 
-  async function atualizar() {
+  const atualizar = useCallback(async () => {
     if (!participantId) return
     setAtualizando(true)
     try {
@@ -74,7 +74,7 @@ export function HomeReal() {
     } finally {
       setAtualizando(false)
     }
-  }
+  }, [participantId])
 
   useRegistrarAtualizar(participantId ? atualizar : null, atualizando)
 
