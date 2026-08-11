@@ -33,12 +33,41 @@ function BotaoInterruptor() {
     <motion.button
       type="button"
       onClick={alternar}
-      whileTap={{ scale: 0.94 }}
-      transition={{ duration: 0.12 }}
-      className="flex items-center justify-center rounded-md border border-dourado-300 bg-papel-50 px-2 py-1 font-mono text-xs hover:bg-dourado-50"
-      title={ligado ? 'Apagar luzes' : 'Acender luzes'}
+      whileTap={{ scale: 0.92 }}
+      transition={{ duration: 0.15 }}
+      aria-label={ligado ? 'Desligar luzes' : 'Ligar luzes'}
+      className="relative flex-shrink-0"
+      style={{ width: 30, height: 40 }}
     >
-      {ligado ? '💡' : '🔦'}
+      <svg viewBox="0 0 44 60" width="30" height="40">
+        <rect x="2" y="2" width="40" height="56" rx="4" fill="#F0DBAA" stroke="#8B5A2B" strokeWidth="1.5" />
+        <rect x="6" y="6" width="32" height="48" rx="2" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity="0.5" />
+        <circle cx="6" cy="6" r="1.5" fill="#5C3818" />
+        <circle cx="38" cy="6" r="1.5" fill="#5C3818" />
+        <circle cx="6" cy="54" r="1.5" fill="#5C3818" />
+        <circle cx="38" cy="54" r="1.5" fill="#5C3818" />
+        <rect x="14" y="14" width="16" height="32" rx="3" fill="#3E2A1A" stroke="#1a1408" strokeWidth="0.8" />
+        <motion.rect
+          x="14"
+          y="14"
+          width="16"
+          height="16"
+          rx="2"
+          fill={ligado ? '#F5DC82' : '#6B4A15'}
+          stroke="#1a1408"
+          strokeWidth="1"
+          animate={{
+            y: ligado ? 14 : 30,
+            fill: ligado ? '#F5DC82' : '#6B4A15',
+          }}
+          transition={{
+            y: { type: 'spring', stiffness: 400, damping: 22 },
+            fill: { duration: 0.2 },
+          }}
+        />
+        <text x="22" y="12" fontSize="6" fontFamily="monospace" fontWeight="bold" fill="#5C3818" textAnchor="middle">I</text>
+        <text x="22" y="53" fontSize="6" fontFamily="monospace" fontWeight="bold" fill="#5C3818" textAnchor="middle">O</text>
+      </svg>
     </motion.button>
   )
 }
