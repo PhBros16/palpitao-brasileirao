@@ -143,13 +143,18 @@ export function Classificacao({
         <ColunaPodio linha={linhas[2]} lugar={3} altura="h-12" base="bg-bronze-100" medalha="🥉" />
       </motion.div>
 
-      {/* Tabela — # e Nome fixos na esquerda; PTS/CRAV/etc. livres */}
+      {/* Tabela — # e Nome fixos na esquerda; PTS/CRAV/etc. livres.
+          overflow-x-auto (não overflow-hidden) no wrapper interno: se a
+          tabela for mais larga que a tela, ela ganha scroll horizontal em
+          vez de ser cortada. O wrapper externo mantém overflow-hidden só
+          pra recortar os cantos arredondados. */}
       <div className="rounded-lg border border-papel-borda-200 overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full table-auto border-separate border-spacing-0">
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
               <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 w-10 px-1 py-2 text-center">#</th>
-              <th className="sticky left-10 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left min-w-[90px]">
+              <th className="sticky left-10 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left w-[84px]">
                 Nome
               </th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-3 py-2 text-right">Pontos</th>
@@ -174,11 +179,11 @@ export function Classificacao({
                 <td className="sticky left-0 z-10 border-b border-papel-borda-200/60 bg-papel-50 w-10 px-1 py-2 text-center font-mono text-xs text-tinta-200">
                   {i + 1}
                 </td>
-                <td className="sticky left-10 z-10 border-b border-r-2 border-papel-borda-300 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
-                  <div className="flex items-center gap-1">
+                <td className="sticky left-10 z-10 w-[84px] border-b border-r-2 border-papel-borda-300 bg-papel-50 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
+                  <div className="flex items-center gap-1 overflow-hidden">
                     <AvatarMini avatar={d.avatar} nome={d.nome} />
-                    {d.emoji && <span className="text-sm leading-none">{d.emoji}</span>}
-                    <span className="whitespace-nowrap" title={d.nome}>{abreviarNome(d.nome)}</span>
+                    {d.emoji && <span className="flex-shrink-0 text-sm leading-none">{d.emoji}</span>}
+                    <span className="truncate" title={d.nome}>{abreviarNome(d.nome)}</span>
                   </div>
                 </td>
                 <td className="border-b border-papel-borda-200/60 px-3 py-2 text-right font-mono text-xs font-bold text-tinta-300">
@@ -200,6 +205,7 @@ export function Classificacao({
             ))}
           </motion.tbody>
         </table>
+        </div>
         {clicavel && (
           <p className="border-t border-papel-borda-200 bg-papel-100 px-3 py-2 text-center font-mono text-[10px] italic text-tinta-100">
             👆 Toque em qualquer participante pra ver o comparativo frente a frente

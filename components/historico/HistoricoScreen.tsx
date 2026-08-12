@@ -93,7 +93,8 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
   )
 
   return (
-    <section className="space-y-4">
+    <main className="min-h-screen bg-papel-200 px-4 pb-10 pt-6">
+    <div className="mx-auto max-w-md space-y-4">
       <h1 className="font-display text-2xl font-bold text-tinta-300">Histórico</h1>
 
       <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
@@ -151,6 +152,7 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
           ))}
         </motion.div>
       )}
-    </section>
+    </div>
+    </main>
   )
 }

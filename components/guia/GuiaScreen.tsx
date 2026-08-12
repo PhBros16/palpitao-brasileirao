@@ -70,7 +70,8 @@ export function GuiaScreen() {
   }, [])
 
   return (
-    <section className="space-y-3">
+    <main className="min-h-screen bg-papel-200 px-4 pb-10 pt-6">
+    <div className="mx-auto max-w-md space-y-3">
       <h1 className="font-display text-2xl font-bold text-tinta-300">Guia</h1>
       <p className="font-sans text-sm text-tinta-100">
         Como funciona o Pamonhão — regras, pontuação e os chefes por trás disso tudo.
@@ -345,6 +346,7 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
       </motion.div>
-    </section>
+    </div>
+    </main>
   )
 }
