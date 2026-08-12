@@ -18,6 +18,14 @@ function getIniciais(nome: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+// "Victor Simões" -> "Victor S." — evita que nomes longos estourem a
+// coluna da tabela. Nomes de uma palavra só ficam como estão.
+function abreviarNome(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return nome
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`
+}
+
 const containerVariants = {
   hidden: { opacity: 1 },
   visible: {
@@ -131,7 +139,7 @@ export function Classificacao({
         className="flex items-end gap-2 px-2 pt-2"
       >
         <ColunaPodio linha={linhas[1]} lugar={2} altura="h-16" base="bg-prata-100" medalha="🥈" />
-        <ColunaPodio linha={linhas[0]} lugar={1} altura="h-24" base="bg-dourado-300" medalha="🥇" />
+        <ColunaPodio linha={linhas[0]} lugar={1} altura="h-24" base="bg-dourado-300" medalha="👑" />
         <ColunaPodio linha={linhas[2]} lugar={3} altura="h-12" base="bg-bronze-100" medalha="🥉" />
       </motion.div>
 
@@ -141,7 +149,7 @@ export function Classificacao({
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
               <th className="sticky left-0 z-20 border-b border-papel-borda-200 bg-papel-200 w-10 px-1 py-2 text-center">#</th>
-              <th className="sticky left-10 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left min-w-[120px]">
+              <th className="sticky left-10 z-20 border-b border-r-2 border-papel-borda-300 bg-papel-200 px-2 py-2 text-left min-w-[90px]">
                 Nome
               </th>
               <th className="border-b border-papel-borda-200 bg-papel-200 px-3 py-2 text-right">Pontos</th>
@@ -170,7 +178,7 @@ export function Classificacao({
                   <div className="flex items-center gap-1">
                     <AvatarMini avatar={d.avatar} nome={d.nome} />
                     {d.emoji && <span className="text-sm leading-none">{d.emoji}</span>}
-                    <span className="whitespace-nowrap">{d.nome}</span>
+                    <span className="whitespace-nowrap" title={d.nome}>{abreviarNome(d.nome)}</span>
                   </div>
                 </td>
                 <td className="border-b border-papel-borda-200/60 px-3 py-2 text-right font-mono text-xs font-bold text-tinta-300">

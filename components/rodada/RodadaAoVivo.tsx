@@ -45,27 +45,11 @@ function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
   return (
     <div className="flex flex-col items-center gap-0.5 py-1">
       <div className="flex items-center gap-0.5">
-        {jogo.homeEscudo && (
-          <img
-            src={jogo.homeEscudo}
-            alt={jogo.home}
-            className="h-4 w-4 object-contain"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-          />
-        )}
         <span className="font-mono text-[9px] font-bold text-dourado-50">{jogo.homeAbrev}</span>
       </div>
       <span className="font-mono text-[7px] text-dourado-50/60">×</span>
       <div className="flex items-center gap-0.5">
         <span className="font-mono text-[9px] font-bold text-dourado-50">{jogo.awayAbrev}</span>
-        {jogo.awayEscudo && (
-          <img
-            src={jogo.awayEscudo}
-            alt={jogo.away}
-            className="h-4 w-4 object-contain"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-          />
-        )}
       </div>
       {jogo.temResultado && (
         <span className="mt-0.5 rounded bg-dourado-100 px-1 py-0.5 font-mono text-[9px] font-bold text-dourado-700">

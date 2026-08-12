@@ -25,17 +25,19 @@ export function EscudoTime({ nome, logo }: { nome: string; logo?: string }) {
   const [erro, setErro] = useState(false)
   const mostrarImg = logo && !erro
   return (
-    <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-papel-borda-300 bg-papel-100">
+    <span className="flex h-14 w-14 items-center justify-center">
       {mostrarImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={logo}
           alt={nome}
-          className="h-full w-full object-contain p-1"
+          className="h-full w-full object-contain"
           onError={() => setErro(true)}
         />
       ) : (
-        <span className="font-display text-sm font-bold text-tinta-200">{siglaTime(nome)}</span>
+        <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-papel-borda-300 bg-papel-100 font-display text-sm font-bold text-tinta-200">
+          {siglaTime(nome)}
+        </span>
       )}
     </span>
   )
