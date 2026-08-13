@@ -272,17 +272,18 @@ export function RodadaAoVivo() {
         tags={[
           ...(dados.isDouble ? [{ label: '⚡ VALE X2', variante: 'dourado' as const }] : []),
         ]}
-      >
-        <div className="flex items-center justify-end px-3 py-2">
+        acao={
           <button
             type="button"
             onClick={atualizar}
             disabled={atualizando}
-            className="flex items-center gap-1.5 rounded-md border border-dourado-300 bg-papel-50 px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-dourado-700 transition-colors hover:bg-dourado-50 disabled:opacity-50"
+            className="flex items-center gap-1 rounded border border-dourado-50/40 bg-dourado-50/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-dourado-50 transition-colors hover:bg-dourado-50/25 disabled:opacity-50"
           >
             {atualizando ? '...' : '↻'} Atualizar
           </button>
-        </div>
+        }
+      >
+        {null}
       </CardEnvelope>
 
       {esqueceuAlgum && (
