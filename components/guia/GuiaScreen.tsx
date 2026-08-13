@@ -1,7 +1,7 @@
 'use client'
 
 // GuiaScreen — 10 seções em accordion com stagger de entrada.
-// Adms puxam do Supabase (tabela admins_profile). Resto é conteúdo estático.
+// Envolvido pelo AppLayout: sem <main>, sem bg próprio.
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -70,12 +70,13 @@ export function GuiaScreen() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-papel-200 px-4 pb-10 pt-6">
-    <div className="mx-auto max-w-md space-y-3">
-      <h1 className="font-display text-2xl font-bold text-tinta-300">Guia</h1>
-      <p className="font-sans text-sm text-tinta-100">
-        Como funciona o Pamonhão — regras, pontuação e os chefes por trás disso tudo.
-      </p>
+    <>
+      <div>
+        <h1 className="font-display text-2xl font-bold text-dourado-50">Guia</h1>
+        <p className="mt-1 font-sans text-sm text-dourado-50/70">
+          Como funciona o Palpitão — regras, pontuação e os chefes por trás disso tudo.
+        </p>
+      </div>
 
       <motion.div
         variants={containerSecoes}
@@ -94,7 +95,6 @@ export function GuiaScreen() {
               <p className="font-sans text-sm text-tinta-100">Nenhum adm cadastrado ainda. Peça pra alguém montar o card na aba Admin.</p>
             ) : (
               <>
-                {/* Container com fundo contrastado */}
                 <div
                   className="-mx-4 -mt-4 px-4 py-6"
                   style={{
@@ -121,7 +121,6 @@ export function GuiaScreen() {
                   </motion.div>
                 </div>
 
-                {/* Legenda das siglas */}
                 <div className="mt-4 rounded-lg border border-dourado-300 bg-gradient-to-br from-dourado-50 to-couro-50 p-3">
                   <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dourado-700 text-center">
                     📖 Legenda dos Atributos
@@ -346,7 +345,6 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
       </motion.div>
-    </div>
-    </main>
+    </>
   )
 }
