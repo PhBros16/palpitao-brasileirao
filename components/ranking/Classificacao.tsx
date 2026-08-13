@@ -148,7 +148,7 @@ export function Classificacao({
           tabela for mais larga que a tela, ela ganha scroll horizontal em
           vez de ser cortada. O wrapper externo mantém overflow-hidden só
           pra recortar os cantos arredondados. */}
-      <div className="rounded-lg border border-papel-borda-200 overflow-hidden">
+      <div className="rounded-lg border border-papel-borda-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full table-auto border-separate border-spacing-0">
           <thead>

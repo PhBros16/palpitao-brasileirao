@@ -252,7 +252,7 @@ function Resumo({
       animate={destaque ? { borderColor: 'var(--dourado-400, #E3C268)' } : {}}
       transition={{ duration: 0.3 }}
       className={cx(
-        'flex flex-col items-center rounded-md border py-2 transition-colors',
+        'flex flex-col items-center rounded-lg border shadow-sm py-2 transition-colors',
         destaque ? 'border-dourado-400 bg-dourado-50' : 'border-papel-borda-200 bg-papel-50',
       )}
     >

@@ -88,25 +88,53 @@ export interface HomeCompleta {
 // ─── Função principal ────────────────────────────────────────────────────────
 
 export async function buscarHomeCompleta(participantId: string): Promise<HomeCompleta> {
-  // 1. Participantes (com emoji + avatar)
-  const { data: participants } = await supabase
-    .from('participants')
-    .select('id, name, emoji, avatar')
-    .eq('is_admin', false)
-    .order('name')
+  // 1, 2, 5 e 7 não dependem uma da outra — antes rodavam uma de cada vez
+  // (await sequencial), cada uma esperando a anterior terminar. Com
+  // Promise.all elas saem todas ao mesmo tempo, e o tempo total de espera
+  // vira o da mais lenta, não a soma de todas.
+  const [
+    { data: participants },
+    { data: rodadaRaw },
+    { data: rrTotais },
+    { data: ultimaFin },
+  ] = await Promise.all([
+    // 1. Participantes (com emoji + avatar)
+    supabase
+      .from('participants')
+      .select('id, name, emoji, avatar')
+      .eq('is_admin', false)
+      .order('name'),
+    // 2. Rodada ativa (palpites_open=true)
+    supabase
+      .from('rounds')
+      .select('id, number, name, is_double')
+      .eq('palpites_open', true)
+      .order('number', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // 5. Total geral de todo mundo (usado no pódio E na parcial — antes
+    // essa mesma query rodava DUAS VEZES, uma pra cada uso).
+    supabase
+      .from('round_results')
+      .select('participant_id, round_pts'),
+    // 7. Última rodada finalizada (pro Frango)
+    supabase
+      .from('rounds')
+      .select('id, name')
+      .eq('finalized', true)
+      .order('number', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   const partList = participants ?? []
   const partById = new Map(partList.map((p) => [p.id, p]))
   const usuario = partById.get(participantId)
 
-  // 2. Rodada ativa (palpites_open=true)
-  const { data: rodadaRaw } = await supabase
-    .from('rounds')
-    .select('id, number, name, is_double')
-    .eq('palpites_open', true)
-    .order('number', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const totaisRanking = new Map<string, number>()
+  for (const rr of rrTotais ?? []) {
+    totaisRanking.set(rr.participant_id, (totaisRanking.get(rr.participant_id) ?? 0) + (rr.round_pts ?? 0))
+  }
 
   let rodada: RodadaAtiva | null = null
   let cravadasRodadaUsuario = 0
@@ -115,15 +143,42 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
   const placares: PlacaresJogo[] = []
   const distribuicao: DistribuicaoJogo[] = []
 
-  if (rodadaRaw) {
-    // 3. Jogos da rodada
-    const { data: matchesRaw } = await supabase
-      .from('matches')
-      .select('id, home, away, home_score, away_score, match_date, match_time')
-      .eq('round_id', rodadaRaw.id)
-      .order('match_date', { ascending: true })
-      .order('match_time', { ascending: true })
+  // 7b. Frango — também não depende da rodada ativa, então dispara junto
+  // com a busca de jogos (3) logo abaixo, em vez de esperar tudo terminar.
+  // Sempre é aguardado (com ou sem rodada ativa) via Promise.all abaixo.
+  let frango: Frango | null = null
+  const shamePromise = ultimaFin
+    ? supabase
+        .from('shame')
+        .select('player_name, text, photo_url')
+        .eq('round_id', ultimaFin.id)
+        .maybeSingle()
+    : Promise.resolve({ data: null } as { data: { player_name: string; text: string | null; photo_url: string | null } | null })
 
+  // 3. Jogos da rodada ativa (só existe se rodadaRaw existir) — dispara ao
+  // mesmo tempo que o Frango (7b) acima, já que uma coisa não depende da
+  // outra.
+  const matchesPromise = rodadaRaw
+    ? supabase
+        .from('matches')
+        .select('id, home, away, home_score, away_score, match_date, match_time')
+        .eq('round_id', rodadaRaw.id)
+        .order('match_date', { ascending: true })
+        .order('match_time', { ascending: true })
+    : Promise.resolve({ data: [] as Array<{ id: string; home: string; away: string; home_score: number | null; away_score: number | null; match_date: string | null; match_time: string | null }> })
+
+  const [{ data: matchesRaw }, { data: shameRow }] = await Promise.all([matchesPromise, shamePromise])
+
+  if (shameRow && shameRow.player_name) {
+    frango = {
+      playerName: shameRow.player_name,
+      text: shameRow.text,
+      photoUrl: shameRow.photo_url,
+      rodadaNome: ultimaFin!.name,
+    }
+  }
+
+  if (rodadaRaw) {
     const matches = matchesRaw ?? []
     const matchIds = matches.map((m) => m.id)
 
@@ -231,16 +286,8 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     const meuAgg = aggMap.get(participantId)
     ptsRodadaUsuario = meuAgg?.pts ?? null
 
-    // Monta parcial
-    // Total geral vem do round_results (fonte oficial do ranking)
-    const { data: rrTotais } = await supabase
-      .from('round_results')
-      .select('participant_id, round_pts, round_id')
-    const totalPorPart = new Map<string, number>()
-    for (const rr of rrTotais ?? []) {
-      totalPorPart.set(rr.participant_id, (totalPorPart.get(rr.participant_id) ?? 0) + (rr.round_pts ?? 0))
-    }
-
+    // Monta parcial — total geral já veio em paralelo lá em cima
+    // (totaisRanking), não precisa buscar de novo.
     const linhasBrutas: ParcialLinha[] = partList.map((p) => {
       const agg = aggMap.get(p.id)
       return {
@@ -249,7 +296,7 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
         emoji: p.emoji,
         avatar: p.avatar,
         ptsRodada: agg?.pts ?? null,
-        totalGeral: totalPorPart.get(p.id) ?? 0,
+        totalGeral: totaisRanking.get(p.id) ?? 0,
         posicao: 0,
       }
     })
@@ -264,14 +311,7 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     parcial.push(...linhasBrutas)
   }
 
-  // 5. Pódio (top 3 do ranking geral — usa round_results)
-  const { data: rrTodos } = await supabase
-    .from('round_results')
-    .select('participant_id, round_pts')
-  const totaisRanking = new Map<string, number>()
-  for (const rr of rrTodos ?? []) {
-    totaisRanking.set(rr.participant_id, (totaisRanking.get(rr.participant_id) ?? 0) + (rr.round_pts ?? 0))
-  }
+  // 5. Pódio (top 3 do ranking geral) — mesmo totaisRanking de cima
   const podioList = partList
     .map((p) => ({
       nome: p.name,
@@ -303,32 +343,7 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     posicaoRanking: posUsuario + 1,
     ptsPraSubir,
   }
-
-  // 7. Frango da rodada anterior (última rodada finalizada)
-  const { data: ultimaFin } = await supabase
-    .from('rounds')
-    .select('id, name')
-    .eq('finalized', true)
-    .order('number', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  let frango: Frango | null = null
-  if (ultimaFin) {
-    const { data: shameRow } = await supabase
-      .from('shame')
-      .select('player_name, text, photo_url')
-      .eq('round_id', ultimaFin.id)
-      .maybeSingle()
-    if (shameRow && shameRow.player_name) {
-      frango = {
-        playerName: shameRow.player_name,
-        text: shameRow.text,
-        photoUrl: shameRow.photo_url,
-        rodadaNome: ultimaFin.name,
-      }
-    }
-  }
+  // Frango já foi resolvido lá em cima, em paralelo com os jogos da rodada.
 
   return {
     rodada,

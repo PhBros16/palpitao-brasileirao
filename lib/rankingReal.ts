@@ -56,18 +56,25 @@ export interface FrenteFrenteRodada {
 
 /** Busca o ranking geral (de round_results, só finalizadas, só não-admins). */
 export async function buscarRankingReal(): Promise<LinhaRanking[]> {
-  const { data: participants, error: pErr } = await supabase
-    .from('participants')
-    .select('id, name, emoji, avatar')
-    .eq('is_admin', false)
-    .order('name')
+  // participants e rounds não dependem uma da outra — dispara as duas ao
+  // mesmo tempo em vez de esperar a primeira terminar pra só então pedir
+  // a segunda.
+  const [
+    { data: participants, error: pErr },
+    { data: rounds, error: rErr },
+  ] = await Promise.all([
+    supabase
+      .from('participants')
+      .select('id, name, emoji, avatar')
+      .eq('is_admin', false)
+      .order('name'),
+    supabase
+      .from('rounds')
+      .select('id')
+      .eq('finalized', true),
+  ])
   if (pErr) throw pErr
   if (!participants) return []
-
-  const { data: rounds, error: rErr } = await supabase
-    .from('rounds')
-    .select('id')
-    .eq('finalized', true)
   if (rErr) throw rErr
   const roundIds = (rounds ?? []).map((r) => r.id)
 

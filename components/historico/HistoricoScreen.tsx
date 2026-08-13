@@ -97,7 +97,7 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
     <div className="mx-auto max-w-md space-y-4">
       <h1 className="font-display text-2xl font-bold text-tinta-300">Histórico</h1>
 
-      <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
+      <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3 shadow-sm">
         <label className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-tinta-200">
           Buscar Rodada
         </label>
