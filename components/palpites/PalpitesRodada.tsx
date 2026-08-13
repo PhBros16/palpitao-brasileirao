@@ -1,11 +1,12 @@
 'use client'
 
 // PalpitesRodada — tela de Palpites da rodada atual.
-// Agora com toasts + vibração + micro-interações no salvar.
+// Envolvido pelo AppLayout, então nada de <main>/bg/max-w aqui.
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CardJogo, formatCountdown, type JogoPalpite, type Palpite } from './CardJogo'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 
@@ -134,14 +135,11 @@ export function PalpitesRodada({
   }
 
   return (
-    <main className="min-h-screen bg-papel-200 px-4 pb-28 pt-6">
-      <div className="mx-auto max-w-md">
-        {/* Cabeçalho */}
-        <header className="mb-4">
-          <h1 className="font-display text-2xl font-bold text-tinta-300">{rodadaNome}</h1>
-          <p className="font-sans text-sm text-tinta-100">Palpite o placar de cada jogo</p>
-
-          <div className="mt-3 grid grid-cols-3 gap-2">
+    <>
+      {/* Cabeçalho da rodada dentro do card padrão */}
+      <CardEnvelope titulo={`⚽ ${rodadaNome}`} subtitulo="Palpite o placar de cada jogo">
+        <div className="p-3">
+          <div className="grid grid-cols-3 gap-2">
             <Resumo label="Jogos" valor={totais} />
             <Resumo label="Abertos" valor={abertos} />
             <Resumo label="Palpitados" valor={`${palpitados}/${totais}`} destaque={palpitados > 0} />
@@ -163,39 +161,38 @@ export function PalpitesRodada({
               </motion.span>
             </p>
           )}
-        </header>
 
-        {/* Banner cômico */}
-        {esqueceu && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mb-4 rounded-md border border-dourado-300 bg-dourado-50/60 px-3 py-2 text-center font-sans text-xs font-medium text-tinta-300"
-          >
-            iii, mané… ainda tem jogo sem palpite! 👀
-          </motion.div>
-        )}
-
-        {/* Lista de jogos com stagger */}
-        <motion.div
-          variants={listaVariants}
-          initial="hidden"
-          animate="visible"
-          className="flex flex-col gap-3"
-        >
-          {jogos.map((j) => (
-            <motion.div key={j.id} variants={itemVariants}>
-              <CardJogo
-                jogo={j}
-                palpite={getPalpite(j.id)}
-                now={now}
-                onChange={(p) => setPalpite(j.id, p)}
-              />
+          {esqueceu && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/60 px-3 py-2 text-center font-sans text-xs font-medium text-tinta-300"
+            >
+              iii, mané… ainda tem jogo sem palpite! 👀
             </motion.div>
-          ))}
-        </motion.div>
-      </div>
+          )}
+        </div>
+      </CardEnvelope>
+
+      {/* Lista de jogos com stagger */}
+      <motion.div
+        variants={listaVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex flex-col gap-3 pb-24"
+      >
+        {jogos.map((j) => (
+          <motion.div key={j.id} variants={itemVariants}>
+            <CardJogo
+              jogo={j}
+              palpite={getPalpite(j.id)}
+              now={now}
+              onChange={(p) => setPalpite(j.id, p)}
+            />
+          </motion.div>
+        ))}
+      </motion.div>
 
       {/* Barra de salvar fixa */}
       <motion.div
@@ -234,7 +231,7 @@ export function PalpitesRodada({
           </motion.button>
         </div>
       </motion.div>
-    </main>
+    </>
   )
 }
 
