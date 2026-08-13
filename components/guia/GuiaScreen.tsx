@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { buscarAdmsGuia, CONTEUDO_COMO_FUNCIONA, REGRAS_PONTUACAO, CRITERIOS_DESEMPATE, TIERS_TROFEUS, FAQ, URL_WHATSAPP_DUVIDA } from '@/lib/guiaData'
 import type { AdminProfile } from '@/lib/rodadaAdmin'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { SecaoAccordion } from './SecaoAccordion'
 import { CardFifa } from './CardFifa'
 
@@ -71,12 +72,12 @@ export function GuiaScreen() {
 
   return (
     <>
-      <div>
-        <h1 className="font-display text-2xl font-bold text-dourado-50">Guia</h1>
-        <p className="mt-1 font-sans text-sm text-dourado-50/70">
-          Como funciona o Palpitão — regras, pontuação e os chefes por trás disso tudo.
-        </p>
-      </div>
+      <CardEnvelope
+        titulo="📖 Guia do Palpitão"
+        subtitulo="Regras, pontuação e os chefes por trás disso tudo"
+      >
+        {null}
+      </CardEnvelope>
 
       <motion.div
         variants={containerSecoes}
