@@ -1,9 +1,11 @@
 'use client'
 
 // RodadaAoVivo — tabela ao vivo da rodada em andamento.
+// Envolvido pelo AppLayout: sem <main>, sem bg próprio.
 
 import { useEffect, useMemo, useState } from 'react'
 import { buscarRodadaAoVivo, type RodadaAoVivoDados, type LinhaRodadaAoVivo, type PalpiteCelula, type JogoRodada } from '@/lib/rodadaAoVivo'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -234,36 +236,44 @@ export function RodadaAoVivo() {
   }
 
   if (carregando) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-tinta-100">Carregando rodada...</main>
+    return (
+      <CardEnvelope>
+        <p className="p-6 text-center font-sans text-sm text-tinta-100">Carregando rodada...</p>
+      </CardEnvelope>
+    )
   }
   if (erro) {
-    return <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6 text-center font-sans text-sm text-raridade-frango-selo">{erro}</main>
+    return (
+      <CardEnvelope variante="alerta" titulo="Erro">
+        <p className="p-6 text-center font-sans text-sm text-raridade-frango-selo">{erro}</p>
+      </CardEnvelope>
+    )
   }
   if (!dados) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 p-6">
-        <div className="max-w-sm rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center">
-          <p className="mb-2 text-4xl">😴</p>
+      <CardEnvelope titulo="😴 Sem rodada">
+        <div className="p-6 text-center">
           <p className="font-display text-lg font-bold text-tinta-300">Sem rodada em andamento</p>
           <p className="mt-2 font-sans text-sm text-tinta-200">
             Aguarde o admin abrir a próxima rodada ou consulte o Histórico.
           </p>
         </div>
-      </main>
+      </CardEnvelope>
     )
   }
 
   return (
-    <main className="min-h-screen bg-papel-200 px-2 pb-10 pt-6 sm:px-4">
-      <div className="mx-auto max-w-4xl space-y-3">
-        <header className="flex items-center justify-between px-2">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-tinta-300">Rodada</h1>
-            <p className="font-sans text-xs text-tinta-100">
-              {dados.nome}
-              {dados.isDouble && <span className="ml-2 rounded bg-dourado-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-dourado-700">⚡ VALE X2</span>}
-            </p>
-          </div>
+    <>
+      <CardEnvelope
+        titulo={`📊 ${dados.nome}`}
+        subtitulo={ultimaAtualizacao
+          ? `Atualizado às ${ultimaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+          : undefined}
+        tags={[
+          ...(dados.isDouble ? [{ label: '⚡ VALE X2', variante: 'dourado' as const }] : []),
+        ]}
+      >
+        <div className="flex items-center justify-end px-3 py-2">
           <button
             type="button"
             onClick={atualizar}
@@ -272,24 +282,19 @@ export function RodadaAoVivo() {
           >
             {atualizando ? '...' : '↻'} Atualizar
           </button>
-        </header>
+        </div>
+      </CardEnvelope>
 
-        {esqueceuAlgum && (
-          <div className="rounded-lg border-2 border-raridade-frango-selo bg-red-50/70 px-4 py-3">
-            <p className="font-sans text-sm font-semibold text-raridade-frango-selo">🚨 {zoacao}</p>
-            <p className="mt-1 font-sans text-xs text-raridade-frango-selo/80">
-              Você tem palpites em aberto. Vai lá na aba <b>Palpites</b>.
-            </p>
-          </div>
-        )}
-
-        {ultimaAtualizacao && (
-          <p className="text-center font-mono text-[10px] text-tinta-100">
-            Atualizado às {ultimaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      {esqueceuAlgum && (
+        <CardEnvelope variante="alerta" titulo={`🚨 ${zoacao}`}>
+          <p className="px-4 py-3 font-sans text-xs text-raridade-frango-selo/80">
+            Você tem palpites em aberto. Vai lá na aba <b>Palpites</b>.
           </p>
-        )}
+        </CardEnvelope>
+      )}
 
-        <div className="overflow-x-auto rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-md scrollbar-tema">
+      <CardEnvelope>
+        <div className="overflow-x-auto scrollbar-tema">
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
@@ -360,19 +365,20 @@ export function RodadaAoVivo() {
             </tbody>
           </table>
         </div>
+      </CardEnvelope>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 rounded-lg border border-papel-borda-200 bg-papel-50 px-3 py-2 font-mono text-[10px] text-tinta-100">
+      <CardEnvelope>
+        <div className="flex flex-wrap items-center justify-center gap-3 px-3 py-2 font-mono text-[10px] text-tinta-100">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-600" /> Cravou (+5)</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-blue-500" /> Saldo (+3)</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-yellow-400" /> Vencedor (+1)</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-red-500" /> Errou (0)</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-papel-borda-300" /> Aguardando</span>
         </div>
-
-        <p className="text-center font-mono text-[10px] italic text-tinta-100">
+        <p className="border-t border-papel-borda-200 bg-papel-100 px-3 py-2 text-center font-mono text-[10px] italic text-tinta-100">
           👆 Toque em qualquer participante pra ver o frente a frente
         </p>
-      </div>
+      </CardEnvelope>
 
       {frenteFrente && dados && (
         <FrenteFrenteRodadaModal
@@ -382,7 +388,6 @@ export function RodadaAoVivo() {
           onFechar={() => setFrenteFrente(null)}
         />
       )}
-    </main>
+    </>
   )
 }
-
