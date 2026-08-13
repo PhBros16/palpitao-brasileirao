@@ -31,7 +31,7 @@ export function RankingScreen({ dados, onClickLinha }: { dados: DadosRanking; on
 
   return (
     <>
-      <h1 className="font-display text-2xl font-bold text-tinta-300">Ranking</h1>
+      <h1 className="font-display text-2xl font-bold text-dourado-50">Ranking</h1>
 
       {/* Sub-abas */}
       <div className="flex gap-1 rounded-lg border border-papel-borda-200 bg-papel-50 p-1">
