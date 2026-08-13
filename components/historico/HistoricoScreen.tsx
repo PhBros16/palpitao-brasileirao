@@ -1,8 +1,7 @@
 'use client'
 
 // HistoricoScreen — lista de rodadas finalizadas + busca + expansão de detalhes.
-// Cards entram em cascata (stagger).
-// Ligado ao Supabase via lib/historicoReal.ts
+// Envolvido pelo AppLayout: sem <main>, sem bg próprio.
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -12,6 +11,7 @@ import {
   type RodadaHistorico,
   type DetalheRodadaHistorico,
 } from '@/lib/historicoReal'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { CardRodadaHistorico } from './CardRodadaHistorico'
 
 const container = {
@@ -93,42 +93,42 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
   )
 
   return (
-    <main className="min-h-screen bg-papel-200 px-4 pb-10 pt-6">
-    <div className="mx-auto max-w-md space-y-4">
-      <h1 className="font-display text-2xl font-bold text-tinta-300">Histórico</h1>
+    <>
+      <h1 className="font-display text-2xl font-bold text-dourado-50">Histórico</h1>
 
-      <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3 shadow-sm">
-        <label className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-tinta-200">
-          Buscar Rodada
-        </label>
-        <select
-          value={buscaId}
-          onChange={(e) => onBuscaSelect(e.target.value)}
-          className="w-full rounded-md border border-papel-borda-300 bg-papel-100 px-3 py-2 font-sans text-sm text-tinta-300 focus:border-dourado-500 focus:outline-none"
-        >
-          <option value="">— Escolha uma rodada —</option>
-          {opcoesBusca.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
-      </div>
+      <CardEnvelope titulo="🔍 Buscar Rodada">
+        <div className="p-3">
+          <select
+            value={buscaId}
+            onChange={(e) => onBuscaSelect(e.target.value)}
+            className="w-full rounded-md border border-papel-borda-300 bg-papel-100 px-3 py-2 font-sans text-sm text-tinta-300 focus:border-dourado-500 focus:outline-none"
+          >
+            <option value="">— Escolha uma rodada —</option>
+            {opcoesBusca.map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      </CardEnvelope>
 
       {erro && (
-        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
-          {erro}
-        </div>
+        <CardEnvelope variante="alerta" titulo="Erro">
+          <p className="p-3 text-center font-sans text-sm text-raridade-frango-selo">{erro}</p>
+        </CardEnvelope>
       )}
 
       {carregando && (
-        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
-          Carregando histórico...
-        </div>
+        <CardEnvelope>
+          <p className="p-6 text-center font-sans text-sm text-tinta-100">Carregando histórico...</p>
+        </CardEnvelope>
       )}
 
       {!carregando && rodadas.length === 0 && (
-        <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
-          Nenhuma rodada finalizada ainda.
-        </div>
+        <CardEnvelope>
+          <p className="p-6 text-center font-sans text-sm text-tinta-100">
+            Nenhuma rodada finalizada ainda.
+          </p>
+        </CardEnvelope>
       )}
 
       {!carregando && rodadas.length > 0 && (
@@ -152,7 +152,6 @@ export function HistoricoScreen({ meuParticipantId }: { meuParticipantId: string
           ))}
         </motion.div>
       )}
-    </div>
-    </main>
+    </>
   )
 }
