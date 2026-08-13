@@ -1,14 +1,17 @@
 'use client'
 
 // CardEnvelope — wrapper visual padrão do app: borda dourada 2px arredondada
-// com header opcional em couro-300 (título bege + tags à direita).
+// com header opcional em couro-300 (título bege + tags/ação à direita).
 //
 // Uso:
 //   <CardEnvelope titulo="📊 Ranking" tags={[{ label: 'EM ANDAMENTO' }]}>
 //     ...conteúdo...
 //   </CardEnvelope>
 //
-// Se não quiser header, omita `titulo`.
+// Com botão à direita:
+//   <CardEnvelope titulo="📊 Rodada" acao={<button>Atualizar</button>}>
+//     ...
+//   </CardEnvelope>
 
 import type { ReactNode } from 'react'
 
@@ -26,6 +29,7 @@ export function CardEnvelope({
   titulo,
   subtitulo,
   tags,
+  acao,
   children,
   className,
   variante = 'padrao',
@@ -33,12 +37,15 @@ export function CardEnvelope({
   titulo?: string
   subtitulo?: string
   tags?: CardEnvelopeTag[]
+  /** Botão/ação no canto direito do header (ex: Atualizar). */
+  acao?: ReactNode
   children: ReactNode
   className?: string
   /** 'padrao' = borda dourada / header couro. 'alerta' = borda vermelha / header vermelho. */
   variante?: 'padrao' | 'alerta'
 }) {
   const isAlerta = variante === 'alerta'
+  const temAlgoDireita = (tags && tags.length > 0) || !!acao
 
   return (
     <div
@@ -80,13 +87,14 @@ export function CardEnvelope({
             )}
           </div>
 
-          {tags && tags.length > 0 && (
-            <div className="flex flex-shrink-0 gap-1.5">
-              {tags.map((tag, i) => (
+          {temAlgoDireita && (
+            <div className="flex flex-shrink-0 items-center gap-1.5">
+              {tags?.map((tag, i) => (
                 <span key={i} className={cx('rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest', tagClasses(tag.variante))}>
                   {tag.label}
                 </span>
               ))}
+              {acao}
             </div>
           )}
         </div>
