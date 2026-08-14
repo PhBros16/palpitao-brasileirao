@@ -10,10 +10,14 @@
 //     desliga com o mesmo fade — sem NENHUMA animação de loop rodando
 //     enquanto ligado ou desligado, só dois estados estáticos e uma
 //     transição simples entre eles.
+//   - Se veio da abertura via flip (sessionStorage flag), espera a virada
+//     terminar antes de disparar a sequência inicial (evita brigar por
+//     atenção com o CampoFlipOverlay).
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 const CHAVE_LUZES = 'palpitao_luzes_ligado_v3'
+const CHAVE_FLIP = 'palpitao_flip_transicao'
 
 export function lerLuzesLigadas(): boolean {
   if (typeof window === 'undefined') return true
@@ -48,6 +52,37 @@ export function LuzesAmbiente() {
       return
     }
 
+    // Se veio da abertura com flip pendente, aguarda o overlay terminar
+    // pra não brigar visualmente. Overlay total = ~120 + 1200 + 80 = 1400ms.
+    let flipPendente = false
+    try {
+      flipPendente = sessionStorage.getItem(CHAVE_FLIP) === '1'
+    } catch { /* ignora */ }
+
+    if (flipPendente) {
+      // Fica pronto (renderiza) mas começa apagado — espera o evento
+      // 'palpitao:transicao-terminada' pra acender.
+      setLigado(false)
+      setPronto(true)
+
+      const acender = () => {
+        setLigado(true)
+        piscarHalo()
+        try { sessionStorage.setItem(CHAVE_LUZES, '1') } catch { /* ignora */ }
+        window.removeEventListener('palpitao:transicao-terminada', acender)
+      }
+      window.addEventListener('palpitao:transicao-terminada', acender)
+
+      // Fallback: se o evento não chegar em 2.5s, acende mesmo assim
+      const fallback = setTimeout(acender, 2500)
+
+      return () => {
+        window.removeEventListener('palpitao:transicao-terminada', acender)
+        clearTimeout(fallback)
+      }
+    }
+
+    // Fluxo normal (entrou direto, sem passar pela abertura)
     setLigado(false)
     setPronto(true)
     const t = setTimeout(() => {
