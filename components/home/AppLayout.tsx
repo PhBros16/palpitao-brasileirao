@@ -7,6 +7,10 @@
 //
 // Perfil vem do cache localStorage (instantâneo) + revalida em background.
 // Renderiza sempre, sem loading — zero delay entre trocas de aba.
+//
+// Padding-top: usa max(safe-area-inset-top, 56px) pra proteger contra o
+// Dynamic Island do iPhone (que é maior que o notch tradicional e não é
+// coberto pela safe-area padrão quando expandido).
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
@@ -25,6 +29,11 @@ interface Sessao {
   id: string
   nome: string
 }
+
+// Padding top mínimo que cobre Dynamic Island expandido do iPhone.
+// max(safe-area, 56px) garante que dispositivos sem notch tb têm folga
+// bacana, e iPhones com Dynamic Island ganham 56px de proteção.
+const PADDING_TOP_CSS = 'max(env(safe-area-inset-top), 56px)'
 
 export function AppLayout({
   children,
@@ -93,7 +102,10 @@ export function AppLayout({
 
   if (!sessao || !prontoParaRenderizar) {
     return (
-      <main className="relative min-h-screen px-3 pb-10 pt-4">
+      <main
+        className="relative min-h-screen px-3 pb-10"
+        style={{ paddingTop: PADDING_TOP_CSS }}
+      >
         <FundoAnimado />
         <LuzesAmbiente />
         <div className="relative mx-auto max-w-md space-y-3">
@@ -108,7 +120,10 @@ export function AppLayout({
   const mostrarPlayer = pathname === '/inicio'
 
   return (
-    <main className="relative min-h-screen px-3 pb-10 pt-4">
+    <main
+      className="relative min-h-screen px-3 pb-10"
+      style={{ paddingTop: PADDING_TOP_CSS }}
+    >
       <FundoAnimado />
       <LuzesAmbiente />
       <div className="relative mx-auto max-w-md space-y-3">
