@@ -1209,10 +1209,225 @@ function SecaoNovidades() {
   )
 }
 
-// ─── SEÇÃO: Música Tema (placeholder) ────────────────────────────────────────
+// ─── SEÇÃO: Música Tema ──────────────────────────────────────────────────────
 
 function SecaoMusica() {
-  return <Card><p className="font-sans text-sm text-tinta-200">⚠ Portação real no próximo bloco (aguardando arquivos .mp3).</p></Card>
+  type MusicaAdm = {
+    id: string
+    titulo: string
+    artista: string
+    arquivo: string
+    ordem: number
+    ativa: boolean
+    is_tema: boolean
+  }
+
+  const [lista, setLista] = useState<MusicaAdm[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const [novoTitulo, setNovoTitulo] = useState('')
+  const [novoArtista, setNovoArtista] = useState('')
+  const [novoArquivo, setNovoArquivo] = useState('/')
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const { data, error } = await supabase
+        .from('musicas')
+        .select('*')
+        .order('ordem', { ascending: true })
+      if (error) throw error
+      setLista(data ?? [])
+    } catch (e) {
+      showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  async function marcarTema(id: string) {
+    setSalvando(id)
+    try {
+      // Tira todos os is_tema primeiro
+      await supabase.from('musicas').update({ is_tema: false }).eq('is_tema', true)
+      // Marca a nova
+      const { error } = await supabase.from('musicas').update({ is_tema: true }).eq('id', id)
+      if (error) throw error
+      await gravarLog('MUSICA_TEMA_ALTERADA', { id })
+      vibrar('sucesso')
+      showToast('Nova música tema definida! 👑', 'sucesso')
+      await carregar()
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(null) }
+  }
+
+  async function toggleAtiva(m: MusicaAdm) {
+    if (m.is_tema && m.ativa) {
+      showToast('Não dá pra desativar a música tema. Escolhe outra como tema primeiro.', 'aviso')
+      return
+    }
+    setSalvando(m.id)
+    try {
+      const { error } = await supabase.from('musicas').update({ ativa: !m.ativa }).eq('id', m.id)
+      if (error) throw error
+      vibrar('leve')
+      showToast(!m.ativa ? 'Música ativada.' : 'Música desativada.', 'info')
+      await carregar()
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(null) }
+  }
+
+  async function remover(m: MusicaAdm) {
+    if (m.is_tema) {
+      showToast('Não dá pra remover a música tema. Escolhe outra como tema primeiro.', 'aviso')
+      return
+    }
+    if (!confirm(`Remover "${m.titulo}" da playlist?`)) return
+    setSalvando(m.id)
+    try {
+      const { error } = await supabase.from('musicas').delete().eq('id', m.id)
+      if (error) throw error
+      await gravarLog('MUSICA_REMOVIDA', { titulo: m.titulo })
+      vibrar('medio')
+      showToast('Música removida.', 'aviso')
+      await carregar()
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(null) }
+  }
+
+  async function adicionar() {
+    if (!novoTitulo.trim() || !novoArtista.trim() || !novoArquivo.trim()) return
+    const arquivo = novoArquivo.startsWith('/') ? novoArquivo : `/${novoArquivo}`
+    setSalvando('novo')
+    try {
+      const { data: ult } = await supabase
+        .from('musicas').select('ordem')
+        .order('ordem', { ascending: false }).limit(1).maybeSingle()
+      const proximaOrdem = (ult?.ordem ?? -1) + 1
+
+      const { error } = await supabase.from('musicas').insert({
+        titulo: novoTitulo.trim(),
+        artista: novoArtista.trim(),
+        arquivo,
+        ordem: proximaOrdem,
+        ativa: true,
+        is_tema: false,
+      })
+      if (error) throw error
+      await gravarLog('MUSICA_ADICIONADA', { titulo: novoTitulo.trim() })
+      vibrar('sucesso')
+      showToast('Música adicionada! 🎵', 'sucesso')
+      setNovoTitulo(''); setNovoArtista(''); setNovoArquivo('/')
+      await carregar()
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally { setSalvando(null) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Gerencie a playlist do player da Home. A música <b>tema</b> (👑) toca em loop.
+          Outras músicas entram em modo sequencial quando o usuário troca.
+        </p>
+        <p className="mb-3 font-mono text-[10px] text-tinta-100">
+          💡 Coloque o arquivo .mp3 na pasta <b>public/</b> pelo GitHub e cadastre aqui usando o caminho <b>/nome.mp3</b>.
+        </p>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+        ) : lista.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma música cadastrada.</p>
+        ) : (
+          <div className="space-y-2">
+            {lista.map((m) => (
+              <div
+                key={m.id}
+                className={cx(
+                  'rounded-lg border p-3',
+                  m.is_tema ? 'border-dourado-500 bg-dourado-50/40' : 'border-papel-borda-200 bg-papel-100',
+                  !m.ativa && 'opacity-50',
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl leading-none flex-shrink-0">
+                    {m.is_tema ? '👑' : '🎵'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-sans text-sm font-bold text-tinta-300 truncate">{m.titulo}</p>
+                    <p className="font-mono text-[10px] text-tinta-100 truncate">{m.artista}</p>
+                    <p className="mt-0.5 font-mono text-[9px] text-tinta-100 truncate">📁 {m.arquivo}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {!m.is_tema && (
+                    <button
+                      type="button"
+                      onClick={() => marcarTema(m.id)}
+                      disabled={salvando === m.id || !m.ativa}
+                      className="rounded border border-dourado-400 bg-dourado-100 px-2 py-1 font-mono text-[10px] font-bold text-dourado-700 hover:bg-dourado-200 disabled:opacity-40"
+                    >
+                      👑 Marcar como Tema
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleAtiva(m)}
+                    disabled={salvando === m.id}
+                    className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200 disabled:opacity-40"
+                  >
+                    {m.ativa ? '👁 Ativa' : '🚫 Desativada'}
+                  </button>
+                  {!m.is_tema && (
+                    <button
+                      type="button"
+                      onClick={() => remover(m)}
+                      disabled={salvando === m.id}
+                      className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40"
+                    >
+                      🗑 Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <SubLabel>Adicionar nova música</SubLabel>
+        <Row label="Título">
+          <InputText value={novoTitulo} onChange={setNovoTitulo} placeholder="Ex: Waka Waka" className="flex-1" />
+        </Row>
+        <Row label="Artista">
+          <InputText value={novoArtista} onChange={setNovoArtista} placeholder="Ex: Shakira" className="flex-1" />
+        </Row>
+        <Row label="Arquivo">
+          <InputText value={novoArquivo} onChange={setNovoArquivo} placeholder="/nome_arquivo.mp3" className="flex-1" />
+        </Row>
+        <p className="mb-3 font-mono text-[10px] text-tinta-100">
+          📁 Suba o .mp3 primeiro na pasta <b>public/</b> pelo GitHub. Ex: <b>/musica_nova.mp3</b>
+        </p>
+        <Btn
+          variant="gold"
+          onClick={adicionar}
+          disabled={salvando === 'novo' || !novoTitulo.trim() || !novoArtista.trim() || !novoArquivo.trim() || novoArquivo === '/'}
+        >
+          {salvando === 'novo' ? '...' : '+ Adicionar'}
+        </Btn>
+      </Card>
+    </div>
+  )
 }
 // ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
 
@@ -1621,6 +1836,9 @@ function SecaoLog() {
     ADM_REMOVIDO: '🗑',
     FORMACAO_ALTERADA: '⚽',
     CAMPEONATO_FINALIZADO: '🏆',
+    MUSICA_TEMA_ALTERADA: '👑',
+    MUSICA_ADICIONADA: '🎵',
+    MUSICA_REMOVIDA: '🗑',
   }
 
   return (
