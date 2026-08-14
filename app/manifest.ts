@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Palpitão Copa do Mundo 2026',
-    short_name: 'Palpitão Copa',
-    description: 'Bolão Copa do Mundo 2026',
+    name: 'Palpitão Brasileirão',
+    short_name: 'Palpitão',
+    description: 'Bolão do Campeonato Brasileiro Série A',
     start_url: '/',
     display: 'standalone',
-    background_color: '#001a0a',
-    theme_color: '#001a0a',
+    background_color: '#8B5A2B',
+    theme_color: '#8B5A2B',
     icons: [
       {
         src: '/icon-192x192.png',
@@ -18,6 +18,11 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: '/icon-512x512.png',
         sizes: '512x512',
+        type: 'image/png',
+      },
+      {
+        src: '/apple-icon.png',
+        sizes: '180x180',
         type: 'image/png',
       },
     ],
