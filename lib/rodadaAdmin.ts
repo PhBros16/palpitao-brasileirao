@@ -358,31 +358,48 @@ export interface EntradaLog {
   action: string
   payload: Record<string, any> | null
   performed_by: string | null
+  participant_id: string | null
   created_at: string
 }
 
+/**
+ * Grava uma linha em admin_log.
+ *
+ * - `performedBy`: nome legível de quem executou (admin ou usuário).
+ * - `participantId`: UUID do participante quando a ação é de um usuário
+ *   comum. Pra ações de admin, deixa `undefined` — mas se quiser filtrar
+ *   por qualquer pessoa no admin, pode passar sempre.
+ */
 export async function gravarLog(
   action: string,
   payload?: Record<string, any>,
   performedBy?: string,
+  participantId?: string,
 ): Promise<void> {
   try {
     await supabase.from('admin_log').insert({
       action,
       payload: payload ?? null,
       performed_by: performedBy ?? null,
+      participant_id: participantId ?? null,
     })
   } catch {
     // Silencioso — log nunca bloqueia
   }
 }
 
-export async function buscarLog(limite = 50): Promise<EntradaLog[]> {
-  const { data, error } = await supabase
+export async function buscarLog(limite = 50, participantId?: string): Promise<EntradaLog[]> {
+  let query = supabase
     .from('admin_log')
-    .select('id, action, payload, performed_by, created_at')
+    .select('id, action, payload, performed_by, participant_id, created_at')
     .order('created_at', { ascending: false })
     .limit(limite)
+
+  if (participantId) {
+    query = query.eq('participant_id', participantId)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return data ?? []
 }
