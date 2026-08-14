@@ -1770,27 +1770,23 @@ const SECOES = [
 export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
   if (!isAdmin) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-papel-200 px-4">
-        <div className="text-center">
+      <CardEnvelope variante="alerta" titulo="🔒 Acesso Restrito">
+        <div className="p-6 text-center">
           <div className="mb-4 text-5xl">🔒</div>
-          <h1 className="font-display text-2xl font-bold text-tinta-300">Acesso Restrito</h1>
-          <p className="mt-2 font-sans text-sm text-tinta-100">Esta área é exclusiva para administradores.</p>
+          <p className="font-sans text-sm text-tinta-200">Esta área é exclusiva para administradores.</p>
         </div>
-      </main>
+      </CardEnvelope>
     )
   }
 
   return (
-    <div className="space-y-3">
-      <header className="mb-2">
-        <h1 className="font-display text-2xl font-bold text-tinta-300">⚙ Admin</h1>
-        <p className="font-sans text-sm text-tinta-100">Área restrita — alterações afetam todos</p>
-      </header>
-      <div className="rounded-lg border border-dourado-300 bg-dourado-50 px-4 py-2.5">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-dourado-700">
-          ⚠ Área restrita — alterações afetam todos os participantes em tempo real.
-        </p>
-      </div>
+    <>
+      <CardEnvelope
+        titulo="⚙ Admin"
+        subtitulo="⚠ Área restrita — alterações afetam todos em tempo real"
+      >
+        {null}
+      </CardEnvelope>
       <div className="flex flex-col gap-3">
         {SECOES.map((s) => (
           <Accordion key={s.key} titulo={s.titulo} storageKey={`admin-${s.key}`} defaultOpen={false}>
@@ -1798,6 +1794,6 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
           </Accordion>
         ))}
       </div>
-    </div>
+    </>
   )
 }
