@@ -3,7 +3,7 @@ import { getFormacao, type Formacao } from '@/lib/formacoes'
 
 // Elenco do Palpitão Brasileirão — nomes reais dos 14 participantes.
 //
-// Tiers naturais (definidos pelo admin, cf. seção "Alterar Formação"):
+// Tiers naturais:
 //   GOL: André
 //   DEF: Ramon, Costa, Giovanni, Pedro Gaúcho
 //   MEI: Victor Simões, Pedro Frozza, Diniz
@@ -11,10 +11,10 @@ import { getFormacao, type Formacao } from '@/lib/formacoes'
 //   TÉCNICO: Victor Bahia
 //   BANCO: Samuel, Damus
 //
-// A formação (4-3-3, 5-3-2, Coração, etc.) é dinâmica — vem de app_settings.
-// Este arquivo exporta uma FUNÇÃO que aceita o id da formação escolhida e
-// devolve TITULARES + BANCO + TECNICO já posicionados. O componente da
-// abertura busca a formação atual e chama gerarElenco(formId).
+// Distribuição preserva tier natural sempre que possível. Quando um setor
+// precisa de mais jogadores do que os naturais, puxa dos setores vizinhos
+// (def pega de mei; mei pega de def ou ata; ata pega de mei). Assim toda
+// formação clássica sempre tem 11 titulares em campo.
 
 interface Jogador {
   id: string
@@ -41,28 +41,72 @@ const ELENCO: Jogador[] = [
   { id: 'p14', iniciais: 'DA', nome: 'Damus',         numero: '13', tierNatural: 'res' },
 ]
 
-// Conversão % → px de cena (mesmas dimensões do arquivo original: 390×844,
-// campo interno de 366×708 começando em left:12 top:12). Só o motor da
-// abertura usa xpx/ypx pra calcular vetores de corrida em fila.
 function pctToPx(left: string, top: string): { xpx: number; ypx: number } {
   const l = parseFloat(left) / 100
   const t = parseFloat(top) / 100
   return { xpx: 12 + l * 366, ypx: 12 + t * 708 }
 }
 
-/** Distribui os jogadores nas posições da formação seguindo os slots.
- *  Nas clássicas, respeita tiers (com fallback pra vizinho se sobra/falta).
- *  Nas doidas, ordem alfabética por numero. */
+/** Distribui os 10 jogadores de linha (def+mei+ata) respeitando tiers naturais
+ *  sempre que possível. Se um setor precisa de mais, puxa do vizinho.
+ *  Retorna arrays com exatamente os tamanhos pedidos. */
+function distribuirLinhas(
+  naturais: { def: Jogador[]; mei: Jogador[]; ata: Jogador[] },
+  slots: { def: number; mei: number; ata: number },
+): { def: Jogador[]; mei: Jogador[]; ata: Jogador[]; sobra: Jogador[] } {
+  // Copias mutáveis
+  const poolDef = [...naturais.def]
+  const poolMei = [...naturais.mei]
+  const poolAta = [...naturais.ata]
+
+  const escolhidos = { def: [] as Jogador[], mei: [] as Jogador[], ata: [] as Jogador[] }
+
+  // Fase 1: preencher com naturais
+  escolhidos.def = poolDef.splice(0, slots.def)
+  escolhidos.mei = poolMei.splice(0, slots.mei)
+  escolhidos.ata = poolAta.splice(0, slots.ata)
+
+  // Fase 2: se algum setor tá faltando, puxa dos vizinhos
+  // Ordem de prioridade pra "emprestar":
+  //   def falta → puxa de mei (mais fácil recuar do que promover ao ataque)
+  //   mei falta → puxa de def, depois de ata
+  //   ata falta → puxa de mei, depois de def
+
+  while (escolhidos.def.length < slots.def && poolMei.length > 0) {
+    escolhidos.def.push(poolMei.shift()!)
+  }
+  while (escolhidos.def.length < slots.def && poolAta.length > 0) {
+    escolhidos.def.push(poolAta.shift()!)
+  }
+
+  while (escolhidos.mei.length < slots.mei && poolDef.length > 0) {
+    escolhidos.mei.push(poolDef.shift()!)
+  }
+  while (escolhidos.mei.length < slots.mei && poolAta.length > 0) {
+    escolhidos.mei.push(poolAta.shift()!)
+  }
+
+  while (escolhidos.ata.length < slots.ata && poolMei.length > 0) {
+    escolhidos.ata.push(poolMei.shift()!)
+  }
+  while (escolhidos.ata.length < slots.ata && poolDef.length > 0) {
+    escolhidos.ata.push(poolDef.shift()!)
+  }
+
+  // Sobra = quem restou nos pools
+  const sobra = [...poolDef, ...poolMei, ...poolAta]
+
+  return { ...escolhidos, sobra }
+}
+
+/** Distribui os jogadores nas posições da formação. */
 function distribuir(formacao: Formacao): { titulares: Jogador[]; banco: Jogador[]; tecnico: Jogador | null } {
   if (formacao.tipo === 'doida') {
-    // Todos os 14 entram em campo, tirando o técnico (que é decorativo).
-    // Ordem: gol → def → mei → ata → tec → res
     const ordem = ['gol', 'def', 'mei', 'ata', 'tec', 'res']
     const emCampo = [...ELENCO].sort((a, b) => ordem.indexOf(a.tierNatural) - ordem.indexOf(b.tierNatural))
     return { titulares: emCampo, banco: [], tecnico: null }
   }
 
-  // Clássica: respeita slots
   const { gol, def, mei, ata } = formacao.slots!
 
   const naturais = {
@@ -75,37 +119,25 @@ function distribuir(formacao: Formacao): { titulares: Jogador[]; banco: Jogador[
   const reservas = ELENCO.filter((p) => p.tierNatural === 'res')
 
   const titulares: Jogador[] = []
-  const banco: Jogador[] = []
 
   // GOL
   if (gol >= 1) titulares.push(naturais.gol[0])
-  banco.push(...naturais.gol.slice(1))
+  const golSobra = naturais.gol.slice(1)
 
-  // DEF
-  const defEscolhidos = naturais.def.slice(0, def)
-  const defSobra = naturais.def.slice(def)
-  titulares.push(...defEscolhidos)
+  // Linhas (def/mei/ata) com fallback entre setores
+  const linhas = distribuirLinhas(
+    { def: naturais.def, mei: naturais.mei, ata: naturais.ata },
+    { def, mei, ata },
+  )
+  titulares.push(...linhas.def, ...linhas.mei, ...linhas.ata)
 
-  // MEI (recebe sobras da def se precisar mais)
-  let meiPool = [...naturais.mei, ...defSobra]
-  const meiEscolhidos = meiPool.slice(0, mei)
-  const meiSobra = meiPool.slice(mei)
-  titulares.push(...meiEscolhidos)
+  // Banco = sobras + reservas oficiais (limita a 3 — banco visual tem só 3 slots + adm)
+  const banco = [...golSobra, ...linhas.sobra, ...reservas].slice(0, 3)
 
-  // ATA (recebe sobras do meio se precisar mais)
-  let ataPool = [...naturais.ata, ...meiSobra]
-  const ataEscolhidos = ataPool.slice(0, ata)
-  const ataSobra = ataPool.slice(ata)
-  titulares.push(...ataEscolhidos)
-
-  // Banco = quem sobrou + reservas oficiais (max 3, o resto some)
-  banco.push(...ataSobra, ...reservas)
-
-  return { titulares, banco: banco.slice(0, 3), tecnico: tec }
+  return { titulares, banco, tecnico: tec }
 }
 
-/** Gera TITULARES/BANCO/TECNICO já posicionados pra formação informada.
- *  Se formacaoId for null/inválido, cai em 4-3-3. */
+/** Gera TITULARES/BANCO/TECNICO já posicionados pra formação informada. */
 export function gerarElenco(formacaoId: string | null | undefined): {
   TITULARES: JogadorCampo[]
   BANCO: JogadorBanco[]
@@ -117,7 +149,6 @@ export function gerarElenco(formacaoId: string | null | undefined): {
   const TITULARES: JogadorCampo[] = titulares.map((p, i) => {
     const pos = formacao.posicoes[i] ?? { left: '50%', top: '50%' }
     const { xpx, ypx } = pctToPx(pos.left, pos.top)
-    // Tier de acendimento dos refletores (0..3). Nas doidas todo mundo é tier 2.
     let tier: 0 | 1 | 2 | 3 = 2
     if (formacao.tipo === 'classica') {
       if (p.tierNatural === 'gol') tier = 0
@@ -152,9 +183,6 @@ export function gerarElenco(formacaoId: string | null | undefined): {
 }
 
 // ─── Exports de compatibilidade (formação 4-3-3 default) ───────────────────
-// Mantém as constantes antigas exportadas pra não quebrar quem já importa
-// TITULARES/BANCO/TECNICO diretamente. Componentes novos devem usar
-// gerarElenco(formacaoId) diretamente.
 const _default = gerarElenco('4-3-3')
 export const TITULARES = _default.TITULARES
 export const BANCO = _default.BANCO
@@ -162,14 +190,6 @@ export const TECNICO = _default.TECNICO
 
 
 // ─── PIN lookup pra abertura ──────────────────────────────────────────────
-//
-// gerarElenco() cima devolve nome/posição/iniciais (dados de layout). Pra
-// validar PIN no clique do jogador, precisamos buscar o PIN real do Supabase
-// e casar pelo nome. Esta função faz esse enrich — devolve TITULARES com PIN
-// preenchido (procura por nome exato em participants.name).
-//
-// Retorna [] se der erro (o handler de click não abre modal se elenco vazio,
-// então quem consome trata como "clique não faz nada").
 
 import { supabase } from '@/lib/supabase'
 
@@ -199,7 +219,6 @@ const VULGO_MAP: Record<string, string> = {
   'Damus':          'Novato',
 }
 
-/** Busca PIN + id real + avatar do jogador, casando pelo nome exato. */
 export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | null> {
   const { data, error } = await supabase
     .from('participants')
