@@ -154,50 +154,39 @@ function SecaoWhatsApp() {
   }
 
   async function montarTextoGeral(): Promise<string> {
-    const [{ data: parts }, { data: preds }] = await Promise.all([
-      supabase.from('participants').select('id, name'),
-      supabase.from('predictions').select('participant_id, points, match_id, pred_h, pred_a'),
-    ])
-    if (!parts || !preds) throw new Error('Sem dados no Supabase')
+    // Usa round_results (só rodadas finalizadas) — mesma fonte do Ranking oficial
+    const { data: rrs, error } = await supabase
+      .from('round_results')
+      .select('participant_id, total_pts, round_id, rounds!inner(finalized, number)')
+      .eq('rounds.finalized', true)
+      .order('rounds(number)', { ascending: false })
 
-    const { data: matches } = await supabase.from('matches').select('id, home_score, away_score')
-    const mMap = new Map((matches ?? []).map((m) => [m.id, m]))
+    if (error) throw new Error(error.message)
+    if (!rrs || rrs.length === 0) throw new Error('Nenhuma rodada finalizada ainda')
 
-    const participantes = parts.map((p) => ({ id: p.id, nome: p.name }))
-    const palpitesPorJogador = new Map<string, Array<{ palpite: any; resultado: any; pontos: number | null }>>()
-
-    for (const pred of preds) {
-      const m = mMap.get(pred.match_id)
-      if (!m || m.home_score === null || m.away_score === null) continue
-      const arr = palpitesPorJogador.get(pred.participant_id) ?? []
-      arr.push({
-        palpite: { h: pred.pred_h, a: pred.pred_a },
-        resultado: { h: m.home_score, a: m.away_score },
-        pontos: pred.points,
-      })
-      palpitesPorJogador.set(pred.participant_id, arr)
+    // Pega o total_pts mais recente de cada participante
+    const totalPorParticipante = new Map<string, number>()
+    for (const rr of rrs) {
+      if (!totalPorParticipante.has(rr.participant_id)) {
+        totalPorParticipante.set(rr.participant_id, rr.total_pts ?? 0)
+      }
     }
 
-    const ranking = participantes
-      .map((p) => {
-        const palps = palpitesPorJogador.get(p.id) ?? []
-        let total = 0, cravadas = 0, vencedor = 0, saldo = 0
-        for (const x of palps) {
-          if (x.pontos !== null) total += x.pontos
-          if (x.palpite.h === x.resultado.h && x.palpite.a === x.resultado.a) cravadas++
-          else if (x.palpite.h - x.palpite.a === x.resultado.h - x.resultado.a) saldo++
-          else {
-            const pw = x.palpite.h > x.palpite.a ? 1 : x.palpite.h < x.palpite.a ? -1 : 0
-            const rw = x.resultado.h > x.resultado.a ? 1 : x.resultado.h < x.resultado.a ? -1 : 0
-            if (pw === rw) vencedor++
-          }
-        }
-        return { nome: p.nome, total, cravadas, vencedor, saldo }
-      })
-      .sort((a, b) => b.total - a.total || b.cravadas - a.cravadas || b.vencedor - a.vencedor || b.saldo - a.saldo)
+    // Busca nomes + filtra admin
+    const { data: parts } = await supabase
+      .from('participants')
+      .select('id, name, is_admin')
+      .eq('is_admin', false)
 
-    const linhas = ranking.slice(0, 5).map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
-    return `🏆 *RANKING GERAL — Palpitão Brasileirão*\n\n${linhas}\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
+    if (!parts) throw new Error('Sem participantes')
+
+    const ranking = parts
+      .map((p) => ({ nome: p.name, total: totalPorParticipante.get(p.id) ?? 0 }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+
+    const linhas = ranking.map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
+    return `🏆 *RANKING GERAL — Palpitão Brasileirão*\n\n${linhas}\n\n🔥 Confira a tabela completa no App do Palpitão`
   }
 
   async function montarTextoParcial(): Promise<string> {
@@ -207,11 +196,11 @@ function SecaoWhatsApp() {
     const { data: matches } = await supabase.from('matches').select('id').eq('round_id', rodada.roundId)
     const matchIds = (matches ?? []).map((m) => m.id)
     if (matchIds.length === 0) {
-      return `⚽ *${rodada.nome} — Palpitão Brasileirão*\n\nNenhum jogo cadastrado ainda.\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
+      return `⚽ *${rodada.nome} — Palpitão Brasileirão*\n\nNenhum jogo cadastrado ainda.`
     }
 
     const [{ data: parts }, { data: preds }] = await Promise.all([
-      supabase.from('participants').select('id, name'),
+      supabase.from('participants').select('id, name, is_admin').eq('is_admin', false),
       supabase.from('predictions').select('participant_id, points').in('match_id', matchIds),
     ])
 
@@ -227,14 +216,48 @@ function SecaoWhatsApp() {
       .slice(0, 5)
 
     const linhas = parcial.map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.pts} pts`).join('\n')
-    return `⚽ *PARCIAL ${rodada.nome} — Palpitão Brasileirão*\n\n${linhas}\n\n🔗 Confira a tabela completa no App do Palpitão\n${URL_APP}`
+    return `⚽ *PARCIAL ${rodada.nome} — Palpitão Brasileirão*\n\n${linhas}\n\n🔥 Confira a tabela completa no App do Palpitão`
   }
 
-  async function share(tipo: 'geral' | 'parcial') {
+  async function montarTextoRodadaLiberada(): Promise<string> {
+    const rodada = await buscarRodadaAtiva()
+    if (!rodada.roundId) throw new Error('Nenhuma rodada ativa')
+
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('home, away, match_date, match_time')
+      .eq('round_id', rodada.roundId)
+      .order('match_date', { ascending: true })
+      .order('match_time', { ascending: true })
+
+    if (!matches || matches.length === 0) {
+      return `📢 *${rodada.nome} liberada!*\n\nSem jogos cadastrados ainda.`
+    }
+
+    function formatarDataHora(date: string | null, time: string | null): string {
+      if (!date) return ''
+      const [ano, mes, dia] = date.split('-')
+      const dataStr = `${dia}/${mes}`
+      const horaStr = time ? time.substring(0, 5) : ''
+      return horaStr ? ` — ${dataStr} ${horaStr}` : ` — ${dataStr}`
+    }
+
+    const linhas = matches
+      .map((m) => `⚽ ${m.home} × ${m.away}${formatarDataHora(m.match_date, m.match_time)}`)
+      .join('\n')
+
+    return `📢 *${rodada.nome} LIBERADA!*\n\nPalpites estão abertos, corram pro app!\n\n${linhas}\n\n🔥 Boa sorte, palpiteiros!`
+  }
+
+  async function share(tipo: 'geral' | 'parcial' | 'liberada') {
     setCarregando(true)
     vibrar('leve')
     try {
-      const texto = tipo === 'geral' ? await montarTextoGeral() : await montarTextoParcial()
+      let texto: string
+      if (tipo === 'geral') texto = await montarTextoGeral()
+      else if (tipo === 'parcial') texto = await montarTextoParcial()
+      else texto = await montarTextoRodadaLiberada()
+
       window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
       showToast('Abrindo WhatsApp...', 'info', 2000)
     } catch (e) {
@@ -248,7 +271,7 @@ function SecaoWhatsApp() {
   return (
     <Card>
       <p className="mb-4 font-sans text-sm text-tinta-200">
-        Envie um resumo direto no WhatsApp — top 5 com dados reais do Supabase.
+        Envie um resumo direto no WhatsApp — dados reais do Supabase.
       </p>
       <div className="flex flex-wrap gap-3">
         <Btn variant="whatsapp" onClick={() => share('geral')} disabled={carregando}>
@@ -256,6 +279,9 @@ function SecaoWhatsApp() {
         </Btn>
         <Btn variant="whatsapp" onClick={() => share('parcial')} disabled={carregando}>
           {carregando ? '...' : '⚽ Parcial da Rodada'}
+        </Btn>
+        <Btn variant="whatsapp" onClick={() => share('liberada')} disabled={carregando}>
+          {carregando ? '...' : '📢 Rodada Liberada'}
         </Btn>
       </div>
     </Card>
