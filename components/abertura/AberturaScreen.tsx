@@ -60,6 +60,7 @@ export function AberturaScreen() {
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const [escala, setEscala] = useState(1)
   const [alturaViewport, setAlturaViewport] = useState<number | null>(null)
+  const [safeTopPx, setSafeTopPx] = useState(0)
 
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
@@ -97,11 +98,22 @@ export function AberturaScreen() {
   }, [])
 
   useEffect(() => {
+    // Lê safe-area-inset-top do <html> uma vez (env() só funciona em CSS).
+    // Cria uma div de teste com padding-top: env(safe-area-inset-top) e mede.
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;top:0;left:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none;'
+    document.body.appendChild(probe)
+    const st = parseFloat(getComputedStyle(probe).paddingTop) || 0
+    document.body.removeChild(probe)
+    setSafeTopPx(st)
+
     const atualizar = () => {
       const el = outerRef.current
       const w = window.visualViewport?.width || window.innerWidth || el?.clientWidth || LARGURA_CENA
       const h = window.visualViewport?.height || window.innerHeight || el?.clientHeight || ALTURA_CENA
-      const novoScale = Math.min(1, w / LARGURA_CENA, h / ALTURA_CENA)
+      // Desconta apenas a safe area do topo (notch). Embaixo deixa livre por escolha do design.
+      const hUtil = Math.max(h - st, ALTURA_CENA * 0.5)
+      const novoScale = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
       if (novoScale > 0) setEscala(novoScale)
       setAlturaViewport(h)
     }
@@ -271,11 +283,13 @@ export function AberturaScreen() {
   return (
     <div
       ref={outerRef}
-      className="relative flex items-center justify-center overflow-hidden"
+      className="relative flex items-start justify-center overflow-hidden"
       style={{
         width: '100vw',
         height: alturaViewport ? `${alturaViewport}px` : '100dvh',
         minHeight: '-webkit-fill-available',
+        paddingTop: `${safeTopPx}px`,
+        boxSizing: 'border-box',
       }}
     >
       {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
@@ -296,7 +310,7 @@ export function AberturaScreen() {
             position: 'fixed',
             left: 0,
             right: 0,
-            top: `calc(50% - 422px * ${escala} + 560px * ${escala})`,
+            top: `calc(${safeTopPx}px + 422px * ${escala} + 138px * ${escala})`,
             margin: '0 auto',
             width: `calc(240px * ${escala})`,
             zIndex: 100,
@@ -326,7 +340,7 @@ export function AberturaScreen() {
           perspective: 1700,
           perspectiveOrigin: '52% 45%',
           transform: `scale(${escala})`,
-          transformOrigin: 'center center',
+          transformOrigin: 'top center',
           zIndex: 2,
           // Sombra projetada do álbum sobre a mesa (efeito profundidade)
           boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
