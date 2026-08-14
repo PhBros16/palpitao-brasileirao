@@ -1,17 +1,19 @@
 'use client'
 
-// CampoFlipOverlay — continua a animação de "virar o campo" já na página de
-// destino (Home real), fora de qualquer árvore 3D aninhada (mesmo truque já
-// comprovado com o botão "abrir álbum" da abertura). O AberturaScreen, ao
-// confirmar o PIN, grava um sinal no sessionStorage e navega direto pra
-// /inicio — a Home real já monta, funcional, por baixo, imediatamente. Este
-// overlay só cobre a tela com a "lasca" do campo virando por cima dela,
-// revelando a Home real que já estava lá o tempo todo (não é preview nem
-// duplicata — é a Home de verdade, só temporariamente coberta).
+// CampoFlipOverlay — continua a animação de "virar o campo" na página de
+// destino. Ao ler o sinal do sessionStorage, dispara um evento global
+// 'palpitao:transicao-iniciada' pra que a Home suspenda suas próprias
+// animações até o flip terminar (evita duplicações e flashes).
+//
+// Fase 1: cobre a tela com o campo (opaco, sem virar) - dá tempo pra Home
+//         montar por baixo, sem revelar nada.
+// Fase 2: gira -180° em 1200ms revelando a Home já pronta.
+
 import { useEffect, useState } from 'react'
 
 const CHAVE = 'palpitao_flip_transicao'
 const DUR_FLIP = 1200
+const ATRASO_MONTAGEM = 80 // ms — dá tempo pra Home montar antes de girar
 
 export function CampoFlipOverlay() {
   const [ativo, setAtivo] = useState(false)
@@ -21,12 +23,24 @@ export function CampoFlipOverlay() {
     if (typeof window === 'undefined') return
     if (sessionStorage.getItem(CHAVE) !== '1') return
     sessionStorage.removeItem(CHAVE)
+
+    // Sinaliza pra Home suspender suas animações
+    window.dispatchEvent(new CustomEvent('palpitao:transicao-iniciada'))
+
     setAtivo(true)
-    const raf = requestAnimationFrame(() => setVirando(true))
-    const t = setTimeout(() => setAtivo(false), DUR_FLIP + 60)
+
+    // Espera Home montar → começa a girar
+    const t1 = setTimeout(() => setVirando(true), ATRASO_MONTAGEM)
+
+    // Fim da virada → esconde overlay e sinaliza pra Home continuar
+    const t2 = setTimeout(() => {
+      setAtivo(false)
+      window.dispatchEvent(new CustomEvent('palpitao:transicao-terminada'))
+    }, ATRASO_MONTAGEM + DUR_FLIP + 60)
+
     return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(t)
+      clearTimeout(t1)
+      clearTimeout(t2)
     }
   }, [])
 
@@ -45,6 +59,7 @@ export function CampoFlipOverlay() {
           transformStyle: 'preserve-3d',
           transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
           transform: virando ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+          backfaceVisibility: 'hidden',
         }}
       >
         <div
