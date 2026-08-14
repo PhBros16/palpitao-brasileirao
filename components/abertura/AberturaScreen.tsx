@@ -242,12 +242,10 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
+    // Sinaliza pro CampoFlipOverlay da próxima página fazer a virada.
     sessionStorage.setItem('palpitao_flip_transicao', '1')
-    timers.current.push(
-      setTimeout(() => {
-        router.push(player.isAdmin ? '/admin' : '/inicio')
-      }, 380),
-    )
+    // Navega imediatamente — o overlay cobre a montagem da Home enquanto vira.
+    router.push(player.isAdmin ? '/admin' : '/inicio')
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
