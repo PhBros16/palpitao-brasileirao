@@ -58,9 +58,33 @@ export function AberturaScreen() {
   const [revelado, setRevelado] = useState(false)
   const [fasePoeira, setFasePoeira] = useState<FasePoeira>('oculta')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
-  const [escala, setEscala] = useState(1)
-  const [alturaViewport, setAlturaViewport] = useState<number | null>(null)
-  const [safeTopPx, setSafeTopPx] = useState(0)
+
+  // Calcula escala e altura já no primeiro render (síncrono) — evita salto
+  // visual de "aparece pequena, depois se ajusta".
+  const [safeTopPx, setSafeTopPx] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0
+    try {
+      const probe = document.createElement('div')
+      probe.style.cssText = 'position:fixed;top:0;left:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none;'
+      document.body.appendChild(probe)
+      const st = parseFloat(getComputedStyle(probe).paddingTop) || 0
+      document.body.removeChild(probe)
+      return st
+    } catch {
+      return 0
+    }
+  })
+  const [alturaViewport, setAlturaViewport] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null
+    return window.visualViewport?.height || window.innerHeight || null
+  })
+  const [escala, setEscala] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1
+    const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
+    const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
+    const hUtil = Math.max(h, ALTURA_CENA * 0.5)
+    return Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
+  })
 
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
@@ -98,21 +122,12 @@ export function AberturaScreen() {
   }, [])
 
   useEffect(() => {
-    // Lê safe-area-inset-top do <html> uma vez (env() só funciona em CSS).
-    // Cria uma div de teste com padding-top: env(safe-area-inset-top) e mede.
-    const probe = document.createElement('div')
-    probe.style.cssText = 'position:fixed;top:0;left:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none;'
-    document.body.appendChild(probe)
-    const st = parseFloat(getComputedStyle(probe).paddingTop) || 0
-    document.body.removeChild(probe)
-    setSafeTopPx(st)
-
     const atualizar = () => {
       const el = outerRef.current
       const w = window.visualViewport?.width || window.innerWidth || el?.clientWidth || LARGURA_CENA
       const h = window.visualViewport?.height || window.innerHeight || el?.clientHeight || ALTURA_CENA
       // Desconta apenas a safe area do topo (notch). Embaixo deixa livre por escolha do design.
-      const hUtil = Math.max(h - st, ALTURA_CENA * 0.5)
+      const hUtil = Math.max(h - safeTopPx, ALTURA_CENA * 0.5)
       const novoScale = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
       if (novoScale > 0) setEscala(novoScale)
       setAlturaViewport(h)
@@ -129,7 +144,7 @@ export function AberturaScreen() {
       window.removeEventListener('orientationchange', atualizar)
       window.visualViewport?.removeEventListener('resize', atualizar)
     }
-  }, [])
+  }, [safeTopPx])
 
   useEffect(() => {
     let raf: number | null = null
