@@ -6,21 +6,6 @@
 // preserve-3d, rotateY 0 → -180), só que aplicada aos elementos que já
 // existem e já pintaram na tela, não uma cópia recriada — depois navega pra
 // Home.
-//
-// Estrutura da hierarquia 3D (crítico — não mexer sem testar em mobile):
-//   root outerRef (fixed, contém FundoMesa e a cena escalada)
-//     └─ .cena (390x844, scaled, perspective, contém tudo o resto)
-//        └─ wrapper 3D (preserve-3d)
-//           └─ div (backfaceVisibility hidden)
-//              └─ onClick=handleFechar (cursor-pointer, overflow-hidden)
-//                 ├─ wrapper flip do CAMPO (rotateY 0 → -180, no PIN certo)
-//                 │  └─ CenaEstadio (revelado) + BancoReservas
-//                 ├─ gradiente sombra esquerda
-//                 ├─ PoeiraTransicao
-//                 └─ wrapper flip da CAPA (rotateY 0 → -180)
-//                    ├─ CapaAlbum (frente)
-//                    ├─ CapaVerso (verso)
-//                    └─ CapaEspessura
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -40,12 +25,13 @@ import {
 } from './coreografia'
 import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransicao'
 import { somKit } from './somKit'
-import { BANCO, TECNICO, TITULARES, buscarPinPorNome, type JogadorComPin } from './elencoMock'
+import { buscarPinPorNome, gerarElenco, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
-import type { FasePoeira, JogadorCampo } from './tipos'
+import { lerFormacaoId } from '@/lib/appSettings'
+import type { FasePoeira } from './tipos'
 
 const LARGURA_CENA = 390
 const ALTURA_CENA = 844
@@ -59,8 +45,20 @@ export function AberturaScreen() {
   const [fasePoeira, setFasePoeira] = useState<FasePoeira>('oculta')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
 
-  // Calcula escala e altura já no primeiro render (síncrono) — evita salto
-  // visual de "aparece pequena, depois se ajusta".
+  // Formação atual — lida do Supabase (app_settings). Enquanto carrega, usa 4-3-3.
+  const [formacaoId, setFormacaoId] = useState<string>('4-3-3')
+  const [formacaoCarregada, setFormacaoCarregada] = useState(false)
+
+  useEffect(() => {
+    lerFormacaoId()
+      .then((id) => setFormacaoId(id))
+      .catch(() => { /* silencioso — fica no default */ })
+      .finally(() => setFormacaoCarregada(true))
+  }, [])
+
+  // Elenco recalculado quando a formação muda
+  const { TITULARES, BANCO, TECNICO } = useMemo(() => gerarElenco(formacaoId), [formacaoId])
+
   const [safeTopPx, setSafeTopPx] = useState<number>(() => {
     if (typeof window === 'undefined') return 0
     try {
@@ -82,8 +80,6 @@ export function AberturaScreen() {
     if (typeof window === 'undefined') return 1
     const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
     const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
-    // Estima a safe area do topo aqui pra escala inicial já ser certa.
-    // 47px cobre a maioria dos notches iOS; refinado no useEffect abaixo.
     const safeTopEstimado = w > 375 ? 47 : 20
     const hUtil = Math.max(h - safeTopEstimado, ALTURA_CENA * 0.5)
     return Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
@@ -128,8 +124,6 @@ export function AberturaScreen() {
     const atualizar = () => {
       const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
       const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
-      // hUtil = altura disponível DEPOIS de descontar o notch (padding do container).
-      // Como o container já tem paddingTop = safeTopPx, o espaço interno é h - safeTopPx.
       const hUtil = Math.max(h - safeTopPx, ALTURA_CENA * 0.5)
       const novoScale = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
       if (novoScale > 0) setEscala(novoScale)
@@ -257,9 +251,7 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    // Sinaliza pro CampoFlipOverlay da próxima página fazer a virada.
     sessionStorage.setItem('palpitao_flip_transicao', '1')
-    // Navega imediatamente — o overlay cobre a montagem da Home enquanto vira.
     router.push(player.isAdmin ? '/admin' : '/inicio')
   }, [router])
 
@@ -273,7 +265,7 @@ export function AberturaScreen() {
       const atrasoFila = inicioTiers[j.tier] + idx * INTERVALO_FILA
       return { ...j, entrada: estiloEntrada(j.xpx, j.ypx, true, 1, atrasoFila, revelado) }
     })
-  }, [inicioTiers, revelado])
+  }, [inicioTiers, revelado, TITULARES])
 
   const TIER_BANCO = 4
   const reservasComEntrada = useMemo(
@@ -282,15 +274,15 @@ export function AberturaScreen() {
         ...r,
         entrada: estiloEntrada(r.xpx, r.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + i * INTERVALO_FILA, revelado),
       })),
-    [inicioTiers, revelado],
+    [inicioTiers, revelado, BANCO],
   )
   const adminComEntrada = useMemo(
     () => ({ entrada: estiloEntrada(322, 734, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + (BANCO.length + 1) * INTERVALO_FILA, revelado) }),
-    [inicioTiers, revelado],
+    [inicioTiers, revelado, BANCO],
   )
   const tecnicoComEntrada = useMemo(
     () => ({ ...TECNICO, entrada: estiloEntrada(TECNICO.xpx, TECNICO.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO], revelado) }),
-    [inicioTiers, revelado],
+    [inicioTiers, revelado, TECNICO],
   )
 
   return (
@@ -304,13 +296,8 @@ export function AberturaScreen() {
         boxSizing: 'border-box',
       }}
     >
-      {/* Cenário externo: mesa de madeira envelhecida + cone de luz + poeira */}
       <FundoMesa />
 
-      {/* botão "abrir álbum" — fica FORA da árvore 3D de propósito (bug de
-          repaint do Safari faz qualquer coisa dentro do preserve-3d aninhado
-          não pintar sem toque; fora dela, pinta normalmente). Posicionado por
-          cálculo matemático pra ficar visualmente sobre a capa. */}
       {capaVisivel && (
         <div
           role="button"
@@ -354,11 +341,9 @@ export function AberturaScreen() {
           transform: `scale(${escala})`,
           transformOrigin: 'top center',
           zIndex: 2,
-          // Sombra projetada do álbum sobre a mesa (efeito profundidade)
           boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
         }}
       >
-        {/* Wrapper 3D — mantido igual ao original que funcionava */}
         <div
           style={{
             position: 'absolute',
@@ -397,7 +382,6 @@ export function AberturaScreen() {
 
               <PoeiraTransicao fase={fasePoeira} />
 
-              {/* CAPA (frente + verso + espessura) — precisa ficar DENTRO do onClick handler */}
               <div
                 style={{
                   position: 'absolute',
