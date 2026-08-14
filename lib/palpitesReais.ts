@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { getEscudo } from './escudos'
+import { gravarLog } from './rodadaAdmin'
 import type { JogoPalpite, Palpite } from '@/components/palpites/CardJogo'
 
 export interface RodadaPalpites {
@@ -15,7 +16,6 @@ export interface RodadaPalpites {
 function combinarKickoff(date: string | null, time: string | null): string {
   if (!date) return new Date().toISOString()
   const horaBruta = time ?? '00:00'
-  // Garante formato HH:MM:SS (Postgres pode devolver com ou sem segundos)
   const partes = horaBruta.split(':')
   const hh = (partes[0] ?? '00').padStart(2, '0')
   const mm = (partes[1] ?? '00').padStart(2, '0')
@@ -23,8 +23,7 @@ function combinarKickoff(date: string | null, time: string | null): string {
   return new Date(`${date}T${hh}:${mm}:${ss}`).toISOString()
 }
 
-/** Busca a rodada com palpites abertos (a mais recente, se houver mais de
- *  uma por engano) + seus jogos, já com escudo resolvido por nome. */
+/** Busca a rodada com palpites abertos + seus jogos com escudo resolvido. */
 export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
   const { data: round } = await supabase
     .from('rounds')
@@ -76,12 +75,36 @@ export async function buscarPalpitesExistentes(roundId: string, participantId: s
   return out
 }
 
-/** Salva (upsert) os palpites preenchidos do participante nos jogos ainda
- *  abertos. Jogos vazios ("", "") são ignorados — não sobrescreve com lixo. */
+/**
+ * Salva (upsert) os palpites preenchidos do participante nos jogos ainda
+ * abertos. Jogos vazios ("", "") são ignorados — não sobrescreve com lixo.
+ *
+ * Também registra no admin_log:
+ *   - PALPITE_SALVO — quando é o primeiro palpite naquele jogo
+ *   - PALPITE_EDITADO — quando o palpite mudou (mostra antes → depois)
+ *
+ * Um único evento agrupa todos os jogos alterados na mesma "sessão de save"
+ * pra não poluir o log com uma linha por jogo.
+ */
 export async function salvarPalpitesReais(
   participantId: string,
   palpites: Record<string, Palpite>,
 ): Promise<void> {
+  // Busca nome do participante (pra log) e os matches (pra descrição legível)
+  const [{ data: part }, { data: matchesInfo }] = await Promise.all([
+    supabase.from('participants').select('name').eq('id', participantId).maybeSingle(),
+    supabase
+      .from('matches')
+      .select('id, home, away')
+      .in('id', Object.keys(palpites).length > 0 ? Object.keys(palpites) : ['00000000-0000-0000-0000-000000000000']),
+  ])
+
+  const nomeParticipante = part?.name ?? 'desconhecido'
+  const matchInfoPorId = new Map((matchesInfo ?? []).map((m) => [m.id, m]))
+
+  const salvos: Array<{ jogo: string; palpite: string }> = []
+  const editados: Array<{ jogo: string; de: string; para: string }> = []
+
   for (const [matchId, p] of Object.entries(palpites)) {
     if (p.h === '' || p.a === '') continue
     const h = parseInt(p.h, 10)
@@ -90,17 +113,53 @@ export async function salvarPalpitesReais(
 
     const { data: existente } = await supabase
       .from('predictions')
-      .select('id')
+      .select('id, pred_h, pred_a')
       .eq('participant_id', participantId)
       .eq('match_id', matchId)
       .maybeSingle()
 
+    const info = matchInfoPorId.get(matchId)
+    const jogoStr = info ? `${info.home}×${info.away}` : matchId.slice(0, 8)
+    const palpiteStr = `${h}×${a}`
+
     if (existente) {
-      const { error } = await supabase.from('predictions').update({ pred_h: h, pred_a: a }).eq('id', existente.id)
-      if (error) throw error
+      // Só grava evento se mudou de verdade
+      if (existente.pred_h !== h || existente.pred_a !== a) {
+        const { error } = await supabase.from('predictions').update({ pred_h: h, pred_a: a }).eq('id', existente.id)
+        if (error) throw error
+        editados.push({
+          jogo: jogoStr,
+          de: `${existente.pred_h}×${existente.pred_a}`,
+          para: palpiteStr,
+        })
+      }
     } else {
-      const { error } = await supabase.from('predictions').insert({ participant_id: participantId, match_id: matchId, pred_h: h, pred_a: a })
+      const { error } = await supabase.from('predictions').insert({
+        participant_id: participantId,
+        match_id: matchId,
+        pred_h: h,
+        pred_a: a,
+      })
       if (error) throw error
+      salvos.push({ jogo: jogoStr, palpite: palpiteStr })
     }
+  }
+
+  // Grava eventos agregados no log (uma linha só de cada tipo, com detalhes)
+  if (salvos.length > 0) {
+    await gravarLog(
+      'PALPITE_SALVO',
+      { total: salvos.length, jogos: salvos },
+      nomeParticipante,
+      participantId,
+    )
+  }
+  if (editados.length > 0) {
+    await gravarLog(
+      'PALPITE_EDITADO',
+      { total: editados.length, jogos: editados },
+      nomeParticipante,
+      participantId,
+    )
   }
 }
