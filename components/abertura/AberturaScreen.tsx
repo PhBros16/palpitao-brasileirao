@@ -82,7 +82,10 @@ export function AberturaScreen() {
     if (typeof window === 'undefined') return 1
     const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
     const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
-    const hUtil = Math.max(h, ALTURA_CENA * 0.5)
+    // Estima a safe area do topo aqui pra escala inicial já ser certa.
+    // 47px cobre a maioria dos notches iOS; refinado no useEffect abaixo.
+    const safeTopEstimado = w > 375 ? 47 : 20
+    const hUtil = Math.max(h - safeTopEstimado, ALTURA_CENA * 0.5)
     return Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
   })
 
@@ -123,23 +126,20 @@ export function AberturaScreen() {
 
   useEffect(() => {
     const atualizar = () => {
-      const el = outerRef.current
-      const w = window.visualViewport?.width || window.innerWidth || el?.clientWidth || LARGURA_CENA
-      const h = window.visualViewport?.height || window.innerHeight || el?.clientHeight || ALTURA_CENA
-      // Desconta apenas a safe area do topo (notch). Embaixo deixa livre por escolha do design.
+      const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
+      const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
+      // hUtil = altura disponível DEPOIS de descontar o notch (padding do container).
+      // Como o container já tem paddingTop = safeTopPx, o espaço interno é h - safeTopPx.
       const hUtil = Math.max(h - safeTopPx, ALTURA_CENA * 0.5)
       const novoScale = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
       if (novoScale > 0) setEscala(novoScale)
       setAlturaViewport(h)
     }
     atualizar()
-    const ro = new ResizeObserver(atualizar)
-    if (outerRef.current) ro.observe(outerRef.current)
     window.addEventListener('resize', atualizar)
     window.addEventListener('orientationchange', atualizar)
     window.visualViewport?.addEventListener('resize', atualizar)
     return () => {
-      ro.disconnect()
       window.removeEventListener('resize', atualizar)
       window.removeEventListener('orientationchange', atualizar)
       window.visualViewport?.removeEventListener('resize', atualizar)
@@ -300,7 +300,6 @@ export function AberturaScreen() {
       style={{
         width: '100vw',
         height: alturaViewport ? `${alturaViewport}px` : '100dvh',
-        minHeight: '-webkit-fill-available',
         paddingTop: `${safeTopPx}px`,
         boxSizing: 'border-box',
       }}
