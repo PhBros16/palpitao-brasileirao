@@ -1806,15 +1806,27 @@ function SecaoPINs() {
 function SecaoLog() {
   const [entradas, setEntradas] = useState<EntradaLog[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
+  const [filtroParticipanteId, setFiltroParticipanteId] = useState<string>('')
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'admin' | 'usuario'>('todos')
 
   async function carregar() {
     setCarregando(true)
-    try { setEntradas(await buscarLog(50)) }
-    catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
-    finally { setCarregando(false) }
+    try {
+      const pid = filtroParticipanteId || undefined
+      setEntradas(await buscarLog(200, pid))
+    } catch (e) {
+      showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro')
+    } finally {
+      setCarregando(false)
+    }
   }
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => { carregar() /* eslint-disable-next-line */ }, [filtroParticipanteId])
+
+  useEffect(() => {
+    buscarParticipantesNomes().then(setParticipantes).catch(() => { /* ignora */ })
+  }, [])
 
   function formatarData(iso: string) {
     const d = new Date(iso)
@@ -1839,39 +1851,149 @@ function SecaoLog() {
     MUSICA_TEMA_ALTERADA: '👑',
     MUSICA_ADICIONADA: '🎵',
     MUSICA_REMOVIDA: '🗑',
+    PALPITE_SALVO: '📝',
+    PALPITE_EDITADO: '✏️',
+  }
+
+  // Ações que são do usuário (não do admin)
+  const ACOES_USUARIO = new Set(['PALPITE_SALVO', 'PALPITE_EDITADO'])
+
+  const entradasFiltradas = entradas.filter((e) => {
+    if (filtroTipo === 'todos') return true
+    if (filtroTipo === 'usuario') return ACOES_USUARIO.has(e.action)
+    return !ACOES_USUARIO.has(e.action)
+  })
+
+  function renderPayload(entrada: EntradaLog): React.ReactNode {
+    if (!entrada.payload || Object.keys(entrada.payload).length === 0) return null
+
+    // PALPITE_SALVO — mostra jogos e palpites
+    if (entrada.action === 'PALPITE_SALVO' && Array.isArray(entrada.payload.jogos)) {
+      return (
+        <div className="mt-1 space-y-0.5">
+          {entrada.payload.jogos.slice(0, 5).map((j: any, i: number) => (
+            <p key={i} className="font-mono text-[10px] text-tinta-200">
+              <span className="text-tinta-100">{j.jogo}</span>
+              {' → '}
+              <b className="text-verde-badge">{j.palpite}</b>
+            </p>
+          ))}
+          {entrada.payload.jogos.length > 5 && (
+            <p className="font-mono text-[9px] italic text-tinta-100">
+              ... e mais {entrada.payload.jogos.length - 5} jogo(s)
+            </p>
+          )}
+        </div>
+      )
+    }
+
+    // PALPITE_EDITADO — mostra antes → depois
+    if (entrada.action === 'PALPITE_EDITADO' && Array.isArray(entrada.payload.jogos)) {
+      return (
+        <div className="mt-1 space-y-0.5">
+          {entrada.payload.jogos.slice(0, 5).map((j: any, i: number) => (
+            <p key={i} className="font-mono text-[10px] text-tinta-200">
+              <span className="text-tinta-100">{j.jogo}</span>
+              {': '}
+              <s className="text-raridade-frango-selo/70">{j.de}</s>
+              {' → '}
+              <b className="text-verde-badge">{j.para}</b>
+            </p>
+          ))}
+          {entrada.payload.jogos.length > 5 && (
+            <p className="font-mono text-[9px] italic text-tinta-100">
+              ... e mais {entrada.payload.jogos.length - 5} jogo(s)
+            </p>
+          )}
+        </div>
+      )
+    }
+
+    // Genérico — chave: valor
+    return (
+      <p className="mt-0.5 font-mono text-[10px] text-tinta-100 truncate">
+        {Object.entries(entrada.payload)
+          .filter(([k]) => k !== 'jogos') // já renderizado acima
+          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+          .join(' · ')}
+      </p>
+    )
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Btn variant="outline" onClick={carregar} disabled={carregando}>
-          {carregando ? '...' : '↻ Atualizar'}
-        </Btn>
-      </div>
       <Card>
-        <SubLabel>Últimas 50 ações</SubLabel>
+        <SubLabel>Filtros</SubLabel>
+        <Row label="Participante">
+          <select
+            value={filtroParticipanteId}
+            onChange={(e) => setFiltroParticipanteId(e.target.value)}
+            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none"
+          >
+            <option value="">Todos os participantes</option>
+            {participantes.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Tipo">
+          <div className="flex gap-1.5">
+            {(['todos', 'admin', 'usuario'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFiltroTipo(t)}
+                className={cx(
+                  'rounded-md border px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
+                  filtroTipo === t
+                    ? 'border-dourado-400 bg-dourado-100 text-dourado-700'
+                    : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
+                )}
+              >
+                {t === 'todos' ? 'Todos' : t === 'admin' ? '👑 Admin' : '👤 Usuário'}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <div className="mt-2 flex justify-end">
+          <Btn variant="outline" onClick={carregar} disabled={carregando}>
+            {carregando ? '...' : '↻ Atualizar'}
+          </Btn>
+        </div>
+      </Card>
+
+      <Card>
+        <SubLabel>
+          {filtroTipo === 'todos' ? 'Últimas ações' : filtroTipo === 'admin' ? 'Ações do admin' : 'Ações dos usuários'}
+          {filtroParticipanteId && (
+            <span className="ml-1 normal-case text-tinta-200">
+              — {participantes.find((p) => p.id === filtroParticipanteId)?.name}
+            </span>
+          )}
+        </SubLabel>
         {carregando ? (
           <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : entradas.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">Nenhuma ação registrada ainda.</p>
+        ) : entradasFiltradas.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma ação registrada.</p>
         ) : (
-          <div className="max-h-96 overflow-y-auto space-y-0">
-            {entradas.map((e) => (
+          <div className="max-h-[500px] overflow-y-auto space-y-0 scrollbar-tema">
+            {entradasFiltradas.map((e) => (
               <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
                 <div className="flex items-start gap-2">
-                  <span className="text-base leading-none mt-0.5">{ICONES[e.action] ?? '•'}</span>
+                  <span className="text-base leading-none mt-0.5 flex-shrink-0">{ICONES[e.action] ?? '•'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
                     {e.performed_by && (
-                      <p className="font-sans text-[10px] text-tinta-100">por {e.performed_by}</p>
-                    )}
-                    {e.payload && Object.keys(e.payload).length > 0 && (
-                      <p className="mt-0.5 font-mono text-[10px] text-tinta-100 truncate">
-                        {Object.entries(e.payload).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                      <p className="font-sans text-[10px] text-tinta-100">
+                        por <b>{e.performed_by}</b>
+                        {ACOES_USUARIO.has(e.action) && ' 👤'}
                       </p>
                     )}
+                    {renderPayload(e)}
                   </div>
-                  <span className="flex-shrink-0 font-mono text-[10px] text-tinta-100">{formatarData(e.created_at)}</span>
+                  <span className="flex-shrink-0 font-mono text-[10px] text-tinta-100 whitespace-nowrap">
+                    {formatarData(e.created_at)}
+                  </span>
                 </div>
               </div>
             ))}
