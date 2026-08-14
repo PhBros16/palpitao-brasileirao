@@ -1,19 +1,21 @@
 'use client'
 
-// CampoFlipOverlay — continua a animação de "virar o campo" na página de
-// destino. Ao ler o sinal do sessionStorage, dispara um evento global
-// 'palpitao:transicao-iniciada' pra que a Home suspenda suas próprias
-// animações até o flip terminar (evita duplicações e flashes).
+// CampoFlipOverlay — cobre a tela com o "campo" (mesmo estilo da abertura)
+// enquanto a Home monta por baixo. Depois gira 180° revelando a Home real.
 //
-// Fase 1: cobre a tela com o campo (opaco, sem virar) - dá tempo pra Home
-//         montar por baixo, sem revelar nada.
-// Fase 2: gira -180° em 1200ms revelando a Home já pronta.
+// Enquanto ativo, dispara eventos globais pra outros componentes (LuzesAmbiente,
+// HomeReal com stagger) suspenderem suas animações e não brigarem pela tela.
+//
+// Fase 1: cobre a tela opacamente (dá tempo pra Home montar por baixo)
+// Fase 2: gira 180° em 1200ms (mesma curva/duração da capa do álbum)
+// Fase 3: some — Home fica visível, componentes retomam suas animações
 
 import { useEffect, useState } from 'react'
 
 const CHAVE = 'palpitao_flip_transicao'
-const DUR_FLIP = 1200
-const ATRASO_MONTAGEM = 80 // ms — dá tempo pra Home montar antes de girar
+const ATRASO_MONTAGEM = 120  // ms — Home terminar de montar antes do flip
+const DUR_FLIP = 1200         // ms — mesma da capa do álbum
+const MARGEM_FIM = 80         // ms — pequena folga antes de desmontar
 
 export function CampoFlipOverlay() {
   const [ativo, setAtivo] = useState(false)
@@ -24,19 +26,19 @@ export function CampoFlipOverlay() {
     if (sessionStorage.getItem(CHAVE) !== '1') return
     sessionStorage.removeItem(CHAVE)
 
-    // Sinaliza pra Home suspender suas animações
+    // Sinaliza pra outros componentes suspenderem suas animações
     window.dispatchEvent(new CustomEvent('palpitao:transicao-iniciada'))
 
     setAtivo(true)
 
-    // Espera Home montar → começa a girar
+    // Fase 2: começa a girar depois da Home montar
     const t1 = setTimeout(() => setVirando(true), ATRASO_MONTAGEM)
 
-    // Fim da virada → esconde overlay e sinaliza pra Home continuar
+    // Fase 3: fim da virada — desmonta overlay e sinaliza pra Home retomar
     const t2 = setTimeout(() => {
       setAtivo(false)
       window.dispatchEvent(new CustomEvent('palpitao:transicao-terminada'))
-    }, ATRASO_MONTAGEM + DUR_FLIP + 60)
+    }, ATRASO_MONTAGEM + DUR_FLIP + MARGEM_FIM)
 
     return () => {
       clearTimeout(t1)
@@ -59,7 +61,7 @@ export function CampoFlipOverlay() {
           transformStyle: 'preserve-3d',
           transition: `transform ${DUR_FLIP}ms cubic-bezier(0.62,0,0.38,1)`,
           transform: virando ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-          backfaceVisibility: 'hidden',
+          willChange: 'transform',
         }}
       >
         <div
