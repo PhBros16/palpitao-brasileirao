@@ -33,7 +33,7 @@ interface Sessao {
 // Padding top mínimo que cobre Dynamic Island expandido do iPhone.
 // max(safe-area, 56px) garante que dispositivos sem notch tb têm folga
 // bacana, e iPhones com Dynamic Island ganham 56px de proteção.
-const PADDING_TOP_CSS = 'max(env(safe-area-inset-top), 56px)'
+const PADDING_TOP_CSS = 'max(env(safe-area-inset-top), 72px)'
 
 export function AppLayout({
   children,
