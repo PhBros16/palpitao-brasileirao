@@ -2,6 +2,10 @@
 
 // AberturaScreen — sequência cinematográfica: capa de couro → flip →
 // campinho revelado. PIN correto → cortina de couro desce → navega pra Home.
+//
+// IMPORTANTE: escala/altura/safeTop são calculados no CLIENTE via useEffect.
+// Não renderiza a cena até calcular (evita pisca de "cena pequena → grande"
+// que acontece na primeira carga por causa do SSR).
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -52,36 +56,17 @@ export function AberturaScreen() {
 
   const { TITULARES, BANCO, TECNICO } = useMemo(() => gerarElenco(formacaoId), [formacaoId])
 
-  const [safeTopPx] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0
-    try {
-      const probe = document.createElement('div')
-      probe.style.cssText = 'position:fixed;top:0;left:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none;'
-      document.body.appendChild(probe)
-      const st = parseFloat(getComputedStyle(probe).paddingTop) || 0
-      document.body.removeChild(probe)
-      return st
-    } catch {
-      return 0
-    }
-  })
-  const [alturaViewport, setAlturaViewport] = useState<number | null>(() => {
-    if (typeof window === 'undefined') return null
-    return window.visualViewport?.height || window.innerHeight || null
-  })
-  const [escala, setEscala] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1
-    const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
-    const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
-    const safeTopEstimado = w > 375 ? 47 : 20
-    const hUtil = Math.max(h - safeTopEstimado, ALTURA_CENA * 0.5)
-    return Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
-  })
+  // Estado de dimensões — começa null, calcula síncrono no primeiro effect
+  // do cliente (antes de qualquer paint visível).
+  const [dimensoes, setDimensoes] = useState<{
+    safeTopPx: number
+    alturaViewport: number
+    escala: number
+  } | null>(null)
 
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  // Cortina descendo — trigger, e destino cacheado pra navegar quando cobrir
   const [cortinaAtiva, setCortinaAtiva] = useState(false)
   const rotaDestinoRef = useRef<string | null>(null)
 
@@ -100,6 +85,7 @@ export function AberturaScreen() {
       document.documentElement.style.overflow = prevHtmlOverflow
     }
   }, [])
+
   const iniciado = useRef(false)
   useEffect(() => {
     const t = setTimeout(() => {
@@ -108,6 +94,7 @@ export function AberturaScreen() {
     }, 3200)
     return () => clearTimeout(t)
   }, [])
+
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
 
   const limparTimers = useCallback(() => {
@@ -115,25 +102,41 @@ export function AberturaScreen() {
     timers.current = []
   }, [])
 
+  // Calcula dimensões UMA vez ao montar + atualiza em resize/orientação.
+  // Roda SÍNCRONO no useLayoutEffect (antes do paint) — sem pisca.
   useEffect(() => {
-    const atualizar = () => {
+    function medirSafeTop(): number {
+      try {
+        const probe = document.createElement('div')
+        probe.style.cssText = 'position:fixed;top:0;left:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none;'
+        document.body.appendChild(probe)
+        const st = parseFloat(getComputedStyle(probe).paddingTop) || 0
+        document.body.removeChild(probe)
+        return st
+      } catch {
+        return 0
+      }
+    }
+
+    function calcular() {
+      const safeTopPx = medirSafeTop()
       const w = window.visualViewport?.width || window.innerWidth || LARGURA_CENA
       const h = window.visualViewport?.height || window.innerHeight || ALTURA_CENA
       const hUtil = Math.max(h - safeTopPx, ALTURA_CENA * 0.5)
-      const novoScale = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
-      if (novoScale > 0) setEscala(novoScale)
-      setAlturaViewport(h)
+      const escala = Math.min(1, w / LARGURA_CENA, hUtil / ALTURA_CENA)
+      setDimensoes({ safeTopPx, alturaViewport: h, escala })
     }
-    atualizar()
-    window.addEventListener('resize', atualizar)
-    window.addEventListener('orientationchange', atualizar)
-    window.visualViewport?.addEventListener('resize', atualizar)
+
+    calcular()
+    window.addEventListener('resize', calcular)
+    window.addEventListener('orientationchange', calcular)
+    window.visualViewport?.addEventListener('resize', calcular)
     return () => {
-      window.removeEventListener('resize', atualizar)
-      window.removeEventListener('orientationchange', atualizar)
-      window.visualViewport?.removeEventListener('resize', atualizar)
+      window.removeEventListener('resize', calcular)
+      window.removeEventListener('orientationchange', calcular)
+      window.visualViewport?.removeEventListener('resize', calcular)
     }
-  }, [safeTopPx])
+  }, [])
 
   useEffect(() => {
     let raf: number | null = null
@@ -249,10 +252,8 @@ export function AberturaScreen() {
     const rotaDestino = player.isAdmin ? '/admin' : '/inicio'
     rotaDestinoRef.current = rotaDestino
 
-    // Pré-carrega a Home enquanto a cortina desce
     try { router.prefetch(rotaDestino) } catch { /* silencioso */ }
 
-    // Ativa cortina — quando cobrir totalmente, navega
     setCortinaAtiva(true)
   }, [router])
 
@@ -291,13 +292,29 @@ export function AberturaScreen() {
     [inicioTiers, revelado, TECNICO],
   )
 
+  // Enquanto não calculou dimensões, mostra só um fundo escuro (invisível ao olho)
+  if (!dimensoes) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'linear-gradient(180deg, #1a0f08 0%, #0a0503 100%)',
+        }}
+        aria-hidden="true"
+      />
+    )
+  }
+
+  const { safeTopPx, alturaViewport, escala } = dimensoes
+
   return (
     <div
       ref={outerRef}
       className="relative flex items-start justify-center overflow-hidden"
       style={{
         width: '100vw',
-        height: alturaViewport ? `${alturaViewport}px` : '100dvh',
+        height: `${alturaViewport}px`,
         paddingTop: `${safeTopPx}px`,
         boxSizing: 'border-box',
       }}
@@ -436,7 +453,6 @@ export function AberturaScreen() {
         />
       </div>
 
-      {/* Cortina de couro que desce cobrindo a tela ao logar */}
       <CortinaDescendo ativa={cortinaAtiva} onProntoParaNavegar={handleCortinaCobriuTela} />
 
       {pinPlayer && (
@@ -446,7 +462,6 @@ export function AberturaScreen() {
           onSucesso={handlePinSucesso as (player: any) => void}
         />
       )}
-
     </div>
   )
 }
