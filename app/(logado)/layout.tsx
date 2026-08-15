@@ -5,15 +5,16 @@
 // página chamando <AppLayout> internamente, remontando tudo — header, nav,
 // fundo animado, luzes — a cada troca de aba), agora AppLayout é montado
 // UMA VEZ aqui; só {children} troca ao navegar entre abas.
+//
+// A virada de página (campo → home) agora acontece DENTRO do AberturaScreen,
+// antes da navegação — não precisa mais de CampoFlipOverlay.
 import { AppLayout } from '@/components/home/AppLayout'
 import { AtualizarProvider } from '@/components/home/AtualizarContext'
-import { CampoFlipOverlay } from '@/components/home/CampoFlipOverlay'
 
 export default function LogadoLayout({ children }: { children: React.ReactNode }) {
   return (
     <AtualizarProvider>
       <AppLayout>{children}</AppLayout>
-      <CampoFlipOverlay />
     </AtualizarProvider>
   )
 }
