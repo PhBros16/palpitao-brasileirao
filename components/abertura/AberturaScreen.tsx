@@ -1,23 +1,7 @@
 'use client'
 
-// AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
-// campinho revelado → PIN correto → campinho vira como página → Home.
-//
-// Estrutura da hierarquia 3D (crítico — não mexer sem testar em mobile):
-//   root outerRef (fixed, contém FundoMesa e a cena escalada)
-//     └─ .cena (390x844, scaled, perspective, contém tudo o resto)
-//        └─ wrapper 3D (preserve-3d)
-//           └─ div (backfaceVisibility hidden)
-//              └─ onClick=handleFechar (cursor-pointer, overflow-hidden)
-//                 ├─ wrapper flip do CAMPO (rotateY 0 → -180, no PIN certo)
-//                 │  ├─ Frente: CenaEstadio + BancoReservas
-//                 │  └─ Verso: página em branco de álbum
-//                 ├─ gradiente sombra esquerda
-//                 ├─ PoeiraTransicao
-//                 └─ wrapper flip da CAPA (rotateY 0 → -180)
-//                    ├─ CapaAlbum (frente)
-//                    ├─ CapaVerso (verso)
-//                    └─ CapaEspessura
+// AberturaScreen — sequência cinematográfica: capa de couro → flip →
+// campinho revelado. PIN correto → fade suave e navega pra Home.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -47,9 +31,6 @@ import type { FasePoeira } from './tipos'
 
 const LARGURA_CENA = 390
 const ALTURA_CENA = 844
-
-// Duração do flip do campo → home. Mesma curva da capa pra visual consistente.
-const DUR_FLIP_CAMPO = DUR_FLIP
 
 export function AberturaScreen() {
   const router = useRouter()
@@ -101,8 +82,8 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  // Flip do campo (PIN correto → campo vira e navega pra Home)
-  const [virandoCampo, setVirandoCampo] = useState(false)
+  // Fade sutil ao logar (escurece tela → navega no meio → clareia na Home)
+  const [saindo, setSaindo] = useState(false)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const podeClicarCapa = useRef(false)
@@ -210,7 +191,7 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
-    if (pinPlayer || virandoCampo) return
+    if (pinPlayer || saindo) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -222,14 +203,14 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers, pinPlayer, virandoCampo])
+  }, [limparTimers, pinPlayer, saindo])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
   const [carregandoId, setCarregandoId] = useState<string | null>(null)
 
   const handleClickJogador = useCallback(async (j: { id: string; nome: string }) => {
-    if (buscandoPin || pinPlayer || virandoCampo) return
+    if (buscandoPin || pinPlayer || saindo) return
     setBuscandoPin(true)
     setCarregandoId(j.id)
     try {
@@ -239,10 +220,10 @@ export function AberturaScreen() {
       setBuscandoPin(false)
       setCarregandoId(null)
     }
-  }, [buscandoPin, pinPlayer, virandoCampo])
+  }, [buscandoPin, pinPlayer, saindo])
 
   const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer || virandoCampo) return
+    if (buscandoPin || pinPlayer || saindo) return
     setBuscandoPin(true)
     try {
       const admin = await buscarPinPorNome('Administração')
@@ -250,7 +231,7 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer, virandoCampo])
+  }, [buscandoPin, pinPlayer, saindo])
 
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
@@ -267,20 +248,12 @@ export function AberturaScreen() {
 
     const rotaDestino = player.isAdmin ? '/admin' : '/inicio'
 
-    // Pré-carrega a Home em background enquanto o flip roda
+    // Pré-carrega a Home enquanto o fade roda
     try { router.prefetch(rotaDestino) } catch { /* silencioso */ }
 
-    // Dispara o flip do campo
-    setVirandoCampo(true)
-
-    // Ao terminar o flip, navega. Espera um pouco além do flip pra dar tempo
-    // da Home terminar de pré-carregar (evita flash do fundo entre o verso
-    // do papel e a Home real montar).
-    timers.current.push(
-      setTimeout(() => {
-        router.push(rotaDestino)
-      }, DUR_FLIP_CAMPO + 200),
-    )
+    // Fade sutil pra escuro e navega no meio (400ms escurece, navega, home clareia)
+    setSaindo(true)
+    timers.current.push(setTimeout(() => router.push(rotaDestino), 400))
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -392,76 +365,21 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              {/* Wrapper de flip do CAMPO — vira quando PIN aceito. Contém frente
-                  (cena real com jogadores/banco) + verso (página em branco). */}
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  transformOrigin: 'left center',
-                  transformStyle: 'preserve-3d',
-                  willChange: 'transform',
-                  transition: `transform ${DUR_FLIP_CAMPO}ms cubic-bezier(0.62,0,0.38,1)`,
-                  transform: virandoCampo ? 'rotateY(-180deg)' : 'rotateY(0deg)',
-                }}
-              >
-                {/* FRENTE — campo com jogadores */}
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
-                  <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
-                  <BancoReservas
-                    revelado={revelado}
-                    reservas={reservasComEntrada}
-                    admin={adminComEntrada}
-                    tecnico={tecnicoComEntrada}
-                    onEntrarAdmin={handleClickAdmin}
-                    onEntrarJogador={handleClickJogador}
-                    carregandoId={carregandoId}
-                  />
-                  <div
-                    className="pointer-events-none absolute bottom-0 left-0 top-0"
-                    style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
-                  />
-                </div>
+              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
+              <BancoReservas
+                revelado={revelado}
+                reservas={reservasComEntrada}
+                admin={adminComEntrada}
+                tecnico={tecnicoComEntrada}
+                onEntrarAdmin={handleClickAdmin}
+                onEntrarJogador={handleClickJogador}
+                carregandoId={carregandoId}
+              />
 
-                {/* VERSO — página em branco do álbum (envelhecida, sem conteúdo) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    transformOrigin: 'left center',
-                    transform: 'rotateY(180deg) translateZ(1px)',
-                    backfaceVisibility: 'hidden',
-                    background:
-                      'radial-gradient(120% 90% at 50% 25%, var(--papel-100) 0%, var(--papel-200) 60%, var(--papel-300) 100%)',
-                    boxShadow: 'inset 0 0 80px rgba(139,90,43,0.25)',
-                  }}
-                >
-                  {/* Textura de papel envelhecido — bem sutil */}
-                  <div
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background:
-                        'repeating-linear-gradient(0deg, rgba(139,90,43,0.03) 0 1px, transparent 1px 3px)',
-                    }}
-                  />
-                  {/* Aura dourada central */}
-                  <div
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background:
-                        'radial-gradient(60% 45% at 50% 50%, color-mix(in srgb, var(--dourado-200) 20%, transparent) 0%, transparent 70%)',
-                    }}
-                  />
-                  {/* Vinheta */}
-                  <div
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background:
-                        'radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,0.35) 100%)',
-                    }}
-                  />
-                </div>
-              </div>
+              <div
+                className="pointer-events-none absolute bottom-0 left-0 top-0"
+                style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
+              />
 
               <PoeiraTransicao fase={fasePoeira} />
 
@@ -513,6 +431,17 @@ export function AberturaScreen() {
           }}
         />
       </div>
+
+      {/* Fade sutil ao logar — cobre a tela toda enquanto navega */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          zIndex: 300,
+          background: '#0a0603',
+          opacity: saindo ? 1 : 0,
+          transition: 'opacity 400ms ease-in-out',
+        }}
+      />
 
       {pinPlayer && (
         <PinModal
