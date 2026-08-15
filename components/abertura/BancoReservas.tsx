@@ -35,10 +35,9 @@ export function BancoReservas({
         right: 12,
         height: 100,
         bottom: 12,
-        background: 'var(--parede-100)',
-        // Borda vira transparente enquanto o refletor não acende
+        background: revelado ? 'var(--parede-100)' : 'transparent',
         border: `2px solid ${revelado ? 'rgba(245, 235, 215, 0.2)' : 'transparent'}`,
-        transition: 'border-color 900ms ease-out',
+        transition: 'background-color 900ms ease-out, border-color 900ms ease-out',
         padding: '9px 14px',
         zIndex: 0,
       }}
