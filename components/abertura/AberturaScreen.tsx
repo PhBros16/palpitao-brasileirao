@@ -1,7 +1,7 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica: capa de couro → flip →
-// campinho revelado. PIN correto → fade suave e navega pra Home.
+// campinho revelado. PIN correto → cortina de couro desce → navega pra Home.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -24,6 +24,7 @@ import { somKit } from './somKit'
 import { buscarPinPorNome, gerarElenco, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
+import { CortinaDescendo } from '@/components/home/CortinaTransicao'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
 import { lerFormacaoId } from '@/lib/appSettings'
@@ -41,16 +42,14 @@ export function AberturaScreen() {
   const [fasePoeira, setFasePoeira] = useState<FasePoeira>('oculta')
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
 
-  // Formação atual — lida do Supabase (app_settings). Enquanto carrega, usa 4-3-3.
   const [formacaoId, setFormacaoId] = useState<string>('4-3-3')
 
   useEffect(() => {
     lerFormacaoId()
       .then((id) => setFormacaoId(id))
-      .catch(() => { /* silencioso — fica no default */ })
+      .catch(() => { /* silencioso */ })
   }, [])
 
-  // Elenco recalculado quando a formação muda
   const { TITULARES, BANCO, TECNICO } = useMemo(() => gerarElenco(formacaoId), [formacaoId])
 
   const [safeTopPx] = useState<number>(() => {
@@ -82,8 +81,9 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
-  // Fade sutil ao logar (escurece tela → navega no meio → clareia na Home)
-  const [saindo, setSaindo] = useState(false)
+  // Cortina descendo — trigger, e destino cacheado pra navegar quando cobrir
+  const [cortinaAtiva, setCortinaAtiva] = useState(false)
+  const rotaDestinoRef = useRef<string | null>(null)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const podeClicarCapa = useRef(false)
@@ -191,7 +191,7 @@ export function AberturaScreen() {
   }, [])
 
   const handleFechar = useCallback(() => {
-    if (pinPlayer || saindo) return
+    if (pinPlayer || cortinaAtiva) return
     limparTimers()
     setAberto(false)
     setRevelado(false)
@@ -203,14 +203,14 @@ export function AberturaScreen() {
       }, DUR_FLIP / 2),
     )
     iniciado.current = false
-  }, [limparTimers, pinPlayer, saindo])
+  }, [limparTimers, pinPlayer, cortinaAtiva])
 
   useEffect(() => () => limparTimers(), [limparTimers])
 
   const [carregandoId, setCarregandoId] = useState<string | null>(null)
 
   const handleClickJogador = useCallback(async (j: { id: string; nome: string }) => {
-    if (buscandoPin || pinPlayer || saindo) return
+    if (buscandoPin || pinPlayer || cortinaAtiva) return
     setBuscandoPin(true)
     setCarregandoId(j.id)
     try {
@@ -220,10 +220,10 @@ export function AberturaScreen() {
       setBuscandoPin(false)
       setCarregandoId(null)
     }
-  }, [buscandoPin, pinPlayer, saindo])
+  }, [buscandoPin, pinPlayer, cortinaAtiva])
 
   const handleClickAdmin = useCallback(async () => {
-    if (buscandoPin || pinPlayer || saindo) return
+    if (buscandoPin || pinPlayer || cortinaAtiva) return
     setBuscandoPin(true)
     try {
       const admin = await buscarPinPorNome('Administração')
@@ -231,7 +231,7 @@ export function AberturaScreen() {
     } finally {
       setBuscandoPin(false)
     }
-  }, [buscandoPin, pinPlayer, saindo])
+  }, [buscandoPin, pinPlayer, cortinaAtiva])
 
   const handlePinSucesso = useCallback((player: JogadorComPin) => {
     localStorage.setItem(
@@ -247,13 +247,18 @@ export function AberturaScreen() {
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
     const rotaDestino = player.isAdmin ? '/admin' : '/inicio'
+    rotaDestinoRef.current = rotaDestino
 
-    // Pré-carrega a Home enquanto o fade roda
+    // Pré-carrega a Home enquanto a cortina desce
     try { router.prefetch(rotaDestino) } catch { /* silencioso */ }
 
-    // Fade sutil pra escuro e navega no meio (400ms escurece, navega, home clareia)
-    setSaindo(true)
-    timers.current.push(setTimeout(() => router.push(rotaDestino), 400))
+    // Ativa cortina — quando cobrir totalmente, navega
+    setCortinaAtiva(true)
+  }, [router])
+
+  const handleCortinaCobriuTela = useCallback(() => {
+    const rota = rotaDestinoRef.current
+    if (rota) router.push(rota)
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -383,7 +388,6 @@ export function AberturaScreen() {
 
               <PoeiraTransicao fase={fasePoeira} />
 
-              {/* CAPA (frente + verso + espessura) — precisa ficar DENTRO do onClick handler */}
               <div
                 style={{
                   position: 'absolute',
@@ -432,16 +436,8 @@ export function AberturaScreen() {
         />
       </div>
 
-      {/* Fade sutil ao logar — cobre a tela toda enquanto navega */}
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          zIndex: 300,
-          background: '#0a0603',
-          opacity: saindo ? 1 : 0,
-          transition: 'opacity 400ms ease-in-out',
-        }}
-      />
+      {/* Cortina de couro que desce cobrindo a tela ao logar */}
+      <CortinaDescendo ativa={cortinaAtiva} onProntoParaNavegar={handleCortinaCobriuTela} />
 
       {pinPlayer && (
         <PinModal
