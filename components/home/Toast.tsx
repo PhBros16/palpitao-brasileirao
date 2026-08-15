@@ -61,7 +61,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast: showToastFn }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-[200] flex flex-col items-center gap-2 px-4">
+      <div
+        className="pointer-events-none fixed inset-x-0 z-[200] flex flex-col items-center gap-2 px-4"
+        style={{ top: 'max(env(safe-area-inset-top), 72px)' }}
+      >
         <AnimatePresence>
           {toasts.map((t) => {
             const cor = CORES[t.tipo]
