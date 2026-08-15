@@ -273,11 +273,13 @@ export function AberturaScreen() {
     // Dispara o flip do campo
     setVirandoCampo(true)
 
-    // Ao terminar o flip, navega
+    // Ao terminar o flip, navega. Espera um pouco além do flip pra dar tempo
+    // da Home terminar de pré-carregar (evita flash do fundo entre o verso
+    // do papel e a Home real montar).
     timers.current.push(
       setTimeout(() => {
         router.push(rotaDestino)
-      }, DUR_FLIP_CAMPO),
+      }, DUR_FLIP_CAMPO + 200),
     )
   }, [router])
 
