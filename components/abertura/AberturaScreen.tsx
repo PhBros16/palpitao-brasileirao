@@ -1,11 +1,23 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica completa: capa de couro → flip →
-// campinho revelado. PIN correto → o CAMPO (já montado, com tudo que ele já
-// tem) vira como página — mesmíssima mecânica da capa (pivô esquerdo,
-// preserve-3d, rotateY 0 → -180), só que aplicada aos elementos que já
-// existem e já pintaram na tela, não uma cópia recriada — depois navega pra
-// Home.
+// campinho revelado → PIN correto → campinho vira como página → Home.
+//
+// Estrutura da hierarquia 3D (crítico — não mexer sem testar em mobile):
+//   root outerRef (fixed, contém FundoMesa e a cena escalada)
+//     └─ .cena (390x844, scaled, perspective, contém tudo o resto)
+//        └─ wrapper 3D (preserve-3d)
+//           └─ div (backfaceVisibility hidden)
+//              └─ onClick=handleFechar (cursor-pointer, overflow-hidden)
+//                 ├─ wrapper flip do CAMPO (rotateY 0 → -180, no PIN certo)
+//                 │  ├─ Frente: CenaEstadio + BancoReservas
+//                 │  └─ Verso: página em branco de álbum
+//                 ├─ gradiente sombra esquerda
+//                 ├─ PoeiraTransicao
+//                 └─ wrapper flip da CAPA (rotateY 0 → -180)
+//                    ├─ CapaAlbum (frente)
+//                    ├─ CapaVerso (verso)
+//                    └─ CapaEspessura
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -36,6 +48,9 @@ import type { FasePoeira } from './tipos'
 const LARGURA_CENA = 390
 const ALTURA_CENA = 844
 
+// Duração do flip do campo → home. Mesma curva da capa pra visual consistente.
+const DUR_FLIP_CAMPO = DUR_FLIP
+
 export function AberturaScreen() {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
@@ -47,19 +62,17 @@ export function AberturaScreen() {
 
   // Formação atual — lida do Supabase (app_settings). Enquanto carrega, usa 4-3-3.
   const [formacaoId, setFormacaoId] = useState<string>('4-3-3')
-  const [formacaoCarregada, setFormacaoCarregada] = useState(false)
 
   useEffect(() => {
     lerFormacaoId()
       .then((id) => setFormacaoId(id))
       .catch(() => { /* silencioso — fica no default */ })
-      .finally(() => setFormacaoCarregada(true))
   }, [])
 
   // Elenco recalculado quando a formação muda
   const { TITULARES, BANCO, TECNICO } = useMemo(() => gerarElenco(formacaoId), [formacaoId])
 
-  const [safeTopPx, setSafeTopPx] = useState<number>(() => {
+  const [safeTopPx] = useState<number>(() => {
     if (typeof window === 'undefined') return 0
     try {
       const probe = document.createElement('div')
@@ -88,6 +101,7 @@ export function AberturaScreen() {
   const [pinPlayer, setPinPlayer] = useState<JogadorComPin | null>(null)
   const [buscandoPin, setBuscandoPin] = useState(false)
 
+  // Flip do campo (PIN correto → campo vira e navega pra Home)
   const [virandoCampo, setVirandoCampo] = useState(false)
 
   const outerRef = useRef<HTMLDivElement>(null)
@@ -251,8 +265,20 @@ export function AberturaScreen() {
     vibrar('sucesso')
     showToast(`Bem-vindo, ${player.nome}! ⚽`, 'sucesso', 2500)
 
-    sessionStorage.setItem('palpitao_flip_transicao', '1')
-    router.push(player.isAdmin ? '/admin' : '/inicio')
+    const rotaDestino = player.isAdmin ? '/admin' : '/inicio'
+
+    // Pré-carrega a Home em background enquanto o flip roda
+    try { router.prefetch(rotaDestino) } catch { /* silencioso */ }
+
+    // Dispara o flip do campo
+    setVirandoCampo(true)
+
+    // Ao terminar o flip, navega
+    timers.current.push(
+      setTimeout(() => {
+        router.push(rotaDestino)
+      }, DUR_FLIP_CAMPO),
+    )
   }, [router])
 
   const inicioTiers = useMemo(() => calcularInicioTiers(CONTAGEM_TIERS), [])
@@ -364,24 +390,80 @@ export function AberturaScreen() {
               className="absolute inset-0 cursor-pointer overflow-hidden"
               style={{ isolation: 'isolate' }}
             >
-              <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
-              <BancoReservas
-                revelado={revelado}
-                reservas={reservasComEntrada}
-                admin={adminComEntrada}
-                tecnico={tecnicoComEntrada}
-                onEntrarAdmin={handleClickAdmin}
-                onEntrarJogador={handleClickJogador}
-                carregandoId={carregandoId}
-              />
-
+              {/* Wrapper de flip do CAMPO — vira quando PIN aceito. Contém frente
+                  (cena real com jogadores/banco) + verso (página em branco). */}
               <div
-                className="pointer-events-none absolute bottom-0 left-0 top-0"
-                style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
-              />
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  transformOrigin: 'left center',
+                  transformStyle: 'preserve-3d',
+                  willChange: 'transform',
+                  transition: `transform ${DUR_FLIP_CAMPO}ms cubic-bezier(0.62,0,0.38,1)`,
+                  transform: virandoCampo ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                {/* FRENTE — campo com jogadores */}
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+                  <CenaEstadio revelado={revelado} titulares={titularesComEntrada} onEntrar={handleClickJogador} carregandoId={carregandoId} />
+                  <BancoReservas
+                    revelado={revelado}
+                    reservas={reservasComEntrada}
+                    admin={adminComEntrada}
+                    tecnico={tecnicoComEntrada}
+                    onEntrarAdmin={handleClickAdmin}
+                    onEntrarJogador={handleClickJogador}
+                    carregandoId={carregandoId}
+                  />
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-0 top-0"
+                    style={{ width: 60, zIndex: 4, background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)' }}
+                  />
+                </div>
+
+                {/* VERSO — página em branco do álbum (envelhecida, sem conteúdo) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    transformOrigin: 'left center',
+                    transform: 'rotateY(180deg) translateZ(1px)',
+                    backfaceVisibility: 'hidden',
+                    background:
+                      'radial-gradient(120% 90% at 50% 25%, var(--papel-100) 0%, var(--papel-200) 60%, var(--papel-300) 100%)',
+                    boxShadow: 'inset 0 0 80px rgba(139,90,43,0.25)',
+                  }}
+                >
+                  {/* Textura de papel envelhecido — bem sutil */}
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'repeating-linear-gradient(0deg, rgba(139,90,43,0.03) 0 1px, transparent 1px 3px)',
+                    }}
+                  />
+                  {/* Aura dourada central */}
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(60% 45% at 50% 50%, color-mix(in srgb, var(--dourado-200) 20%, transparent) 0%, transparent 70%)',
+                    }}
+                  />
+                  {/* Vinheta */}
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,0.35) 100%)',
+                    }}
+                  />
+                </div>
+              </div>
 
               <PoeiraTransicao fase={fasePoeira} />
 
+              {/* CAPA (frente + verso + espessura) — precisa ficar DENTRO do onClick handler */}
               <div
                 style={{
                   position: 'absolute',
