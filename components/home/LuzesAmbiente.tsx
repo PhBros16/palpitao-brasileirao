@@ -1,13 +1,17 @@
 'use client'
 
-// LuzesAmbiente — v4. Sem eventos de transição (o flip agora acontece
-// dentro do AberturaScreen). Só o essencial:
-//   - Uma vez por sessão: fade suave de escuro pra claro (~1.4s)
-//   - Interruptor manual liga/desliga com o mesmo fade
+// LuzesAmbiente — v6. Quando vem da abertura (via cortina de teatro),
+// começa apagada e acende sincronizada com a subida da cortina (~1600ms).
+// Fora disso, fade normal ao entrar na sessão.
+
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 const CHAVE_LUZES = 'palpitao_luzes_ligado_v3'
+const CHAVE_CORTINA = 'palpitao_cortina_subir'
+// Nota: a cortina consome esse flag antes da LuzesAmbiente ler.
+// Por isso usamos um flag paralelo consumido só pela luz.
+const CHAVE_ENTRADA = 'palpitao_entrada_teatral'
 
 export function lerLuzesLigadas(): boolean {
   if (typeof window === 'undefined') return true
@@ -25,14 +29,41 @@ export function LuzesAmbiente() {
 
   function piscarHalo() {
     setHaloOpacidade(0.55)
-    setTimeout(() => setHaloOpacidade(0), 1800)
+    setTimeout(() => setHaloOpacidade(0), 2000)
   }
 
   useEffect(() => {
+    // Se veio da abertura (cortina de teatro), força entrada teatral
+    let entradaTeatral = false
+    try {
+      // Se a cortina está pra subir OU se marcamos flag paralelo antes
+      entradaTeatral =
+        sessionStorage.getItem(CHAVE_CORTINA) === '1' ||
+        sessionStorage.getItem(CHAVE_ENTRADA) === '1'
+      if (entradaTeatral) {
+        sessionStorage.setItem(CHAVE_ENTRADA, '1')
+      }
+    } catch { /* ignora */ }
+
     let jaConfigurado = false
     try {
       jaConfigurado = sessionStorage.getItem(CHAVE_LUZES) !== null
     } catch { /* ignora */ }
+
+    if (entradaTeatral) {
+      // Nasce apagada, acende junto com a cortina subindo (delay ~50ms)
+      setLigado(false)
+      setPronto(true)
+      const t = setTimeout(() => {
+        setLigado(true)
+        piscarHalo()
+        try {
+          sessionStorage.setItem(CHAVE_LUZES, '1')
+          sessionStorage.removeItem(CHAVE_ENTRADA)
+        } catch { /* ignora */ }
+      }, 50)
+      return () => clearTimeout(t)
+    }
 
     if (jaConfigurado) {
       setLigado(lerLuzesLigadas())
@@ -40,6 +71,7 @@ export function LuzesAmbiente() {
       return
     }
 
+    // Primeira vez na sessão sem passar pela abertura — fade normal
     setLigado(false)
     setPronto(true)
     const t = setTimeout(() => {
@@ -69,8 +101,8 @@ export function LuzesAmbiente() {
     <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
       <motion.div
         className="absolute inset-0"
-        animate={{ background: ligado ? 'rgba(10, 6, 2, 0)' : 'rgba(10, 6, 2, 0.7)' }}
-        transition={{ duration: 1.4, ease: 'easeInOut' }}
+        animate={{ background: ligado ? 'rgba(10, 6, 2, 0)' : 'rgba(10, 6, 2, 0.9)' }}
+        transition={{ duration: 1.6, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute rounded-full"
@@ -84,7 +116,7 @@ export function LuzesAmbiente() {
           filter: 'blur(40px)',
         }}
         animate={{ opacity: haloOpacidade }}
-        transition={{ duration: haloOpacidade > 0 ? 0.6 : 1.4, ease: 'easeInOut' }}
+        transition={{ duration: haloOpacidade > 0 ? 0.6 : 1.6, ease: 'easeInOut' }}
       />
     </div>
   )
