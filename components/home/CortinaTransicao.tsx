@@ -1,28 +1,19 @@
 'use client'
 
-// CortinaTransicao — cortina de teatro antigo que abre lateralmente (2 metades).
-// Veludo bordô envelhecido com dourado gasto. Estética casa com o app vintage.
+// CortinaTransicao — 2 metades de couro do álbum que se fecham no centro
+// (na saída da abertura) e se abrem lateralmente (na chegada da Home).
+// Mesma paleta e textura da capa do álbum — mantém coerência visual.
 // Limitada à largura do app (max-w-md), lados escuros no PC.
-//
-// Fluxo:
-//   ORIGEM (AberturaScreen): dispara CortinaFechando
-//   → 2 metades vêm dos lados e fecham no centro (900ms)
-//   → onProntoParaNavegar → router.push + flag no sessionStorage
-//   DESTINO (LogadoLayout): CortinaAbrindo detecta flag
-//   → aparece fechada → abre lateralmente (1400ms)
 
 import { useEffect, useState } from 'react'
 
-const CHAVE = 'palpitao_cortina_subir' // mantém o nome pra não quebrar refs
+const CHAVE = 'palpitao_cortina_subir' // mantém nome pra compatibilidade
 const DUR_FECHA = 900
 const DUR_ABRE = 1400
 
-const NUM_DOBRAS = 4 // por metade
-
-// SVG de meia cortina (esquerda ou direita).
-// A meia cortina é desenhada com viewBox 50x200 e projetada por transform.
-function MeiaCortina({ lado }: { lado: 'esq' | 'dir' }) {
-  const larguraDobra = 50 / NUM_DOBRAS
+// Meia capa de couro (esquerda ou direita).
+// viewBox 50x200 projetado por width/height 100%.
+function MeiaCouro({ lado }: { lado: 'esq' | 'dir' }) {
   const idPrefix = `${lado}-`
 
   return (
@@ -38,154 +29,146 @@ function MeiaCortina({ lado }: { lado: 'esq' | 'dir' }) {
       }}
     >
       <defs>
-        <linearGradient id={`${idPrefix}veludo-base`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4a1a14" />
-          <stop offset="35%" stopColor="#5c1e18" />
-          <stop offset="70%" stopColor="#4a1610" />
-          <stop offset="100%" stopColor="#2e0d08" />
+        {/* Base couro — mesmo gradiente da capa (couro-300 → couro-600) */}
+        <radialGradient id={`${idPrefix}couro-base`} cx="0.5" cy="0.3" r="1.2">
+          <stop offset="0%" stopColor="#a06a3f" />
+          <stop offset="45%" stopColor="#8B5A2B" />
+          <stop offset="100%" stopColor="#5a3a1a" />
+        </radialGradient>
+
+        {/* Sombra profunda no lado interno (onde as 2 metades se encontram) */}
+        <linearGradient id={`${idPrefix}sombra-centro`} x1="0" y1="0" x2="1" y2="0">
+          {lado === 'esq' ? (
+            <>
+              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+              <stop offset="100%" stopColor="rgba(20,10,3,0.75)" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="rgba(20,10,3,0.75)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+            </>
+          )}
         </linearGradient>
 
-        <linearGradient id={`${idPrefix}vala-sombra`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-          <stop offset="50%" stopColor="rgba(15,5,3,0.7)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+        {/* Vinheta externa */}
+        <linearGradient id={`${idPrefix}vinheta-ext`} x1="0" y1="0" x2="1" y2="0">
+          {lado === 'esq' ? (
+            <>
+              <stop offset="0%" stopColor="rgba(0,0,0,0.45)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
+            </>
+          )}
         </linearGradient>
 
-        <linearGradient id={`${idPrefix}pico-luz`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="rgba(180,90,60,0)" />
-          <stop offset="50%" stopColor="rgba(180,90,60,0.18)" />
-          <stop offset="100%" stopColor="rgba(180,90,60,0)" />
+        {/* Ouro pra bordas — dourado gasto do app */}
+        <linearGradient id={`${idPrefix}ouro`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#d4a017" />
+          <stop offset="50%" stopColor="#b8860b" />
+          <stop offset="100%" stopColor="#8b6510" />
         </linearGradient>
 
-        <linearGradient id={`${idPrefix}ouro-gasto`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#c9a355" />
-          <stop offset="40%" stopColor="#a37f2c" />
-          <stop offset="80%" stopColor="#6d5316" />
-          <stop offset="100%" stopColor="#3d2f0d" />
-        </linearGradient>
-
-        <filter id={`${idPrefix}ruido-veludo`} x="0" y="0" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed={lado === 'esq' ? 7 : 13} />
-          <feColorMatrix values="0 0 0 0 0.05
+        {/* Textura de grão de couro (fractal noise sutil) */}
+        <filter id={`${idPrefix}grao-couro`} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed={lado === 'esq' ? 3 : 11} />
+          <feColorMatrix values="0 0 0 0 0.08
+                                 0 0 0 0 0.04
                                  0 0 0 0 0.02
-                                 0 0 0 0 0.01
-                                 0 0 0 0.15 0" />
+                                 0 0 0 0.2 0" />
         </filter>
 
-        <radialGradient id={`${idPrefix}mancha1`} cx="0.3" cy="0.25" r="0.4">
-          <stop offset="0%" stopColor="rgba(30,15,8,0.35)" />
-          <stop offset="100%" stopColor="rgba(30,15,8,0)" />
+        {/* Manchas de envelhecimento */}
+        <radialGradient id={`${idPrefix}mancha1`} cx="0.35" cy="0.25" r="0.4">
+          <stop offset="0%" stopColor="rgba(40,20,8,0.3)" />
+          <stop offset="100%" stopColor="rgba(40,20,8,0)" />
         </radialGradient>
-        <radialGradient id={`${idPrefix}mancha2`} cx="0.7" cy="0.6" r="0.35">
-          <stop offset="0%" stopColor="rgba(60,25,15,0.25)" />
-          <stop offset="100%" stopColor="rgba(60,25,15,0)" />
+        <radialGradient id={`${idPrefix}mancha2`} cx="0.6" cy="0.7" r="0.4">
+          <stop offset="0%" stopColor="rgba(80,45,20,0.22)" />
+          <stop offset="100%" stopColor="rgba(80,45,20,0)" />
         </radialGradient>
-        <radialGradient id={`${idPrefix}mancha3`} cx="0.5" cy="0.85" r="0.5">
-          <stop offset="0%" stopColor="rgba(20,10,5,0.4)" />
-          <stop offset="100%" stopColor="rgba(20,10,5,0)" />
-        </radialGradient>
-
-        {/* Vinheta interna (borda do centro — onde as 2 metades se encontram) */}
-        <linearGradient id={`${idPrefix}vinheta-centro`} x1="0" y1="0" x2="1" y2="0">
-          {lado === 'esq' ? (
-            <>
-              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0.65)" />
-            </>
-          ) : (
-            <>
-              <stop offset="0%" stopColor="rgba(0,0,0,0.65)" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-            </>
-          )}
-        </linearGradient>
-
-        {/* Vinheta lateral externa */}
-        <linearGradient id={`${idPrefix}vinheta-externa`} x1="0" y1="0" x2="1" y2="0">
-          {lado === 'esq' ? (
-            <>
-              <stop offset="0%" stopColor="rgba(0,0,0,0.55)" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-            </>
-          ) : (
-            <>
-              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
-            </>
-          )}
-        </linearGradient>
       </defs>
 
-      <rect x="0" y="0" width="50" height="200" fill={`url(#${idPrefix}veludo-base)`} />
+      {/* Base couro */}
+      <rect x="0" y="0" width="50" height="200" fill={`url(#${idPrefix}couro-base)`} />
 
-      {Array.from({ length: NUM_DOBRAS }).map((_, i) => {
-        const x = i * larguraDobra
-        return (
-          <rect
-            key={`vala-${i}`}
-            x={x}
-            y={0}
-            width={larguraDobra}
-            height={200}
-            fill={`url(#${idPrefix}vala-sombra)`}
-            opacity={0.8}
-          />
-        )
-      })}
-
-      {Array.from({ length: NUM_DOBRAS }).map((_, i) => {
-        const cx = i * larguraDobra + larguraDobra / 2
-        return (
-          <ellipse
-            key={`luz-${i}`}
-            cx={cx}
-            cy={100}
-            rx={larguraDobra * 0.32}
-            ry={120}
-            fill={`url(#${idPrefix}pico-luz)`}
-          />
-        )
-      })}
-
+      {/* Manchas */}
       <rect x="0" y="0" width="50" height="200" fill={`url(#${idPrefix}mancha1)`} />
       <rect x="0" y="0" width="50" height="200" fill={`url(#${idPrefix}mancha2)`} />
-      <rect x="0" y="0" width="50" height="200" fill={`url(#${idPrefix}mancha3)`} />
 
-      <rect x="0" y="0" width="50" height="200" filter={`url(#${idPrefix}ruido-veludo)`} opacity="0.5" />
+      {/* Textura de grão */}
+      <rect x="0" y="0" width="50" height="200" filter={`url(#${idPrefix}grao-couro)`} opacity="0.55" />
 
-      {/* Vinheta lateral externa (5px) */}
+      {/* Moldura dourada — só nas bordas superior/inferior/externa (não no centro) */}
+      {/* Borda superior */}
+      <rect x="0" y="0" width="50" height="1.5" fill={`url(#${idPrefix}ouro)`} />
+      {/* Borda inferior */}
+      <rect x="0" y="198.5" width="50" height="1.5" fill={`url(#${idPrefix}ouro)`} />
+      {/* Borda externa (lateral) */}
       <rect
-        x={lado === 'esq' ? 0 : 45}
+        x={lado === 'esq' ? 0 : 48.5}
         y={0}
-        width={5}
+        width={1.5}
         height={200}
-        fill={`url(#${idPrefix}vinheta-externa)`}
-      />
-      {/* Vinheta lateral interna (10px, mais forte — encosto das metades) */}
-      <rect
-        x={lado === 'esq' ? 40 : 0}
-        y={0}
-        width={10}
-        height={200}
-        fill={`url(#${idPrefix}vinheta-centro)`}
+        fill={`url(#${idPrefix}ouro)`}
       />
 
-      {/* Barra dourada gasta na base */}
-      <rect x="0" y="190" width="50" height="10" fill={`url(#${idPrefix}ouro-gasto)`} />
-      <rect x="0" y="190" width="50" height="0.5" fill="#e0b870" opacity="0.6" />
-      <rect x="0" y="199.5" width="50" height="0.5" fill="#2a1f0a" opacity="0.8" />
-      <rect x="0" y="190" width="50" height="10" fill={`url(#${idPrefix}mancha2)`} opacity="0.4" />
+      {/* Segunda moldura interna (linha dourada fina paralela) */}
+      <rect x={lado === 'esq' ? 2.5 : 46} y="3" width="1.5" height="0" opacity="0" />
+      {/* Linha dourada interna decorativa */}
+      <rect
+        x={lado === 'esq' ? 3 : 45.5}
+        y={4}
+        width={1.5}
+        height={192}
+        fill={`url(#${idPrefix}ouro)`}
+        opacity="0.55"
+      />
+      <rect x="4" y="4" width="42" height="0" opacity="0" />
+      {/* Filete horizontal interno (topo e base) */}
+      <rect
+        x={lado === 'esq' ? 4 : 4}
+        y={4}
+        width={lado === 'esq' ? 44 : 42}
+        height={0.8}
+        fill={`url(#${idPrefix}ouro)`}
+        opacity="0.55"
+      />
+      <rect
+        x={lado === 'esq' ? 4 : 4}
+        y={195.2}
+        width={lado === 'esq' ? 44 : 42}
+        height={0.8}
+        fill={`url(#${idPrefix}ouro)`}
+        opacity="0.55"
+      />
+
+      {/* Sombra profunda no vinco central (onde as metades se encontram) */}
+      <rect
+        x={lado === 'esq' ? 35 : 0}
+        y={0}
+        width={15}
+        height={200}
+        fill={`url(#${idPrefix}sombra-centro)`}
+      />
+
+      {/* Vinheta lateral externa */}
+      <rect
+        x={lado === 'esq' ? 0 : 42}
+        y={0}
+        width={8}
+        height={200}
+        fill={`url(#${idPrefix}vinheta-ext)`}
+      />
     </svg>
   )
 }
 
-function CortinaTeatro({
-  aberta,
-  duracao,
-}: {
-  aberta: boolean
-  duracao: number
-}) {
+function CortinaAlbum({ aberta, duracao }: { aberta: boolean; duracao: number }) {
   return (
     <>
       {/* Fundo escuro cobrindo a tela toda (pra PC) */}
@@ -220,9 +203,10 @@ function CortinaTeatro({
             transform: `translate3d(${aberta ? '-105%' : '0%'}, 0, 0)`,
             transition: `transform ${duracao}ms cubic-bezier(0.5, 0, 0.2, 1)`,
             willChange: 'transform',
+            boxShadow: aberta ? 'none' : '2px 0 12px rgba(0,0,0,0.4)',
           }}
         >
-          <MeiaCortina lado="esq" />
+          <MeiaCouro lado="esq" />
         </div>
 
         {/* Metade DIREITA */}
@@ -236,9 +220,10 @@ function CortinaTeatro({
             transform: `translate3d(${aberta ? '105%' : '0%'}, 0, 0)`,
             transition: `transform ${duracao}ms cubic-bezier(0.5, 0, 0.2, 1)`,
             willChange: 'transform',
+            boxShadow: aberta ? 'none' : '-2px 0 12px rgba(0,0,0,0.4)',
           }}
         >
-          <MeiaCortina lado="dir" />
+          <MeiaCouro lado="dir" />
         </div>
       </div>
     </>
@@ -248,7 +233,6 @@ function CortinaTeatro({
 /**
  * Componente pra usar na página de ORIGEM (AberturaScreen).
  * As metades começam abertas (fora da tela) e fecham no centro.
- * Chama onProntoParaNavegar quando a cortina cobriu totalmente a tela.
  */
 export function CortinaDescendo({
   ativa,
@@ -261,7 +245,6 @@ export function CortinaDescendo({
 
   useEffect(() => {
     if (!ativa) return
-    // rAF duplo garante que o browser pinte o estado "aberta" antes de fechar
     let raf1: number
     let raf2: number
     raf1 = requestAnimationFrame(() => {
@@ -286,18 +269,16 @@ export function CortinaDescendo({
       style={{ zIndex: 9999, overflow: 'hidden' }}
       aria-hidden="true"
     >
-      <CortinaTeatro aberta={!fechada} duracao={DUR_FECHA} />
+      <CortinaAlbum aberta={!fechada} duracao={DUR_FECHA} />
     </div>
   )
 }
 
 /**
  * Componente pra usar na página de DESTINO (LogadoLayout).
- * Aparece fechada e abre lateralmente (metades saem pros lados).
- * Fica no DOM +300ms depois de abrir pra evitar pisca.
+ * Aparece fechada e abre lateralmente.
  */
 export function CortinaSubindo() {
-  // Lê o flag SÍNCRONO no useState — evita render "sem cortina" antes do useEffect
   const [ativa, setAtiva] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -312,7 +293,6 @@ export function CortinaSubindo() {
 
   useEffect(() => {
     if (!ativa) return
-    // rAF duplo pra pintar estado "fechada" antes de abrir
     let raf1: number
     let raf2: number
     raf1 = requestAnimationFrame(() => {
@@ -334,7 +314,7 @@ export function CortinaSubindo() {
       style={{ zIndex: 9999, overflow: 'hidden' }}
       aria-hidden="true"
     >
-      <CortinaTeatro aberta={aberta} duracao={DUR_ABRE} />
+      <CortinaAlbum aberta={aberta} duracao={DUR_ABRE} />
     </div>
   )
 }
