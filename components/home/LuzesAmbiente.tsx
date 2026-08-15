@@ -1,17 +1,19 @@
 'use client'
 
-// LuzesAmbiente — v6. Quando vem da abertura (via cortina de teatro),
-// começa apagada e acende sincronizada com a subida da cortina (~1600ms).
-// Fora disso, fade normal ao entrar na sessão.
+// LuzesAmbiente — v7. Entrada teatral tem fade rápido pra bater com
+// a cortina subindo (não fica arrastando depois da cortina sumir).
 
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 const CHAVE_LUZES = 'palpitao_luzes_ligado_v3'
 const CHAVE_CORTINA = 'palpitao_cortina_subir'
-// Nota: a cortina consome esse flag antes da LuzesAmbiente ler.
-// Por isso usamos um flag paralelo consumido só pela luz.
 const CHAVE_ENTRADA = 'palpitao_entrada_teatral'
+
+// Fade rápido na entrada teatral (sincroniza com a cortina subindo em 1400ms)
+const DUR_TEATRAL = 0.8
+// Fade normal fora da entrada teatral
+const DUR_NORMAL = 1.6
 
 export function lerLuzesLigadas(): boolean {
   if (typeof window === 'undefined') return true
@@ -26,17 +28,16 @@ export function LuzesAmbiente() {
   const [ligado, setLigado] = useState(true)
   const [pronto, setPronto] = useState(false)
   const [haloOpacidade, setHaloOpacidade] = useState(0)
+  const [duracao, setDuracao] = useState(DUR_NORMAL)
 
   function piscarHalo() {
     setHaloOpacidade(0.55)
-    setTimeout(() => setHaloOpacidade(0), 2000)
+    setTimeout(() => setHaloOpacidade(0), 1500)
   }
 
   useEffect(() => {
-    // Se veio da abertura (cortina de teatro), força entrada teatral
     let entradaTeatral = false
     try {
-      // Se a cortina está pra subir OU se marcamos flag paralelo antes
       entradaTeatral =
         sessionStorage.getItem(CHAVE_CORTINA) === '1' ||
         sessionStorage.getItem(CHAVE_ENTRADA) === '1'
@@ -51,7 +52,8 @@ export function LuzesAmbiente() {
     } catch { /* ignora */ }
 
     if (entradaTeatral) {
-      // Nasce apagada, acende junto com a cortina subindo (delay ~50ms)
+      // Nasce apagada, acende junto com a cortina subindo
+      setDuracao(DUR_TEATRAL)
       setLigado(false)
       setPronto(true)
       const t = setTimeout(() => {
@@ -71,7 +73,7 @@ export function LuzesAmbiente() {
       return
     }
 
-    // Primeira vez na sessão sem passar pela abertura — fade normal
+    setDuracao(DUR_NORMAL)
     setLigado(false)
     setPronto(true)
     const t = setTimeout(() => {
@@ -84,6 +86,7 @@ export function LuzesAmbiente() {
 
   useEffect(() => {
     function handleToggle() {
+      setDuracao(DUR_NORMAL)
       setLigado((atual) => {
         const novo = !atual
         if (novo) piscarHalo()
@@ -102,7 +105,7 @@ export function LuzesAmbiente() {
       <motion.div
         className="absolute inset-0"
         animate={{ background: ligado ? 'rgba(10, 6, 2, 0)' : 'rgba(10, 6, 2, 0.9)' }}
-        transition={{ duration: 1.6, ease: 'easeInOut' }}
+        transition={{ duration: duracao, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute rounded-full"
@@ -116,7 +119,7 @@ export function LuzesAmbiente() {
           filter: 'blur(40px)',
         }}
         animate={{ opacity: haloOpacidade }}
-        transition={{ duration: haloOpacidade > 0 ? 0.6 : 1.6, ease: 'easeInOut' }}
+        transition={{ duration: haloOpacidade > 0 ? 0.5 : duracao, ease: 'easeInOut' }}
       />
     </div>
   )
