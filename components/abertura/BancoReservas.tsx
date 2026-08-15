@@ -29,21 +29,25 @@ export function BancoReservas({
 
   return (
     <div
-      className="absolute flex flex-col gap-[7px] overflow-hidden rounded-[3px] border-2 border-papel-100/20"
+      className="absolute flex flex-col gap-[7px] overflow-hidden rounded-[3px]"
       style={{
         left: 12,
         right: 12,
         height: 100,
         bottom: 12,
         background: 'var(--parede-100)',
+        // Borda vira transparente enquanto o refletor não acende
+        border: `2px solid ${revelado ? 'rgba(245, 235, 215, 0.2)' : 'transparent'}`,
+        transition: 'border-color 900ms ease-out',
         padding: '9px 14px',
         zIndex: 0,
       }}
     >
+      {/* Overlay escuro cobrindo TUDO (inclusive por cima do background do container) */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: 'rgba(4,7,12,0.92)',
+          background: 'rgba(4,7,12,0.98)',
           opacity: zBanco.escuroOpacity,
           transition: zBanco.escuroTransition,
           zIndex: 10,
