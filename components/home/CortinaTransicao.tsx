@@ -1,8 +1,8 @@
 'use client'
 
-// CortinaTransicao — cortina estilo desenho/ilustração vetorial.
-// Cores chapadas, bordas grossas pretas, dobras cartoon simples.
-// Limitada à largura do app (max-w-md).
+// CortinaTransicao — cortina de teatro antigo, veludo bordô envelhecido
+// com dourado gasto. Estética casa com o app "álbum vintage" (couro,
+// dourado desgastado, papel envelhecido). Limitada à largura do app.
 
 import { useEffect, useState } from 'react'
 
@@ -10,7 +10,7 @@ const CHAVE = 'palpitao_cortina_subir'
 const DUR_DESCE = 900
 const DUR_SUBE = 1400
 
-const NUM_DOBRAS = 5
+const NUM_DOBRAS = 7
 
 function CortinaTeatro({ deslocamento, duracao }: { deslocamento: string; duracao: number }) {
   const larguraDobra = 100 / NUM_DOBRAS
@@ -22,7 +22,7 @@ function CortinaTeatro({ deslocamento, duracao }: { deslocamento: string; duraca
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.9)',
+          background: 'linear-gradient(180deg, #1a0f08 0%, #0a0503 100%)',
         }}
       />
 
@@ -35,11 +35,11 @@ function CortinaTeatro({ deslocamento, duracao }: { deslocamento: string; duraca
           width: '100%',
           maxWidth: '448px',
           height: '100%',
-          transform: `translateX(-50%) translateY(${deslocamento})`,
+          transform: `translate3d(-50%, ${deslocamento}, 0)`,
           transition: `transform ${duracao}ms cubic-bezier(0.5, 0, 0.2, 1)`,
+          willChange: 'transform',
         }}
       >
-        {/* SVG cartoon da cortina */}
         <svg
           viewBox="0 0 100 200"
           preserveAspectRatio="none"
@@ -51,48 +51,108 @@ function CortinaTeatro({ deslocamento, duracao }: { deslocamento: string; duraca
             display: 'block',
           }}
         >
-          {/* Base vermelho chapado */}
-          <rect x="0" y="0" width="100" height="200" fill="#5c0a0a" />
+          <defs>
+            <linearGradient id="veludo-base" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4a1a14" />
+              <stop offset="35%" stopColor="#5c1e18" />
+              <stop offset="70%" stopColor="#4a1610" />
+              <stop offset="100%" stopColor="#2e0d08" />
+            </linearGradient>
 
-          {/* Dobras — alternam vermelho médio (pico) e vermelho escuro (vala) */}
+            <linearGradient id="vala-sombra" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+              <stop offset="50%" stopColor="rgba(15,5,3,0.7)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+            </linearGradient>
+
+            <linearGradient id="pico-luz" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(180,90,60,0)" />
+              <stop offset="50%" stopColor="rgba(180,90,60,0.18)" />
+              <stop offset="100%" stopColor="rgba(180,90,60,0)" />
+            </linearGradient>
+
+            <linearGradient id="ouro-gasto" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#c9a355" />
+              <stop offset="40%" stopColor="#a37f2c" />
+              <stop offset="80%" stopColor="#6d5316" />
+              <stop offset="100%" stopColor="#3d2f0d" />
+            </linearGradient>
+
+            <filter id="ruido-veludo" x="0" y="0" width="100%" height="100%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" />
+              <feColorMatrix values="0 0 0 0 0.05
+                                     0 0 0 0 0.02
+                                     0 0 0 0 0.01
+                                     0 0 0 0.15 0" />
+            </filter>
+
+            <radialGradient id="mancha1" cx="0.3" cy="0.25" r="0.4">
+              <stop offset="0%" stopColor="rgba(30,15,8,0.35)" />
+              <stop offset="100%" stopColor="rgba(30,15,8,0)" />
+            </radialGradient>
+            <radialGradient id="mancha2" cx="0.7" cy="0.6" r="0.35">
+              <stop offset="0%" stopColor="rgba(60,25,15,0.25)" />
+              <stop offset="100%" stopColor="rgba(60,25,15,0)" />
+            </radialGradient>
+            <radialGradient id="mancha3" cx="0.5" cy="0.85" r="0.5">
+              <stop offset="0%" stopColor="rgba(20,10,5,0.4)" />
+              <stop offset="100%" stopColor="rgba(20,10,5,0)" />
+            </radialGradient>
+
+            <linearGradient id="vinheta-esq" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(0,0,0,0.55)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+            </linearGradient>
+            <linearGradient id="vinheta-dir" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
+            </linearGradient>
+          </defs>
+
+          <rect x="0" y="0" width="100" height="200" fill="url(#veludo-base)" />
+
           {Array.from({ length: NUM_DOBRAS }).map((_, i) => {
             const x = i * larguraDobra
-            const isPico = i % 2 === 0
             return (
               <rect
-                key={i}
+                key={`vala-${i}`}
                 x={x}
                 y={0}
                 width={larguraDobra}
                 height={200}
-                fill={isPico ? '#7a1010' : '#3a0505'}
+                fill="url(#vala-sombra)"
+                opacity={0.8}
               />
             )
           })}
 
-          {/* Linhas pretas separando as dobras (contorno cartoon) */}
-          {Array.from({ length: NUM_DOBRAS + 1 }).map((_, i) => (
-            <line
-              key={i}
-              x1={i * larguraDobra}
-              y1={0}
-              x2={i * larguraDobra}
-              y2={200}
-              stroke="#1a0000"
-              strokeWidth={0.8}
-            />
-          ))}
+          {Array.from({ length: NUM_DOBRAS }).map((_, i) => {
+            const cx = i * larguraDobra + larguraDobra / 2
+            return (
+              <ellipse
+                key={`luz-${i}`}
+                cx={cx}
+                cy={100}
+                rx={larguraDobra * 0.32}
+                ry={120}
+                fill="url(#pico-luz)"
+              />
+            )
+          })}
 
-          {/* Barra dourada base — chapada com contorno preto */}
-          <rect x="0" y="192" width="100" height="8" fill="#d4a017" />
-          <rect x="0" y="192" width="100" height="1" fill="#f4d484" />
-          <rect x="0" y="199" width="100" height="1" fill="#8b6510" />
-          <line x1="0" y1="192" x2="100" y2="192" stroke="#1a0000" strokeWidth={1} />
+          <rect x="0" y="0" width="100" height="200" fill="url(#mancha1)" />
+          <rect x="0" y="0" width="100" height="200" fill="url(#mancha2)" />
+          <rect x="0" y="0" width="100" height="200" fill="url(#mancha3)" />
 
-          {/* Contorno preto lateral esquerdo */}
-          <line x1="0.4" y1="0" x2="0.4" y2="200" stroke="#1a0000" strokeWidth={0.8} />
-          {/* Contorno preto lateral direito */}
-          <line x1="99.6" y1="0" x2="99.6" y2="200" stroke="#1a0000" strokeWidth={0.8} />
+          <rect x="0" y="0" width="100" height="200" filter="url(#ruido-veludo)" opacity="0.5" />
+
+          <rect x="0" y="0" width="10" height="200" fill="url(#vinheta-esq)" />
+          <rect x="90" y="0" width="10" height="200" fill="url(#vinheta-dir)" />
+
+          <rect x="0" y="190" width="100" height="10" fill="url(#ouro-gasto)" />
+          <rect x="0" y="190" width="100" height="0.5" fill="#e0b870" opacity="0.6" />
+          <rect x="0" y="199.5" width="100" height="0.5" fill="#2a1f0a" opacity="0.8" />
+          <rect x="0" y="190" width="100" height="10" fill="url(#mancha2)" opacity="0.4" />
         </svg>
       </div>
     </>
@@ -101,7 +161,8 @@ function CortinaTeatro({ deslocamento, duracao }: { deslocamento: string; duraca
 
 /**
  * Componente pra usar na página de ORIGEM (AberturaScreen).
- * Chama onProntoParaNavegar quando a cortina cobriu totalmente a tela.
+ * Renderiza SEMPRE (mesmo antes de "ativa") pra evitar pisca de primeiro paint.
+ * Só quando ativa=true começa a descer.
  */
 export function CortinaDescendo({
   ativa,
@@ -114,14 +175,21 @@ export function CortinaDescendo({
 
   useEffect(() => {
     if (!ativa) return
-    const t1 = setTimeout(() => setDescendo(true), 20)
-    const t2 = setTimeout(() => {
+    // requestAnimationFrame duplo garante que o browser pinte o estado
+    // inicial (-105%) antes de animar pra 0%
+    let raf1: number
+    let raf2: number
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setDescendo(true))
+    })
+    const t = setTimeout(() => {
       try { sessionStorage.setItem(CHAVE, '1') } catch { /* ignora */ }
       onProntoParaNavegar()
     }, DUR_DESCE + 40)
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      clearTimeout(t)
     }
   }, [ativa, onProntoParaNavegar])
 
@@ -140,7 +208,8 @@ export function CortinaDescendo({
 
 /**
  * Componente pra usar na página de DESTINO (LogadoLayout).
- * Se detectar a flag no sessionStorage, aparece coberta e sobe.
+ * Aparece coberta e sobe. Fica no DOM mais tempo do que precisaria pra
+ * evitar pisca ao desmontar antes da Home terminar de pintar.
  */
 export function CortinaSubindo() {
   const [ativa, setAtiva] = useState(false)
@@ -156,11 +225,18 @@ export function CortinaSubindo() {
     }
 
     setAtiva(true)
-    const t1 = setTimeout(() => setSubindo(true), 20)
-    const t2 = setTimeout(() => setAtiva(false), DUR_SUBE + 60)
+    // requestAnimationFrame duplo garante pintar '0%' antes de animar pra '-105%'
+    let raf1: number
+    let raf2: number
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setSubindo(true))
+    })
+    // Fica no DOM 300ms extras depois de subir completamente pra evitar pisca
+    const t = setTimeout(() => setAtiva(false), DUR_SUBE + 300)
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      clearTimeout(t)
     }
   }, [])
 
