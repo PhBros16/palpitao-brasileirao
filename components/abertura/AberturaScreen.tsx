@@ -282,9 +282,12 @@ export function AberturaScreen() {
       })),
     [inicioTiers, revelado, BANCO],
   )
-  const adminComEntrada = useMemo(
-    () => ({ entrada: estiloEntrada(322, 734, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + (BANCO.length + 1) * INTERVALO_FILA, revelado) }),
-    [inicioTiers, revelado, BANCO],
+    const adminComEntrada = useMemo(
+    () => ({
+      entrada: estiloEntrada(322, 734, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO] + (BANCO.length + 1) * INTERVALO_FILA, revelado),
+      avatar: avatares.get('Administração') ?? null,
+    }),
+    [inicioTiers, revelado, BANCO, avatares],
   )
   const tecnicoComEntrada = useMemo(
     () => ({ ...TECNICO, entrada: estiloEntrada(TECNICO.xpx, TECNICO.ypx, false, ENCOLHER_BANCO, inicioTiers[TIER_BANCO], revelado) }),
