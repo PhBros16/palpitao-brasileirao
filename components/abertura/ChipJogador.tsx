@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import styles from './abertura.module.css'
 import type { EstiloEntrada } from './coreografia'
 
@@ -13,25 +13,26 @@ export interface ChipJogadorProps {
   nome: string
   numero: string
   entrada: EstiloEntrada
-  /** titular = chip do campo (maior); reserva/admin = chip do banco (menor). */
   variante?: 'titular' | 'reserva' | 'admin' | 'tecnico'
-  /** Posição absoluta em % do campo (left/top) — omitir pros chips do banco (flex). */
   posicaoCampo?: { left: string; top: string }
   onClick?: () => void
-  /** true enquanto busca o PIN desse jogador — dá feedback visual imediato ao toque. */
   carregando?: boolean
-  /** Foto de perfil do participante. Se presente, renderiza como imagem no lugar das iniciais. */
   avatar?: string | null
 }
 
-/** Marcador circular de jogador — "ficha tática": círculo com foto (ou
- *  iniciais, se sem foto) + selo de número, nome abaixo. */
 export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick, carregando, avatar }: ChipJogadorProps) {
   const tamanho = variante === 'titular' ? 44 : 38
   const isAdmin = variante === 'admin'
   const isTecnico = variante === 'tecnico'
   const temSeloEspecial = isAdmin || isTecnico
-  const temFoto = !!avatar && !isAdmin // admin nunca mostra foto, tem o ícone de engrenagem
+
+  // Considera vazio/whitespace como sem foto
+  const avatarLimpo = avatar && avatar.trim().length > 0 ? avatar : null
+
+  // Se a imagem falhar em carregar, cai pra iniciais
+  const [fotoFalhou, setFotoFalhou] = useState(false)
+
+  const temFoto = !isAdmin && !!avatarLimpo && !fotoFalhou
 
   const wrapperStyle: CSSProperties = {
     ...(posicaoCampo ? { position: 'absolute', left: posicaoCampo.left, top: posicaoCampo.top } : {}),
@@ -66,9 +67,7 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
         style={{
           width: tamanho,
           height: tamanho,
-          background: temFoto
-            ? 'var(--papel-100)'
-            : 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
+          background: 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
           boxShadow: temSeloEspecial ? '0 1px 3px rgba(0,0,0,0.45), 0 0 0 1.5px color-mix(in srgb, var(--dourado-300) 35%, transparent)' : undefined,
           animationDelay: entrada.animar ? entrada.idleDelay : undefined,
           opacity: carregando ? 0.55 : 1,
@@ -76,25 +75,26 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           transition: 'opacity 180ms ease-out, transform 180ms ease-out',
         }}
       >
-        {temFoto ? (
+        {/* Iniciais SEMPRE renderizadas por baixo — funcionam como fallback
+            se a foto não carregar (fica invisível atrás da img se der certo). */}
+        <span
+          className="absolute inset-0 flex items-center justify-center font-mono font-bold text-couro-600"
+          style={{ fontSize: variante === 'titular' ? 14 : 12, letterSpacing: variante === 'titular' ? '0.5px' : undefined }}
+        >
+          {iniciais}
+        </span>
+
+        {/* Foto por cima (se existir e não falhou) */}
+        {temFoto && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={avatar!}
+            src={avatarLimpo!}
             alt={nome}
             className="absolute inset-0 h-full w-full object-cover"
-            onError={(e) => {
-              // fallback: se a imagem falhar, esconde ela e as iniciais aparecem
-              (e.currentTarget as HTMLImageElement).style.display = 'none'
-            }}
+            onError={() => setFotoFalhou(true)}
           />
-        ) : (
-          <span
-            className="font-mono font-bold text-couro-600"
-            style={{ fontSize: variante === 'titular' ? 14 : 12, letterSpacing: variante === 'titular' ? '0.5px' : undefined }}
-          >
-            {iniciais}
-          </span>
         )}
+
         {isAdmin ? (
           <span className="absolute -right-1.5 -top-1.5 flex h-[15px] w-[15px] items-center justify-center rounded-full border border-dourado-300 bg-couro-600" style={{ zIndex: 2 }}>
             <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
