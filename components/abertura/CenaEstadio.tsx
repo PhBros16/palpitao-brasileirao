@@ -6,12 +6,6 @@ import { estiloZonaLuz } from './coreografia'
 import type { EstiloEntrada } from './coreografia'
 import type { JogadorCampo } from './tipos'
 
-// CenaEstadio — campo visto de cima: grama com faixas de corte (respirando),
-// linhas desenhando-se ao revelar (stroke-dashoffset), 4 zonas de refletor
-// (goleiro/defesa/meio/ataque — escuras até a própria vez, então acendem em
-// âmbar quente) e os titulares posicionados, cada um com sua própria entrada
-// em fila única (ver coreografia.estiloEntrada, calculado no AberturaScreen).
-
 const LINHAS = {
   contorno: 2140,
   meio: 366,
@@ -30,8 +24,6 @@ export function CenaEstadio({
 }: {
   revelado: boolean
   titulares: Array<JogadorCampo & { entrada: EstiloEntrada }>
-  /** Chamado ao tocar em qualquer titular no campo revelado — abre o PIN modal
-   *  daquele jogador. Recebe o titular clicado. */
   onEntrar?: (jogador: JogadorCampo) => void
   carregandoId?: string | null
 }) {
@@ -40,10 +32,6 @@ export function CenaEstadio({
   const zDefesa = estiloZonaLuz(1, revelado)
   const zGoleiro = estiloZonaLuz(0, revelado)
 
-  // escalona o desenho das linhas do campo pra bater com a cascata de luz das
-  // zonas (mesmo LUZ_TIER_STAGGER=180ms usado em estiloZonaLuz) — sem isso as
-  // linhas desenhavam tudo de uma vez, ficando nítidas mesmo em áreas ainda
-  // escuras, descasado da luz acendendo em cascata.
   const lineTransitionAtaque = 'stroke-dashoffset 900ms ease-out 540ms'
   const lineTransitionMeio = 'stroke-dashoffset 900ms ease-out 360ms'
   const lineTransitionGoleiro = 'stroke-dashoffset 900ms ease-out 0ms'
@@ -56,7 +44,6 @@ export function CenaEstadio({
 
   return (
     <div className="absolute inset-0" style={{ background: 'var(--campo-200)', zIndex: 0 }}>
-      {/* faixas de corte — deriva lenta contínua, como se o vento movesse a grama */}
       <div
         className={styles.grassDrift}
         style={{
@@ -67,16 +54,12 @@ export function CenaEstadio({
         }}
       />
 
-      {/* Faixa escura cobrindo TODA a cena (inclusive as margens fora da zona
-          das linhas) até a revelação — sem isso, a margem entre a borda da
-          cena e o campo apareceria clara antes da hora. */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{ zIndex: 1, background: 'rgba(4,7,12,0.95)', opacity: revelado ? 0 : 1, transition: 'opacity 650ms ease-out' }}
       />
 
       <div className="absolute" style={{ left: 12, right: 12, top: 12, height: 708, zIndex: 3 }}>
-        {/* marcações do campo — traço se desenhando ao revelar */}
         <svg width={366} height={708} viewBox="0 0 366 708" className="pointer-events-none absolute inset-0 overflow-visible" fill="none">
           <rect x={1} y={1} width={364} height={706} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.contorno, strokeDashoffset: offset(LINHAS.contorno), transition: lineTransitionContorno }} />
           <line x1={0} y1={354} x2={366} y2={354} stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.meio, strokeDashoffset: offset(LINHAS.meio), transition: lineTransitionMeio }} />
@@ -99,7 +82,6 @@ export function CenaEstadio({
           <path d="M365,695 A12,12 0 0 0 353,707" stroke="rgba(255,255,255,0.85)" strokeWidth={2} style={{ strokeDasharray: LINHAS.escanteio, strokeDashoffset: offset(LINHAS.escanteio), transition: lineTransitionGoleiro }} />
         </svg>
 
-        {/* gols — rede em hachura, acende junto com a zona correspondente */}
         <div
           className="absolute left-1/2 -translate-x-1/2"
           style={{
@@ -127,7 +109,6 @@ export function CenaEstadio({
           }}
         />
 
-        {/* poeira ambiente sobre a grama — bem sutil, contínua */}
         {DUST_AMBIENTE.map((d, i) => (
           <div
             key={i}
@@ -149,13 +130,11 @@ export function CenaEstadio({
           />
         ))}
 
-        {/* zonas de refletor — escuro/frio até a vez, depois glow âmbar quente */}
         <ZonaLuz top={0} altura={287} zona={zAtaque} />
         <ZonaLuz top={287} altura={159} zona={zMeio} />
         <ZonaLuz top={446} altura={120} zona={zDefesa} />
         <ZonaLuz top={566} altura={142} zona={zGoleiro} centroY={42} />
 
-        {/* titulares — cada um com sua própria entrada em fila única */}
         {titulares.map((j) => (
           <ChipJogador
             key={j.id}
@@ -167,11 +146,11 @@ export function CenaEstadio({
             posicaoCampo={{ left: j.left, top: j.top }}
             onClick={revelado ? () => onEntrar?.(j) : undefined}
             carregando={carregandoId === j.id}
+            avatar={j.avatar}
           />
         ))}
       </div>
 
-      {/* vinheta — respiração lenta e contínua, dá profundidade */}
       <div
         className={styles.vignettePulse}
         style={{
@@ -218,8 +197,6 @@ function ZonaLuz({
   )
 }
 
-// Motas de poeira ambiente sobre a grama (independentes da revelação — pura
-// atmosfera, sempre rodando; ficam ocultas atrás da capa até o flip mesmo assim).
 const DUST_AMBIENTE = [
   { left: '14%', top: '22%', size: '3px', dx: '14px', dy: '-22px', duracao: '19s', atraso: '0s' },
   { left: '62%', top: '12%', size: '2px', dx: '-10px', dy: '-26px', duracao: '23s', atraso: '3s' },
