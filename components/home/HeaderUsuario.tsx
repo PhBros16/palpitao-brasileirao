@@ -196,7 +196,7 @@ export function AvatarCirculo({
     grande: 'h-14 w-14 text-lg',
   }[tamanho]
 
-  if (avatar) {
+  if (avatar && avatar.trim().length > 0) {
     return (
       <div className={cx('overflow-hidden rounded-full border-2 border-dourado-400 bg-papel-100', dims)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -247,6 +247,16 @@ function PerfilModal({
   const [emojiBuf, setEmojiBuf] = useState<string>(emojiAtual ?? '')
   const [avatarBuf, setAvatarBuf] = useState<string | null>(avatarAtual)
   const [salvando, setSalvando] = useState(false)
+
+  // Ressincroniza os buffers com os valores atuais toda vez que o modal abre.
+  // Sem isso, o useState só pega os valores da primeira montagem — se o
+  // avatar/emoji mudar depois, o modal continua mostrando o antigo.
+  useEffect(() => {
+    if (aberto) {
+      setEmojiBuf(emojiAtual ?? '')
+      setAvatarBuf(avatarAtual)
+    }
+  }, [aberto, avatarAtual, emojiAtual])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
