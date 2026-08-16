@@ -11,6 +11,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
+// Frases pra quando o USUÁRIO esqueceu de palpitar em algum jogo
 const ZOACOES_ESQUECEU = [
   'iii mané, esqueceu de palpitar foi?',
   'Vai palpitar ou vai deixar barato?',
@@ -18,9 +19,63 @@ const ZOACOES_ESQUECEU = [
   'Tá esperando o quê? Um convite formal?',
   'Falta palpite. Não vai chorar depois, hein.',
   'A rodada não espera, colega.',
+  'Palpita, palpita, palpita! Ou vai ficar de fora?',
+  'O relógio tá rodando, campeão.',
+  'Sem palpite, sem pontos. Simples assim.',
+  'Cadê os palpites que o pai mandou buscar?',
+  'Tá com preguiça é? Palpita logo!',
+  'Vai deixar o zero te comer vivo?',
+  'A rodada tá rolando e você aí, parado.',
+  'Vai palpitar ou vai chorar depois?',
+  'Perdeu o horário do palpite, foi?',
+  'Alô alô, terra chamando palpiteiro!',
+  'Cê tá dormindo é?',
+  'Ó, o cronômetro não perdoa.',
+  'Sem palpite = frango certo.',
+  'A galera já palpitou tudo, cadê você?',
+  'Vai ficar no NP mesmo? Vergonhoso.',
+  'Cadê a bola de cristal? Palpita!',
+  'Tá esperando o jogo acabar pra palpitar?',
+  'Palpite atrasado é palpite perdido.',
+  'Você é o tipo que chega depois da festa.',
+  'Palpita aí, seu preguiçoso.',
+  'A hora é agora, não é depois.',
+  'Vai palpitar? Ou vai fingir que esqueceu?',
+  'Palpite pendente há tempos... resolve isso.',
+  'A rodada não vai esperar você, sabia?',
 ]
+
+// Frases pra zuar o pior colocado da rodada (menos pontos entre quem palpitou)
+const ZOACOES_PIOR = [
+  '{nome} tá pior que zagueiro central improvisado.',
+  '{nome} com poucos pontos: será que palpitou dormindo?',
+  '{nome} tá tão perdido que nem o Waze acha.',
+  'Alguém avisa o {nome} que a rodada começou?',
+  '{nome} tá dando aula de como não palpitar.',
+  '{nome} deveria pedir dinheiro de volta dos palpites.',
+  '{nome} palpitou, mas o palpite fugiu correndo.',
+  'Nem o técnico do Palmeiras erra tanto quanto o {nome}.',
+  '{nome} tá tão mal que o frango já chegou.',
+  '{nome} devia mudar de esporte, hein.',
+  'Se palpite fosse gol, {nome} tava rebaixado.',
+  '{nome} tá igual Athletico em final: só perde.',
+  '{nome} palpitou de olho fechado, com certeza.',
+  '{nome} tá lá no fim da tabela, coitado.',
+  '{nome} devia contratar um consultor de palpites.',
+  '{nome} tá tão ruim que até o adm ficou com pena.',
+  'Nem no chute {nome} acerta uma.',
+  '{nome} tá tão perdido quanto turista em Marte.',
+  '{nome} palpitou tão errado que dá dó.',
+  '{nome} tá pra pontuar como Vasco tá pro título.',
+]
+
 function frasesZoacaoAleatoria(): string {
   return ZOACOES_ESQUECEU[Math.floor(Math.random() * ZOACOES_ESQUECEU.length)]
+}
+
+function frasesPiorAleatoria(nome: string): string {
+  const template = ZOACOES_PIOR[Math.floor(Math.random() * ZOACOES_PIOR.length)]
+  return template.replace('{nome}', nome)
 }
 
 function corCelula(cat: PalpiteCelula['categoria']): string {
@@ -225,6 +280,32 @@ export function RodadaAoVivo() {
     })
   }, [dados, meuId])
 
+  // Detecta o pior colocado da rodada (menos pontos) entre quem palpitou.
+  // Só zoa se houver pelo menos 1 jogo com resultado (senão todo mundo tá 0
+  // e não faz sentido zoar). Ignora quem não palpitou nada (esses viram frango).
+  // Só zoa se a diferença entre pior e líder for >= 5 pts (evita zoar em
+  // rodada equilibrada).
+  const zoacaoPior = useMemo(() => {
+    if (!dados) return null
+    const temResultado = dados.jogos.some((j) => j.temResultado)
+    if (!temResultado) return null
+
+    const candidatos = dados.linhas
+      .filter((l) => l.palpitouAlgo)
+      .sort((a, b) => {
+        if (a.ptsRodada !== b.ptsRodada) return a.ptsRodada - b.ptsRodada
+        return a.nome.localeCompare(b.nome)
+      })
+
+    if (candidatos.length === 0) return null
+
+    const pior = candidatos[0]
+    const lider = candidatos[candidatos.length - 1]
+    if (lider.ptsRodada - pior.ptsRodada < 5) return null
+
+    return frasesPiorAleatoria(pior.nome)
+  }, [dados])
+
   function abrirFrenteFrente(linha: LinhaRodadaAoVivo) {
     if (!dados) return
     let minhaLinha = dados.linhas.find((l) => l.participantId === meuId)
@@ -290,6 +371,14 @@ export function RodadaAoVivo() {
         <CardEnvelope variante="alerta" titulo={`🚨 ${zoacao}`}>
           <p className="px-4 py-3 font-sans text-xs text-raridade-frango-selo/80">
             Você tem palpites em aberto. Vai lá na aba <b>Palpites</b>.
+          </p>
+        </CardEnvelope>
+      )}
+
+      {zoacaoPior && (
+        <CardEnvelope variante="alerta" titulo={`🐔 ${zoacaoPior}`}>
+          <p className="px-4 py-3 font-sans text-xs text-raridade-frango-selo/80">
+            Cuidado que o frango tá chegando... 👀
           </p>
         </CardEnvelope>
       )}
