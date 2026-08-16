@@ -7,14 +7,17 @@ import { supabase } from './supabase'
 //   - todos os jogos dessa rodada
 //   - todos os palpites de todos os participantes (não-admin) nessa rodada
 //   - horário do último palpite salvo por participante (`created_at` mais recente)
+//   - total_pts acumulado do campeonato (última rodada finalizada) — usado pra
+//     detectar o líder do campeonato nos alertas de zueira da tela
 //
 // Devolve tudo já organizado pra tela: matriz participante × jogo, ordenada
 // pela pontuação parcial da rodada (líder em cima), com desempate por
 // cravadas → vencedor → saldo.
 //
-// Diferente do Ranking, esta camada NÃO usa round_results (round_results só
-// existe pra rodadas finalizadas). Aqui os pontos parciais vêm direto de
-// predictions.points (calculados pelo admin em Resultado & Correção).
+// Diferente do Ranking, esta camada NÃO usa round_results pra pts da rodada
+// atual (round_results só existe pra rodadas finalizadas). Aqui os pontos
+// parciais vêm direto de predictions.points (calculados pelo admin em
+// Resultado & Correção). Só usa round_results pra descobrir o total geral.
 
 export interface JogoRodada {
   matchId: string
@@ -47,6 +50,7 @@ export interface LinhaRodadaAoVivo {
   vencedoresParcial: number
   ultimoPalpiteEm: string | null  // ISO timestamp
   palpitouAlgo: boolean
+  totalGeral: number    // pts acumulados no campeonato (rodadas finalizadas)
 }
 
 export interface RodadaAoVivoDados {
@@ -102,6 +106,22 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
 
   if (!participantes || participantes.length === 0) {
     return { roundId: rodada.id, nome: rodada.name, numero: rodada.number, isDouble: rodada.is_double ?? false, jogos, linhas: [] }
+  }
+
+  // 3.5. Total geral de cada participante (rodadas finalizadas — pega o total_pts
+  // mais recente do round_results). Usado pra saber quem é o líder do campeonato
+  // nos alertas de zueira da tela.
+  const { data: rrs } = await supabase
+    .from('round_results')
+    .select('participant_id, total_pts, round_id, rounds!inner(finalized, number)')
+    .eq('rounds.finalized', true)
+    .order('rounds(number)', { ascending: false })
+
+  const totalGeralPorPart = new Map<string, number>()
+  for (const rr of rrs ?? []) {
+    if (!totalGeralPorPart.has(rr.participant_id)) {
+      totalGeralPorPart.set(rr.participant_id, rr.total_pts ?? 0)
+    }
   }
 
   // 4. Palpites de todos, nessa rodada
@@ -193,6 +213,7 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
       vencedoresParcial: vencedores,
       ultimoPalpiteEm: ultimoPorPart.get(part.id) ?? null,
       palpitouAlgo,
+      totalGeral: totalGeralPorPart.get(part.id) ?? 0,
     }
   })
 
