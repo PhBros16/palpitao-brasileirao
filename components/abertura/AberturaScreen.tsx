@@ -1,11 +1,7 @@
 'use client'
 
 // AberturaScreen — sequência cinematográfica: capa de couro → flip →
-// campinho revelado. PIN correto → cortina de couro desce → navega pra Home.
-//
-// IMPORTANTE: escala/altura/safeTop são calculados no CLIENTE via useEffect.
-// Não renderiza a cena até calcular (evita pisca de "cena pequena → grande"
-// que acontece na primeira carga por causa do SSR).
+// campinho revelado. PIN correto → fade escuro → navega pra Home.
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -25,7 +21,7 @@ import {
 } from './coreografia'
 import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransicao'
 import { somKit } from './somKit'
-import { buscarPinPorNome, gerarElenco, type JogadorComPin } from './elencoMock'
+import { buscarAvatares, buscarPinPorNome, gerarElenco, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
 import { CortinaDescendo } from '@/components/home/CortinaTransicao'
@@ -47,17 +43,22 @@ export function AberturaScreen() {
   const [parallax, setParallax] = useState({ x: 0, y: 0 })
 
   const [formacaoId, setFormacaoId] = useState<string>('4-3-3')
+  const [avatares, setAvatares] = useState<Map<string, string | null>>(new Map())
 
   useEffect(() => {
     lerFormacaoId()
       .then((id) => setFormacaoId(id))
       .catch(() => { /* silencioso */ })
+    buscarAvatares()
+      .then((m) => setAvatares(m))
+      .catch(() => { /* silencioso — fica sem foto */ })
   }, [])
 
-  const { TITULARES, BANCO, TECNICO } = useMemo(() => gerarElenco(formacaoId), [formacaoId])
+  const { TITULARES, BANCO, TECNICO } = useMemo(
+    () => gerarElenco(formacaoId, avatares),
+    [formacaoId, avatares],
+  )
 
-  // Estado de dimensões — começa null, calcula síncrono no primeiro effect
-  // do cliente (antes de qualquer paint visível).
   const [dimensoes, setDimensoes] = useState<{
     safeTopPx: number
     alturaViewport: number
@@ -102,8 +103,6 @@ export function AberturaScreen() {
     timers.current = []
   }, [])
 
-  // Calcula dimensões UMA vez ao montar + atualiza em resize/orientação.
-  // Roda SÍNCRONO no useLayoutEffect (antes do paint) — sem pisca.
   useEffect(() => {
     function medirSafeTop(): number {
       try {
@@ -292,7 +291,6 @@ export function AberturaScreen() {
     [inicioTiers, revelado, TECNICO],
   )
 
-  // Enquanto não calculou dimensões, mostra só um fundo escuro (invisível ao olho)
   if (!dimensoes) {
     return (
       <div
