@@ -5,9 +5,6 @@ import { estiloZonaLuz } from './coreografia'
 import type { EstiloEntrada } from './coreografia'
 import type { JogadorBanco } from './tipos'
 
-// BancoReservas — fileira do banco: reservas + marcador ADM, círculos simples
-// no mesmo padrão dos chips do campo. Zona de refletor própria, acende por
-// último na cascata (tier 4).
 export function BancoReservas({
   revelado,
   reservas,
@@ -42,7 +39,6 @@ export function BancoReservas({
         zIndex: 0,
       }}
     >
-      {/* Overlay escuro cobrindo TUDO (inclusive por cima do background do container) */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -87,6 +83,7 @@ export function BancoReservas({
           variante="tecnico"
           onClick={onEntrarJogador ? () => onEntrarJogador(tecnico) : undefined}
           carregando={carregandoId === tecnico.id}
+          avatar={tecnico.avatar}
         />
 
         {reservas.map((r) => (
@@ -99,6 +96,7 @@ export function BancoReservas({
             variante="reserva"
             onClick={onEntrarJogador ? () => onEntrarJogador(r) : undefined}
             carregando={carregandoId === r.id}
+            avatar={r.avatar}
           />
         ))}
 
