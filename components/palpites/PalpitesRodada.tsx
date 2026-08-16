@@ -54,6 +54,26 @@ export function PalpitesRodada({
   const [now, setNow] = useState<number>(() => Date.now())
   const [salvoEm, setSalvoEm] = useState<Date | null>(null)
 
+  // Ressincroniza `palpites` quando `palpitesIniciais` chega/muda.
+  // Sem isso, o useState inicial captura {} da primeira renderização (antes
+  // do Supabase responder) e depois ignora as props que chegam async.
+  //
+  // Merge: se o usuário já começou a digitar palpites novos e chegou o cache
+  // do banco depois, preserva o que o usuário digitou.
+  useEffect(() => {
+    if (!palpitesIniciais) return
+    setPalpites((atual) => {
+      const merged: Record<string, Palpite> = { ...palpitesIniciais }
+      // Preserva palpites que o usuário JÁ digitou (não sobrescreve com o do banco)
+      for (const [id, p] of Object.entries(atual)) {
+        if (p.h !== '' || p.a !== '') {
+          merged[id] = p
+        }
+      }
+      return merged
+    })
+  }, [palpitesIniciais])
+
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
