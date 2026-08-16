@@ -16,7 +16,7 @@ export function BancoReservas({
 }: {
   revelado: boolean
   reservas: Array<JogadorBanco & { entrada: EstiloEntrada }>
-  admin: { entrada: EstiloEntrada }
+  admin: { entrada: EstiloEntrada; avatar?: string | null }
   tecnico: JogadorBanco & { entrada: EstiloEntrada }
   onEntrarAdmin?: () => void
   onEntrarJogador?: (j: { id: string; nome: string }) => void
@@ -107,6 +107,7 @@ export function BancoReservas({
           entrada={admin.entrada}
           variante="admin"
           onClick={onEntrarAdmin}
+          avatar={admin.avatar}
         />
       </div>
     </div>
