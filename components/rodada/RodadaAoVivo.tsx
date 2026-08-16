@@ -11,7 +11,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
 
-// Frases pra quando o USUÁRIO esqueceu de palpitar em algum jogo
+// ─── FRASES: Esqueceu de palpitar (aparece pra quem tem palpite pendente) ──
 const ZOACOES_ESQUECEU = [
   'iii mané, esqueceu de palpitar foi?',
   'Vai palpitar ou vai deixar barato?',
@@ -45,37 +45,130 @@ const ZOACOES_ESQUECEU = [
   'A rodada não vai esperar você, sabia?',
 ]
 
-// Frases pra zuar o pior colocado da rodada (menos pontos entre quem palpitou)
+// ─── FRASES: Pior da rodada (aparece pra todos, cita nome do pior) ──────────
 const ZOACOES_PIOR = [
   '{nome} tá pior que zagueiro central improvisado.',
-  '{nome} com poucos pontos: será que palpitou dormindo?',
   '{nome} tá tão perdido que nem o Waze acha.',
   'Alguém avisa o {nome} que a rodada começou?',
   '{nome} tá dando aula de como não palpitar.',
-  '{nome} deveria pedir dinheiro de volta dos palpites.',
   '{nome} palpitou, mas o palpite fugiu correndo.',
-  'Nem o técnico do Palmeiras erra tanto quanto o {nome}.',
   '{nome} tá tão mal que o frango já chegou.',
-  '{nome} devia mudar de esporte, hein.',
   'Se palpite fosse gol, {nome} tava rebaixado.',
   '{nome} tá igual Athletico em final: só perde.',
   '{nome} palpitou de olho fechado, com certeza.',
-  '{nome} tá lá no fim da tabela, coitado.',
   '{nome} devia contratar um consultor de palpites.',
   '{nome} tá tão ruim que até o adm ficou com pena.',
   'Nem no chute {nome} acerta uma.',
-  '{nome} tá tão perdido quanto turista em Marte.',
   '{nome} palpitou tão errado que dá dó.',
-  '{nome} tá pra pontuar como Vasco tá pro título.',
+  'Se o {nome} fosse goleiro, o Brasil tinha perdido de 20.',
+  '{nome} palpita igual quem escolhe roupa no escuro.',
+  '{nome} tá jogando na segunda divisão dos palpiteiros.',
+  '{nome} tá pior que time da várzea na chuva.',
+  '{nome} palpita tão mal que até o Google errou menos.',
+  '{nome} devia jogar o palpite no lixo antes de salvar.',
+  '{nome} tá zoando ou palpitou de verdade?',
+  '{nome} palpita pior que criança escolhendo lanche.',
+  'Nem um cego chutando erraria tanto quanto o {nome}.',
+  '{nome} tá igual bandeirinha do Brasileirão: sempre errando.',
+  '{nome} palpita e o Universo conspira contra.',
+  '{nome} tá pontuando menos que peladeiro no fim de semana.',
+  '{nome} tá tão mal que nem meu avô erraria assim.',
+  '{nome} tá jogando pra perder, é a única explicação.',
+  '{nome} palpita igual quem nunca viu futebol na vida.',
+  '{nome} pontuou menos que a soma dos meus IQs.',
+  'Alô {nome}, aqui é a realidade te chamando.',
+  '{nome} palpita tão mal que dá vontade de rir e chorar junto.',
+  '{nome} tá jogando o campeonato de quem perde mais.',
+  '{nome} palpitou pensando em outra coisa, com certeza.',
+  '{nome} devia rezar antes de salvar palpite.',
+  'Nem meu cachorro erraria tanto quanto o {nome}.',
+  'Se palpite fosse comida, {nome} tava passando fome.',
+  'Coitado do {nome}, tá sofrendo em silêncio.',
+  'A pontuação do {nome} é obra de arte moderna: ninguém entende.',
+  '{nome} palpita e a esperança morre junto.',
+  '{nome} tá dando mole pros outros pontuarem sem esforço.',
 ]
 
-function frasesZoacaoAleatoria(): string {
-  return ZOACOES_ESQUECEU[Math.floor(Math.random() * ZOACOES_ESQUECEU.length)]
-}
+// ─── FRASES: Cravou (aparece pra quem NÃO cravou aquele jogo) ───────────────
+const ZOACOES_CRAVOU = [
+  '{nome} cravou {jogo}! E você aí, dormindo?',
+  'Rapaz, o {nome} regaçou em {jogo}! Cadê você?',
+  '{nome} cravou {jogo}. Sorte ou raça?',
+  'O {nome} mandou bem em {jogo}! Fica de olho.',
+  '{nome} cravou {jogo} e você tá lá no meio da tabela.',
+  'ALERTA: {nome} cravou {jogo}. Corre atrás!',
+  '{nome} arrasou em {jogo}! E aí, campeão?',
+  'Enquanto você errava, {nome} cravava {jogo}.',
+  '{nome} cravou {jogo} de olho fechado. E você?',
+  '{nome} chapou o placar de {jogo}! Bora reagir.',
+  '{nome} mandou ver em {jogo}. Tá comendo poeira?',
+  'Rapaz, o {nome} tá on fire! Cravou {jogo}!',
+  '{nome} bateu o martelo em {jogo}. E você?',
+  '{nome} cravou {jogo} enquanto você pensava no almoço.',
+  'O que o {nome} tem que você não tem? Cravou {jogo}!',
+  '{nome} cravou {jogo}. Vai deixar barato?',
+  'Enquanto uns choravam, {nome} cravava {jogo}.',
+  '{nome} cravou {jogo}. E aí, vai fazer o quê?',
+  'ALERTA ALERTA: {nome} cravou {jogo}. Não fica pra trás!',
+  '{nome} tá regaçando! Cravou {jogo}.',
+]
 
-function frasesPiorAleatoria(nome: string): string {
-  const template = ZOACOES_PIOR[Math.floor(Math.random() * ZOACOES_PIOR.length)]
-  return template.replace('{nome}', nome)
+// ─── FRASES: Empate técnico (top 3 apertado, pra quem tá no top) ────────────
+const ZOACOES_EMPATE = [
+  'Rodada apertada, hein! Top 3 tá cabeça a cabeça.',
+  'Ninguém quer decidir essa rodada, é lero-lero.',
+  'Que rodada equilibrada, meu Deus. Ninguém arrisca!',
+  'Todo mundo com medo de errar, é isso?',
+  'Top 3 quase igualzinho, tá tenso!',
+  'Rodada de "quem pisca perde". Bora acordar!',
+  'Vai ter que suar pra levar essa, hein.',
+  'Diferença zero, todo mundo tremendo!',
+  'Que rodada indecisa. Alguém precisa dominar!',
+  'Nem líder da rodada tá se destacando, coisa feia.',
+  'Empate no topo? Só falta pedir prorrogação.',
+  'Top 3 tá tão igual que parece xerox.',
+]
+
+// ─── FRASES: Líder do campeonato mal na rodada (pra todos) ──────────────────
+const ZOACOES_LIDER_MAL = [
+  'RAPAZZZ o {nome} tá peidando essa rodada! Que vergonha.',
+  'ALERTA: {nome}, líder do campeonato, tá levando um pau hoje!',
+  'O rei tropeça! {nome} tá bem mal essa rodada.',
+  'Cadê o {nome} nessa rodada? Sumiu, sumiu.',
+  'O líder {nome} tá dando mole. É agora que o povo passa!',
+  'Rapaz, o {nome} escolheu a pior rodada pra pisar na bola.',
+  '{nome} tá dormindo no ponto! O líder virou lanterna.',
+  'O {nome} devia dar aula, mas hoje tá levando aula.',
+  'ALERTA ALERTA: o líder {nome} tá em queda livre hoje!',
+  'Que rodada horrível pro {nome}. Chorem, súditos... digo, sofram!',
+  'O {nome} tropeçou feio nessa rodada. É a vez de ultrapassar!',
+  'Líder na tabela, lanterna na rodada. Que fase, {nome}!',
+  'Cadê o {nome}? Tá desaparecido nessa rodada, coitado.',
+  '{nome} escorregou feio, galera. Aproveita e passa!',
+]
+
+// ─── FRASES: Líder da rodada com vantagem (pra todos exceto ele) ────────────
+const ZOACOES_VOANDO = [
+  'RAPAZZZ o {nome} tá regaçando vocês!',
+  'ALERTA: {nome} tá voando! Corram atrás, otários!',
+  '{nome} tá dando um show nessa rodada. Vergonha alheia!',
+  'Rapaz, o {nome} não tá pra brincadeira hoje!',
+  '{nome} tá comendo essa rodada no café da manhã!',
+  'Alô galera, o {nome} tá regaçando geral. Vão fazer algo!',
+  'ALERTA ALERTA O {nome} TA PEIDANDO GERAL!',
+  '{nome} tá tão na frente que já pode tomar café.',
+  'O {nome} tá jogando outro jogo, é impressão minha?',
+  'Rapaz, o {nome} tá numa dimensão paralela. Correm atrás!',
+  '{nome} tá dando aula. Anotem tudo, otários!',
+  'O {nome} tá tão à frente que já vou parabenizando.',
+  'ALERTA: {nome} tá impossível de alcançar hoje!',
+  '{nome} tá voando alto! Vão comer poeira, ó.',
+]
+
+// ─── Helpers de sorteio de frases ───────────────────────────────────────────
+
+function random<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
 }
 
 function corCelula(cat: PalpiteCelula['categoria']): string {
@@ -221,6 +314,17 @@ function FrenteFrenteRodadaModal({
   )
 }
 
+// ─── Tipos internos pra alerts ──────────────────────────────────────────────
+
+type AlertaCategoria = 'esqueceu' | 'pior' | 'cravou' | 'empate' | 'liderMal' | 'voando'
+
+interface Alerta {
+  cat: AlertaCategoria
+  titulo: string
+  frase: string
+  subtitulo: string
+}
+
 export function RodadaAoVivo() {
   const [dados, setDados] = useState<RodadaAoVivoDados | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -229,7 +333,6 @@ export function RodadaAoVivo() {
   const [meuId, setMeuId] = useState<string | null>(null)
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
   const [frenteFrente, setFrenteFrente] = useState<{ a: LinhaRodadaAoVivo; b: LinhaRodadaAoVivo } | null>(null)
-  const [zoacao] = useState<string>(() => frasesZoacaoAleatoria())
 
   useEffect(() => {
     try {
@@ -270,41 +373,165 @@ export function RodadaAoVivo() {
     }
   }
 
-  const esqueceuAlgum = useMemo(() => {
-    if (!dados || !meuId) return false
+  // Gera todos os alertas aplicáveis e escolhe até 2 pra mostrar
+  const alertas = useMemo<Alerta[]>(() => {
+    if (!dados || !meuId) return []
+
+    const resultado: Alerta[] = []
     const minhaLinha = dados.linhas.find((l) => l.participantId === meuId)
-    if (!minhaLinha) return true
-    return minhaLinha.celulas.some((c, i) => {
-      const jogo = dados.jogos[i]
-      return !jogo.temResultado && c.categoria === 'np'
+    const temResultado = dados.jogos.some((j) => j.temResultado)
+
+    // ─── 1. ESQUECEU (pra quem tem palpite pendente em jogo aberto) ────
+    if (minhaLinha) {
+      const esqueceu = minhaLinha.celulas.some((c, i) => {
+        const jogo = dados.jogos[i]
+        return !jogo.temResultado && c.categoria === 'np'
+      })
+      if (esqueceu) {
+        resultado.push({
+          cat: 'esqueceu',
+          titulo: '🚨 Palpites em aberto',
+          frase: random(ZOACOES_ESQUECEU),
+          subtitulo: 'Vai lá na aba Palpites resolver isso.',
+        })
+      }
+    }
+
+    // Alertas abaixo precisam de rodada com resultado
+    if (!temResultado) {
+      return resultado
+    }
+
+    const linhasComPalpite = dados.linhas.filter((l) => l.palpitouAlgo)
+    const linhasOrdenadas = [...linhasComPalpite].sort((a, b) =>
+      b.ptsRodada - a.ptsRodada || a.nome.localeCompare(b.nome)
+    )
+
+    // ─── 2. VOANDO (líder da rodada com ≥ 8 pts de vantagem pro 2º) ────
+    if (linhasOrdenadas.length >= 2) {
+      const lider = linhasOrdenadas[0]
+      const segundo = linhasOrdenadas[1]
+      const diff = lider.ptsRodada - segundo.ptsRodada
+      // Aparece pra todos EXCETO o próprio líder
+      if (diff >= 8 && lider.participantId !== meuId) {
+        resultado.push({
+          cat: 'voando',
+          titulo: '🚀 Alguém tá voando',
+          frase: random(ZOACOES_VOANDO).replace('{nome}', lider.nome),
+          subtitulo: `Vantagem de ${diff} pts pro 2º colocado.`,
+        })
+      }
+    }
+
+    // ─── 3. LÍDER DO CAMPEONATO MAL NA RODADA ──────────────────────────
+    // Pega líder do campeonato entre quem tem totalGeral > 0
+    const linhasComTotal = [...dados.linhas].filter((l) => l.totalGeral > 0)
+    if (linhasComTotal.length > 0) {
+      linhasComTotal.sort((a, b) => b.totalGeral - a.totalGeral)
+      const liderCamp = linhasComTotal[0]
+      // Posição do líder do campeonato na rodada
+      const posLiderCamp = linhasOrdenadas.findIndex((l) => l.participantId === liderCamp.participantId)
+      // Só aplica se o líder do campeonato palpitou nessa rodada
+      const liderPalpitou = liderCamp.palpitouAlgo
+      // "Mal na rodada": não está no top 3 OU tá 8+ pts atrás do líder da rodada
+      const foraDoTop3 = posLiderCamp >= 3
+      const muitoAtrasDoLider = linhasOrdenadas.length > 0 &&
+        (linhasOrdenadas[0].ptsRodada - liderCamp.ptsRodada) >= 8
+      if (liderPalpitou && (foraDoTop3 || muitoAtrasDoLider)) {
+        resultado.push({
+          cat: 'liderMal',
+          titulo: '👑 Líder tropeçou',
+          frase: random(ZOACOES_LIDER_MAL).replace('{nome}', liderCamp.nome),
+          subtitulo: `Líder do campeonato tá bem mal essa rodada.`,
+        })
+      }
+    }
+
+    // ─── 4. EMPATE TÉCNICO (top 3 apertado, pra quem tá no top 3) ──────
+    if (linhasOrdenadas.length >= 3) {
+      const [p1, , p3] = linhasOrdenadas
+      const diffTop = p1.ptsRodada - p3.ptsRodada
+      const usuarioNoTop3 = linhasOrdenadas.slice(0, 3).some((l) => l.participantId === meuId)
+      if (diffTop <= 2 && usuarioNoTop3) {
+        resultado.push({
+          cat: 'empate',
+          titulo: '⚖️ Rodada apertada',
+          frase: random(ZOACOES_EMPATE),
+          subtitulo: `Top 3 com diferença de só ${diffTop} pt${diffTop === 1 ? '' : 's'}.`,
+        })
+      }
+    }
+
+    // ─── 5. CRAVOU (aparece pra quem NÃO cravou aquele jogo) ───────────
+    // Escolhe aleatoriamente 1 jogo que teve cravadas
+    const jogosComCravadas: Array<{ jogo: JogoRodada; jogoIdx: number; cravadores: LinhaRodadaAoVivo[] }> = []
+    dados.jogos.forEach((jogo, jogoIdx) => {
+      if (!jogo.temResultado) return
+      const cravadores = dados.linhas.filter((l) => {
+        const cel = l.celulas[jogoIdx]
+        return cel.categoria === 'cravou'
+      })
+      if (cravadores.length > 0) {
+        jogosComCravadas.push({ jogo, jogoIdx, cravadores })
+      }
     })
+
+    if (jogosComCravadas.length > 0) {
+      // Sorteia 1 jogo entre os que tiveram cravadas
+      const escolhido = random(jogosComCravadas)
+      // Só mostra pra quem não cravou esse jogo
+      const usuarioCravouEsse = escolhido.cravadores.some((l) => l.participantId === meuId)
+      if (!usuarioCravouEsse) {
+        const cravador = random(escolhido.cravadores)
+        const jogoStr = `${escolhido.jogo.homeAbrev}×${escolhido.jogo.awayAbrev}`
+        resultado.push({
+          cat: 'cravou',
+          titulo: '🎯 Alguém cravou',
+          frase: random(ZOACOES_CRAVOU)
+            .replace('{nome}', cravador.nome)
+            .replace('{jogo}', jogoStr),
+          subtitulo: `${escolhido.jogo.home} ${escolhido.jogo.home_score}×${escolhido.jogo.away_score} ${escolhido.jogo.away}`,
+        })
+      }
+    }
+
+    // ─── 6. PIOR DA RODADA (pra todos, cita nome do pior) ──────────────
+    // Já garantiu que tem resultado
+    if (linhasComPalpite.length >= 2) {
+      const ordCrescente = [...linhasComPalpite].sort((a, b) =>
+        a.ptsRodada - b.ptsRodada || a.nome.localeCompare(b.nome)
+      )
+      const pior = ordCrescente[0]
+      const lider = ordCrescente[ordCrescente.length - 1]
+      // Só zoa se diferença for ≥ 5 pts (evita rodada apertada)
+      // E não zoa o próprio usuário
+      if (lider.ptsRodada - pior.ptsRodada >= 5 && pior.participantId !== meuId) {
+        resultado.push({
+          cat: 'pior',
+          titulo: '🐔 Pior da rodada',
+          frase: random(ZOACOES_PIOR).replace('{nome}', pior.nome),
+          subtitulo: 'Cuidado que o frango tá chegando... 👀',
+        })
+      }
+    }
+
+    return resultado
   }, [dados, meuId])
 
-  // Detecta o pior colocado da rodada (menos pontos) entre quem palpitou.
-  // Só zoa se houver pelo menos 1 jogo com resultado (senão todo mundo tá 0
-  // e não faz sentido zoar). Ignora quem não palpitou nada (esses viram frango).
-  // Só zoa se a diferença entre pior e líder for >= 5 pts (evita zoar em
-  // rodada equilibrada).
-  const zoacaoPior = useMemo(() => {
-    if (!dados) return null
-    const temResultado = dados.jogos.some((j) => j.temResultado)
-    if (!temResultado) return null
-
-    const candidatos = dados.linhas
-      .filter((l) => l.palpitouAlgo)
-      .sort((a, b) => {
-        if (a.ptsRodada !== b.ptsRodada) return a.ptsRodada - b.ptsRodada
-        return a.nome.localeCompare(b.nome)
-      })
-
-    if (candidatos.length === 0) return null
-
-    const pior = candidatos[0]
-    const lider = candidatos[candidatos.length - 1]
-    if (lider.ptsRodada - pior.ptsRodada < 5) return null
-
-    return frasesPiorAleatoria(pior.nome)
-  }, [dados])
+  // Escolhe até 2 pra mostrar. Prioridade:
+  // 1. "esqueceu" (sempre, se aplicável — informação crítica pro usuário)
+  // 2. 1 outro aleatório entre os restantes
+  const alertasParaMostrar = useMemo<Alerta[]>(() => {
+    const esqueceu = alertas.find((a) => a.cat === 'esqueceu')
+    const outros = alertas.filter((a) => a.cat !== 'esqueceu')
+    const escolhidos: Alerta[] = []
+    if (esqueceu) escolhidos.push(esqueceu)
+    if (outros.length > 0) {
+      // Sorteia 1 aleatório entre os outros
+      escolhidos.push(random(outros))
+    }
+    return escolhidos.slice(0, 2)
+  }, [alertas])
 
   function abrirFrenteFrente(linha: LinhaRodadaAoVivo) {
     if (!dados) return
@@ -367,21 +594,23 @@ export function RodadaAoVivo() {
         {null}
       </CardEnvelope>
 
-      {esqueceuAlgum && (
-        <CardEnvelope variante="alerta" titulo={`🚨 ${zoacao}`}>
-          <p className="px-4 py-3 font-sans text-xs text-raridade-frango-selo/80">
-            Você tem palpites em aberto. Vai lá na aba <b>Palpites</b>.
-          </p>
+      {/* Cards de alerta rotativos (até 2 por vez) */}
+      {alertasParaMostrar.map((alerta) => (
+        <CardEnvelope
+          key={alerta.cat}
+          variante="alerta"
+          titulo={alerta.titulo}
+        >
+          <div className="px-4 py-3">
+            <p className="font-sans text-sm font-semibold text-raridade-frango-selo">
+              {alerta.frase}
+            </p>
+            <p className="mt-1 font-sans text-xs text-tinta-200">
+              {alerta.subtitulo}
+            </p>
+          </div>
         </CardEnvelope>
-      )}
-
-      {zoacaoPior && (
-        <CardEnvelope variante="alerta" titulo={`🐔 ${zoacaoPior}`}>
-          <p className="px-4 py-3 font-sans text-xs text-raridade-frango-selo/80">
-            Cuidado que o frango tá chegando... 👀
-          </p>
-        </CardEnvelope>
-      )}
+      ))}
 
       <CardEnvelope>
         <div className="overflow-x-auto scrollbar-tema">
