@@ -26,13 +26,10 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
   const isTecnico = variante === 'tecnico'
   const temSeloEspecial = isAdmin || isTecnico
 
-  // Considera vazio/whitespace como sem foto
   const avatarLimpo = avatar && avatar.trim().length > 0 ? avatar : null
-
-  // Se a imagem falhar em carregar, cai pra iniciais
   const [fotoFalhou, setFotoFalhou] = useState(false)
-
-  const temFoto = !isAdmin && !!avatarLimpo && !fotoFalhou
+  // Admin agora TAMBÉM mostra foto se tiver
+  const temFoto = !!avatarLimpo && !fotoFalhou
 
   const wrapperStyle: CSSProperties = {
     ...(posicaoCampo ? { position: 'absolute', left: posicaoCampo.left, top: posicaoCampo.top } : {}),
@@ -58,45 +55,59 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           : undefined
       }
     >
+      {/* Wrapper externo — NÃO tem overflow-hidden, pra selos poderem sair pra fora */}
       <div
-        className={cx(
-          'relative flex items-center justify-center overflow-hidden rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.45)]',
-          variante === 'titular' ? 'border-2 border-dourado-300' : temSeloEspecial ? 'border-2 border-dourado-300' : 'border-[1.5px] border-dourado-400',
-          entrada.animar && styles.chipIdle,
-        )}
-        style={{
-          width: tamanho,
-          height: tamanho,
-          background: 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
-          boxShadow: temSeloEspecial ? '0 1px 3px rgba(0,0,0,0.45), 0 0 0 1.5px color-mix(in srgb, var(--dourado-300) 35%, transparent)' : undefined,
-          animationDelay: entrada.animar ? entrada.idleDelay : undefined,
-          opacity: carregando ? 0.55 : 1,
-          transform: carregando ? 'scale(0.9)' : undefined,
-          transition: 'opacity 180ms ease-out, transform 180ms ease-out',
-        }}
+        className="relative"
+        style={{ width: tamanho, height: tamanho }}
       >
-        {/* Iniciais SEMPRE renderizadas por baixo — funcionam como fallback
-            se a foto não carregar (fica invisível atrás da img se der certo). */}
-        <span
-          className="absolute inset-0 flex items-center justify-center font-mono font-bold text-couro-600"
-          style={{ fontSize: variante === 'titular' ? 14 : 12, letterSpacing: variante === 'titular' ? '0.5px' : undefined }}
+        {/* Círculo principal — clip da foto (overflow-hidden aqui) */}
+        <div
+          className={cx(
+            'relative flex h-full w-full items-center justify-center overflow-hidden rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.45)]',
+            variante === 'titular' ? 'border-2 border-dourado-300' : temSeloEspecial ? 'border-2 border-dourado-300' : 'border-[1.5px] border-dourado-400',
+            entrada.animar && styles.chipIdle,
+          )}
+          style={{
+            background: 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
+            boxShadow: temSeloEspecial ? '0 1px 3px rgba(0,0,0,0.45), 0 0 0 1.5px color-mix(in srgb, var(--dourado-300) 35%, transparent)' : undefined,
+            animationDelay: entrada.animar ? entrada.idleDelay : undefined,
+            opacity: carregando ? 0.55 : 1,
+            transform: carregando ? 'scale(0.9)' : undefined,
+            transition: 'opacity 180ms ease-out, transform 180ms ease-out',
+          }}
         >
-          {iniciais}
-        </span>
+          {/* Iniciais SEMPRE renderizadas por baixo (fallback) */}
+          <span
+            className="absolute inset-0 flex items-center justify-center font-mono font-bold text-couro-600"
+            style={{ fontSize: variante === 'titular' ? 14 : 12, letterSpacing: variante === 'titular' ? '0.5px' : undefined }}
+          >
+            {iniciais}
+          </span>
 
-        {/* Foto por cima (se existir e não falhou) */}
-        {temFoto && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={avatarLimpo!}
-            alt={nome}
-            className="absolute inset-0 h-full w-full object-cover"
-            onError={() => setFotoFalhou(true)}
-          />
-        )}
+          {/* Foto por cima (se existir e não falhou) */}
+          {temFoto && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarLimpo!}
+              alt={nome}
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={() => setFotoFalhou(true)}
+            />
+          )}
+        </div>
 
+        {/* Selos — FORA do círculo com overflow (pra vazar pros lados) */}
         {isAdmin ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-[15px] w-[15px] items-center justify-center rounded-full border border-dourado-300 bg-couro-600" style={{ zIndex: 2 }}>
+          <span
+            className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600"
+            style={{
+              right: -6,
+              top: -6,
+              width: 15,
+              height: 15,
+              zIndex: 3,
+            }}
+          >
             <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 13.5c.04-.33.06-.66.06-1s-.02-.67-.06-1l2.1-1.6a.5.5 0 0 0 .12-.65l-2-3.4a.5.5 0 0 0-.6-.23l-2.5 1a7.6 7.6 0 0 0-1.7-1l-.38-2.65A.5.5 0 0 0 14 2.5h-4a.5.5 0 0 0-.5.43L9.12 5.6a7.6 7.6 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.23l-2 3.4a.5.5 0 0 0 .12.65l2.1 1.6c-.04.33-.06.66-.06 1s.02.67.06 1l-2.1 1.6a.5.5 0 0 0-.12.65l2 3.4c.14.23.4.32.6.23l2.5-1c.5.42 1.08.76 1.7 1l.38 2.65a.5.5 0 0 0 .5.43h4a.5.5 0 0 0 .5-.43l.38-2.65c.62-.24 1.2-.58 1.7-1l2.5 1c.2.09.46 0 .6-.23l2-3.4a.5.5 0 0 0-.12-.65z" />
@@ -104,8 +115,15 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           </span>
         ) : isTecnico ? (
           <span
-            className="absolute -right-2 -top-2 flex h-[17px] w-[17px] items-center justify-center bg-couro-600"
-            style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', zIndex: 2 }}
+            className="absolute flex items-center justify-center bg-couro-600"
+            style={{
+              right: -8,
+              top: -8,
+              width: 17,
+              height: 17,
+              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+              zIndex: 3,
+            }}
           >
             <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5" y="4" width="14" height="17" rx="2" />
@@ -114,21 +132,24 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
               <line x1="8" y1="15" x2="13" y2="15" />
             </svg>
           </span>
-        ) : (
+        ) : numero ? (
           <span
-            className="absolute -right-1.5 -top-1.5 flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600 font-mono font-bold text-dourado-100"
+            className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600 font-mono font-bold text-dourado-100"
             style={{
+              right: -6,
+              top: -6,
               minWidth: variante === 'titular' ? 18 : 15,
               height: variante === 'titular' ? 18 : 15,
               padding: '0 3px',
               fontSize: variante === 'titular' ? 9 : 8,
-              zIndex: 2,
+              zIndex: 3,
             }}
           >
             {numero}
           </span>
-        )}
+        ) : null}
       </div>
+
       <span
         className="flex flex-col items-center"
         style={{
