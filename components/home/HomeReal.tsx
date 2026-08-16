@@ -2,19 +2,20 @@
 
 // HomeReal — conteúdo específico da tela /inicio.
 //
-// Header, Nav e Player agora vêm do AppLayout que envolve esta tela.
+// Header, Nav e Player vêm do AppLayout que envolve esta tela.
 // Aqui fica só o conteúdo próprio da Home:
 //   1. Card da rodada atual
-//   2. Parcial da rodada (sem foto — só emoji ao lado do nome)
+//   2. Parcial da rodada (ordenada por ptsRodada)
 //   3. Frango da rodada anterior
-//   4. Por Placar
-//   5. Distribuição de palpites
-//   6. Pódio atual
+//   4. Por Placar (accordion)
+//   5. Distribuição de palpites (accordion)
+//   6. Pódio da rodada (derivado da parcial)
 
-import { useCallback, useEffect, useState } from 'react'
-import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo, type PodioLinha } from '@/lib/homeReal'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo } from '@/lib/homeReal'
 import { AvatarCirculo } from './HeaderUsuario'
 import { useRegistrarAtualizar } from './AtualizarContext'
+import { Accordion } from './Accordion'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -78,6 +79,18 @@ export function HomeReal() {
 
   useRegistrarAtualizar(participantId ? atualizar : null, atualizando)
 
+  // Parcial ordenada por ptsRodada (desempate: totalGeral)
+  // NP (ptsRodada === null) vai pro fim
+  const parcialOrdenada = useMemo(() => {
+    if (!dados) return []
+    return [...dados.parcial].sort((a, b) => {
+      const aPts = a.ptsRodada ?? -1
+      const bPts = b.ptsRodada ?? -1
+      if (bPts !== aPts) return bPts - aPts
+      return b.totalGeral - a.totalGeral
+    })
+  }, [dados])
+
   return (
     <>
       {erro && (
@@ -106,22 +119,31 @@ export function HomeReal() {
           )}
 
           {/* Parcial */}
-          {dados.parcial.length > 0 && participantId && (
-            <BlocoParcial linhas={dados.parcial} meuId={participantId} isDouble={dados.rodada?.isDouble ?? false} />
+          {parcialOrdenada.length > 0 && participantId && (
+            <BlocoParcial linhas={parcialOrdenada} meuId={participantId} isDouble={dados.rodada?.isDouble ?? false} />
           )}
 
           {/* Frango */}
           {dados.frango && <BlocoFrango frango={dados.frango} />}
 
-          {/* Por Placar */}
-          {dados.placares.length > 0 && <BlocoPorPlacar placares={dados.placares} />}
+          {/* Por Placar — accordion colapsável */}
+          {dados.placares.length > 0 && (
+            <Accordion titulo="🔢 Por Placar" storageKey="home:porplacar" defaultOpen={false}>
+              <BlocoPorPlacarConteudo placares={dados.placares} />
+            </Accordion>
+          )}
 
-          {/* Distribuição */}
-          {dados.distribuicao.length > 0 && <BlocoDistribuicao distribuicao={dados.distribuicao} />}
+          {/* Distribuição — accordion colapsável */}
+          {dados.distribuicao.length > 0 && (
+            <Accordion titulo="🎯 Distribuição de Palpites" storageKey="home:distribuicao" defaultOpen={false}>
+              <BlocoDistribuicaoConteudo distribuicao={dados.distribuicao} />
+            </Accordion>
+          )}
 
-          {/* Pódio */}
-          {dados.podio.length > 0 && <BlocoPodio podio={dados.podio} />}
-
+          {/* Pódio da rodada — derivado da parcial */}
+          {parcialOrdenada.length > 0 && (
+            <BlocoPodioRodada linhas={parcialOrdenada} />
+          )}
         </>
       )}
     </>
@@ -194,7 +216,7 @@ function MiniCard({ label, valor, destaque }: { label: string; valor: number; de
   )
 }
 
-// ─── Parcial (SEM foto — só emoji ao lado do nome) ──────────────────────────
+// ─── Parcial (ordenada por ptsRodada) ──────────────────────────────────────
 
 function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meuId: string; isDouble: boolean }) {
   return (
@@ -224,13 +246,14 @@ function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meu
           </tr>
         </thead>
         <tbody>
-          {linhas.map((l) => {
+          {linhas.map((l, i) => {
+            const posicao = i + 1
             const ehMeu = l.participantId === meuId
-            const medalha = l.posicao === 1 ? '🥇' : l.posicao === 2 ? '🥈' : l.posicao === 3 ? '🥉' : null
+            const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
             return (
               <tr key={l.participantId} className={cx(ehMeu && 'bg-dourado-50/60')}>
                 <td className="border-b border-papel-borda-200/60 px-2 py-1.5 text-center font-mono text-xs">
-                  {medalha ? <span className="text-base">{medalha}</span> : <span className="text-tinta-200">{l.posicao}</span>}
+                  {medalha ? <span className="text-base">{medalha}</span> : <span className="text-tinta-200">{posicao}</span>}
                 </td>
                 <td className={cx('border-b border-papel-borda-200/60 px-2 py-1.5 font-sans text-xs font-semibold', ehMeu ? 'text-dourado-800' : 'text-tinta-300')}>
                   <div className="flex items-center gap-1.5">
@@ -291,59 +314,47 @@ function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }
   )
 }
 
-// ─── Por Placar ─────────────────────────────────────────────────────────────
+// ─── Por Placar (só conteúdo, o Accordion já dá o wrapper) ─────────────────
 
-function BlocoPorPlacar({ placares }: { placares: PlacaresJogo[] }) {
+function BlocoPorPlacarConteudo({ placares }: { placares: PlacaresJogo[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm">
-      <div className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2">
-        <p className="font-display text-sm font-bold uppercase tracking-widest text-dourado-50">
-          🔢 Por Placar
-        </p>
-      </div>
-      <div className="divide-y divide-papel-borda-200/60">
-        {placares.map((p) => (
-          <div key={p.matchId} className="px-3 py-2">
-            <p className="mb-1.5 font-sans text-xs font-semibold text-tinta-300">
-              {p.home} × {p.away}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {p.placares.map((pl) => (
-                <span
-                  key={pl.placar}
-                  className="rounded border border-dourado-300 bg-papel-100 px-1.5 py-0.5 font-mono text-[11px]"
-                >
-                  <b className="text-dourado-700">{pl.placar}</b>
-                  <span className="ml-1 text-tinta-100">{pl.qtd}x</span>
-                </span>
-              ))}
-            </div>
+    <div className="divide-y divide-papel-borda-200/60">
+      {placares.map((p) => (
+        <div key={p.matchId} className="py-2">
+          <p className="mb-1.5 font-sans text-xs font-semibold text-tinta-300">
+            {p.home} × {p.away}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {p.placares.map((pl) => (
+              <span
+                key={pl.placar}
+                className="rounded border border-dourado-300 bg-papel-100 px-1.5 py-0.5 font-mono text-[11px]"
+              >
+                <b className="text-dourado-700">{pl.placar}</b>
+                <span className="ml-1 text-tinta-100">{pl.qtd}x</span>
+              </span>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// ─── Distribuição ───────────────────────────────────────────────────────────
+// ─── Distribuição (só conteúdo) ────────────────────────────────────────────
 
-function BlocoDistribuicao({ distribuicao }: { distribuicao: DistribuicaoJogo[] }) {
+function BlocoDistribuicaoConteudo({ distribuicao }: { distribuicao: DistribuicaoJogo[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm">
-      <div className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2">
-        <p className="font-display text-sm font-bold uppercase tracking-widest text-dourado-50">
-          🎯 Distribuição de Palpites
-        </p>
-        <p className="font-mono text-[9px] text-dourado-50/80">
-          {distribuicao.length} jogo{distribuicao.length !== 1 ? 's' : ''} com palpites
-        </p>
-      </div>
+    <>
+      <p className="mb-2 font-mono text-[10px] text-tinta-200">
+        {distribuicao.length} jogo{distribuicao.length !== 1 ? 's' : ''} com palpites
+      </p>
       <div className="divide-y divide-papel-borda-200/60">
         {distribuicao.map((d) => (
           <PizzaJogo key={d.matchId} d={d} />
         ))}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -356,7 +367,7 @@ function PizzaJogo({ d }: { d: DistribuicaoJogo }) {
   const anguloEmpate = (d.empate / d.totalPalpites) * 360
 
   return (
-    <div className="px-3 py-2.5">
+    <div className="py-2.5">
       <p className="mb-2 font-sans text-xs font-semibold text-tinta-300">{d.home} × {d.away}</p>
       <div className="flex items-center gap-3">
         <PizzaSvg
@@ -424,20 +435,38 @@ function PizzaSvg({ anguloMandante, anguloEmpate, total }: { anguloMandante: num
   )
 }
 
-// ─── Pódio ──────────────────────────────────────────────────────────────────
+// ─── Pódio da Rodada (derivado da parcial ordenada por ptsRodada) ──────────
 
-function BlocoPodio({ podio }: { podio: PodioLinha[] }) {
+function BlocoPodioRodada({ linhas }: { linhas: ParcialLinha[] }) {
+  // Filtra só quem palpitou (ptsRodada !== null) e pega os 3 primeiros
+  const top3 = linhas.filter((l) => l.ptsRodada !== null && l.ptsRodada !== undefined).slice(0, 3)
+
+  if (top3.length === 0) {
+    return (
+      <div className="overflow-hidden rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm">
+        <div className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2">
+          <p className="font-display text-sm font-bold uppercase tracking-widest text-dourado-50">
+            🏆 Pódio da Rodada
+          </p>
+        </div>
+        <p className="p-4 text-center font-sans text-xs text-tinta-100">
+          Ninguém pontuou ainda nessa rodada.
+        </p>
+      </div>
+    )
+  }
+
   const seq = [
-    { pos: 2, item: podio[1] ?? null, altura: 'h-16', bg: 'bg-gray-200 border-gray-400', medalha: '🥈' },
-    { pos: 1, item: podio[0] ?? null, altura: 'h-24', bg: 'bg-dourado-200 border-dourado-500', medalha: '👑' },
-    { pos: 3, item: podio[2] ?? null, altura: 'h-12', bg: 'bg-orange-200 border-orange-500', medalha: '🥉' },
+    { pos: 2, item: top3[1] ?? null, altura: 'h-16', bg: 'bg-gray-200 border-gray-400', medalha: '🥈' },
+    { pos: 1, item: top3[0] ?? null, altura: 'h-24', bg: 'bg-dourado-200 border-dourado-500', medalha: '🥇' },
+    { pos: 3, item: top3[2] ?? null, altura: 'h-12', bg: 'bg-orange-200 border-orange-500', medalha: '🥉' },
   ]
 
   return (
     <div className="overflow-hidden rounded-lg border-2 border-dourado-300 bg-papel-50 shadow-sm">
       <div className="border-b-2 border-dourado-400 bg-couro-300 px-3 py-2">
         <p className="font-display text-sm font-bold uppercase tracking-widest text-dourado-50">
-          🏆 Pódio Atual
+          🏆 Pódio da Rodada
         </p>
       </div>
       <div className="flex items-end justify-center gap-2 p-4">
@@ -448,8 +477,8 @@ function BlocoPodio({ podio }: { podio: PodioLinha[] }) {
             <div key={pos} className="flex flex-col items-center gap-1" style={{ width: isFirst ? 90 : 75 }}>
               <span className={cx(isFirst ? 'text-2xl' : 'text-lg')}>{medalha}</span>
               <AvatarCirculo
-                avatar={item.avatar}
-                emoji={item.emoji}
+                avatar={item.avatar ?? null}
+                emoji={item.emoji ?? null}
                 nome={item.nome}
                 tamanho={isFirst ? 'grande' : 'medio'}
               />
@@ -458,7 +487,7 @@ function BlocoPodio({ podio }: { podio: PodioLinha[] }) {
               </p>
               <div className={cx('flex w-full items-center justify-center rounded-t-md border-2 border-b-0', bg, altura)}>
                 <span className={cx('font-mono font-bold text-tinta-300', isFirst ? 'text-2xl' : 'text-lg')}>
-                  {item.pts}
+                  {item.ptsRodada ?? 0}
                 </span>
               </div>
             </div>
