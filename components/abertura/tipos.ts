@@ -18,6 +18,8 @@ export interface JogadorCampo {
   /** Posição final em px de cena (390×844), usada pro vetor de corrida. */
   xpx: number
   ypx: number
+  /** Foto de perfil (base64 ou URL). Null se sem foto. */
+  avatar: string | null
 }
 
 export interface JogadorBanco {
@@ -27,4 +29,6 @@ export interface JogadorBanco {
   numero: string
   xpx: number
   ypx: number
+  /** Foto de perfil (base64 ou URL). Null se sem foto. */
+  avatar: string | null
 }
