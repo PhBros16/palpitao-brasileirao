@@ -10,11 +10,6 @@ import { getFormacao, type Formacao } from '@/lib/formacoes'
 //   ATA: PH, Matheus Couto, Matheus Brito
 //   TÉCNICO: Victor Bahia
 //   BANCO: Samuel, Damus
-//
-// Distribuição preserva tier natural sempre que possível. Quando um setor
-// precisa de mais jogadores do que os naturais, puxa dos setores vizinhos
-// (def pega de mei; mei pega de def ou ata; ata pega de mei). Assim toda
-// formação clássica sempre tem 11 titulares em campo.
 
 interface Jogador {
   id: string
@@ -47,30 +42,19 @@ function pctToPx(left: string, top: string): { xpx: number; ypx: number } {
   return { xpx: 12 + l * 366, ypx: 12 + t * 708 }
 }
 
-/** Distribui os 10 jogadores de linha (def+mei+ata) respeitando tiers naturais
- *  sempre que possível. Se um setor precisa de mais, puxa do vizinho.
- *  Retorna arrays com exatamente os tamanhos pedidos. */
 function distribuirLinhas(
   naturais: { def: Jogador[]; mei: Jogador[]; ata: Jogador[] },
   slots: { def: number; mei: number; ata: number },
 ): { def: Jogador[]; mei: Jogador[]; ata: Jogador[]; sobra: Jogador[] } {
-  // Copias mutáveis
   const poolDef = [...naturais.def]
   const poolMei = [...naturais.mei]
   const poolAta = [...naturais.ata]
 
   const escolhidos = { def: [] as Jogador[], mei: [] as Jogador[], ata: [] as Jogador[] }
 
-  // Fase 1: preencher com naturais
   escolhidos.def = poolDef.splice(0, slots.def)
   escolhidos.mei = poolMei.splice(0, slots.mei)
   escolhidos.ata = poolAta.splice(0, slots.ata)
-
-  // Fase 2: se algum setor tá faltando, puxa dos vizinhos
-  // Ordem de prioridade pra "emprestar":
-  //   def falta → puxa de mei (mais fácil recuar do que promover ao ataque)
-  //   mei falta → puxa de def, depois de ata
-  //   ata falta → puxa de mei, depois de def
 
   while (escolhidos.def.length < slots.def && poolMei.length > 0) {
     escolhidos.def.push(poolMei.shift()!)
@@ -93,13 +77,11 @@ function distribuirLinhas(
     escolhidos.ata.push(poolDef.shift()!)
   }
 
-  // Sobra = quem restou nos pools
   const sobra = [...poolDef, ...poolMei, ...poolAta]
 
   return { ...escolhidos, sobra }
 }
 
-/** Distribui os jogadores nas posições da formação. */
 function distribuir(formacao: Formacao): { titulares: Jogador[]; banco: Jogador[]; tecnico: Jogador | null } {
   if (formacao.tipo === 'doida') {
     const ordem = ['gol', 'def', 'mei', 'ata', 'tec', 'res']
@@ -120,31 +102,38 @@ function distribuir(formacao: Formacao): { titulares: Jogador[]; banco: Jogador[
 
   const titulares: Jogador[] = []
 
-  // GOL
   if (gol >= 1) titulares.push(naturais.gol[0])
   const golSobra = naturais.gol.slice(1)
 
-  // Linhas (def/mei/ata) com fallback entre setores
   const linhas = distribuirLinhas(
     { def: naturais.def, mei: naturais.mei, ata: naturais.ata },
     { def, mei, ata },
   )
   titulares.push(...linhas.def, ...linhas.mei, ...linhas.ata)
 
-  // Banco = sobras + reservas oficiais (limita a 3 — banco visual tem só 3 slots + adm)
   const banco = [...golSobra, ...linhas.sobra, ...reservas].slice(0, 3)
 
   return { titulares, banco, tecnico: tec }
 }
 
-/** Gera TITULARES/BANCO/TECNICO já posicionados pra formação informada. */
-export function gerarElenco(formacaoId: string | null | undefined): {
+/**
+ * Gera TITULARES/BANCO/TECNICO já posicionados pra formação informada.
+ * `avatares` opcional — map de nome → dataURL/URL da foto. Se omitido ou
+ * o nome não tiver avatar, o ChipJogador cai nas iniciais.
+ */
+export function gerarElenco(
+  formacaoId: string | null | undefined,
+  avatares?: Map<string, string | null>,
+): {
   TITULARES: JogadorCampo[]
   BANCO: JogadorBanco[]
   TECNICO: JogadorBanco
 } {
   const formacao = getFormacao(formacaoId)
   const { titulares, banco, tecnico } = distribuir(formacao)
+
+  const getAvatar = (nome: string): string | null =>
+    avatares?.get(nome) ?? null
 
   const TITULARES: JogadorCampo[] = titulares.map((p, i) => {
     const pos = formacao.posicoes[i] ?? { left: '50%', top: '50%' }
@@ -166,30 +155,47 @@ export function gerarElenco(formacaoId: string | null | undefined): {
       tier,
       xpx,
       ypx,
+      avatar: getAvatar(p.nome),
     }
   })
 
   const BANCO: JogadorBanco[] = banco.map((p, i) => {
     const coord = formacao.banco[i + 1] ?? { xpx: 146 + i * 59, ypx: 734 }
-    return { id: p.id, iniciais: p.iniciais, nome: p.nome, numero: p.numero, xpx: coord.xpx, ypx: coord.ypx }
+    return {
+      id: p.id,
+      iniciais: p.iniciais,
+      nome: p.nome,
+      numero: p.numero,
+      xpx: coord.xpx,
+      ypx: coord.ypx,
+      avatar: getAvatar(p.nome),
+    }
   })
 
   const tecCoord = formacao.banco[0] ?? { xpx: 87, ypx: 734 }
   const TECNICO: JogadorBanco = tecnico
-    ? { id: tecnico.id, iniciais: tecnico.iniciais, nome: tecnico.nome, numero: '', xpx: tecCoord.xpx, ypx: tecCoord.ypx }
-    : { id: 'tec-vazio', iniciais: '?', nome: '', numero: '', xpx: tecCoord.xpx, ypx: tecCoord.ypx }
+    ? {
+        id: tecnico.id,
+        iniciais: tecnico.iniciais,
+        nome: tecnico.nome,
+        numero: '',
+        xpx: tecCoord.xpx,
+        ypx: tecCoord.ypx,
+        avatar: getAvatar(tecnico.nome),
+      }
+    : { id: 'tec-vazio', iniciais: '?', nome: '', numero: '', xpx: tecCoord.xpx, ypx: tecCoord.ypx, avatar: null }
 
   return { TITULARES, BANCO, TECNICO }
 }
 
-// ─── Exports de compatibilidade (formação 4-3-3 default) ───────────────────
+// ─── Exports de compatibilidade (formação 4-3-3 default, sem avatares) ─────
 const _default = gerarElenco('4-3-3')
 export const TITULARES = _default.TITULARES
 export const BANCO = _default.BANCO
 export const TECNICO = _default.TECNICO
 
 
-// ─── PIN lookup pra abertura ──────────────────────────────────────────────
+// ─── PIN lookup + Avatares pra abertura ───────────────────────────────────
 
 import { supabase } from '@/lib/supabase'
 
@@ -235,5 +241,26 @@ export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | nu
     pin: data.pin,
     avatar: data.avatar,
     isAdmin: data.is_admin ?? false,
+  }
+}
+
+/**
+ * Busca todos os avatares dos participantes (map de nome → avatar).
+ * Retorna Map vazio se der erro. Filtra participantes admin (Administração
+ * não aparece no campinho como jogador).
+ */
+export async function buscarAvatares(): Promise<Map<string, string | null>> {
+  try {
+    const { data, error } = await supabase
+      .from('participants')
+      .select('name, avatar')
+    if (error || !data) return new Map()
+    const m = new Map<string, string | null>()
+    for (const p of data) {
+      m.set(p.name, p.avatar ?? null)
+    }
+    return m
+  } catch {
+    return new Map()
   }
 }
