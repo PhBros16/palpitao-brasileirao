@@ -56,13 +56,39 @@ const itemRodada = {
   },
 }
 
+interface Jogador {
+  participantId: string
+  nome: string
+  avatar?: string | null
+  emoji?: string | null
+}
+
+// Avatar circular grande — mostra foto se tiver, senão iniciais
+function AvatarGrande({ jogador, corBorda, corFundo }: { jogador: Jogador; corBorda: string; corFundo: string }) {
+  const avatarLimpo = jogador.avatar && jogador.avatar.trim().length > 0 ? jogador.avatar : null
+  return (
+    <div className={cx(
+      'mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 font-display text-base font-bold text-tinta-300',
+      corBorda,
+      !avatarLimpo && corFundo,
+    )}>
+      {avatarLimpo ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={avatarLimpo} alt={jogador.nome} className="h-full w-full object-cover" />
+      ) : (
+        <span>{getIniciais(jogador.nome)}</span>
+      )}
+    </div>
+  )
+}
+
 export function FrenteFrenteModal({
   jogadorA,
   jogadorB,
   onFechar,
 }: {
-  jogadorA: { participantId: string; nome: string }
-  jogadorB: { participantId: string; nome: string }
+  jogadorA: Jogador
+  jogadorB: Jogador
   onFechar: () => void
 }) {
   const [janela, setJanela] = useState<Janela>('total')
@@ -165,10 +191,11 @@ export function FrenteFrenteModal({
               transition={{ duration: 0.35, delay: 0.05 }}
               className="text-center"
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-dourado-400 bg-dourado-100 font-display text-base font-bold text-tinta-300">
-                {getIniciais(jogadorA.nome)}
-              </div>
-              <p className="mt-1 truncate font-sans text-xs font-semibold text-tinta-300">{jogadorA.nome}</p>
+              <AvatarGrande jogador={jogadorA} corBorda="border-dourado-400" corFundo="bg-dourado-100" />
+              <p className="mt-1 truncate font-sans text-xs font-semibold text-tinta-300">
+                {jogadorA.emoji && <span className="mr-1">{jogadorA.emoji}</span>}
+                {jogadorA.nome}
+              </p>
               <motion.p
                 key={`vA-${vA}`}
                 initial={{ scale: 0.6, opacity: 0 }}
@@ -206,10 +233,11 @@ export function FrenteFrenteModal({
               transition={{ duration: 0.35, delay: 0.05 }}
               className="text-center"
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-gray-400 bg-gray-200 font-display text-base font-bold text-tinta-300">
-                {getIniciais(jogadorB.nome)}
-              </div>
-              <p className="mt-1 truncate font-sans text-xs font-semibold text-tinta-300">{jogadorB.nome}</p>
+              <AvatarGrande jogador={jogadorB} corBorda="border-gray-400" corFundo="bg-gray-200" />
+              <p className="mt-1 truncate font-sans text-xs font-semibold text-tinta-300">
+                {jogadorB.emoji && <span className="mr-1">{jogadorB.emoji}</span>}
+                {jogadorB.nome}
+              </p>
               <motion.p
                 key={`vB-${vB}`}
                 initial={{ scale: 0.6, opacity: 0 }}
