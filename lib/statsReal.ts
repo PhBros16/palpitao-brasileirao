@@ -10,7 +10,6 @@ import { supabase } from './supabase'
 // is_admin=false. Mesma lógica do ranking.
 
 export interface MinhasStatsReal {
-  // Cards principais
   rodadas: number
   cravadas: number
   vencedor: number
@@ -19,11 +18,10 @@ export interface MinhasStatsReal {
   meuRecorde: number
   tendencia: 'alta' | 'baixa' | 'estavel' | 'sem_dados'
 
-  // Heatmap Performance por Rodada
   ptsPorRodada: Array<{
     roundId: string
     numero: number
-    label: string   // "R1", "R18", "E1", "E2" — etiqueta curta pra heatmap
+    label: string
     nome: string
     pontos: number | null
     cravadas: number
@@ -31,10 +29,9 @@ export interface MinhasStatsReal {
     vencedores: number
   }>
 
-  // Barras %
-  pctPlacarExato: number    // cravadas / total_com_palpite
-  pctVencedor: number       // (vencedor + cravadas) / total_com_palpite (acumulativo)
-  pctSaldo: number          // saldo / total_com_palpite
+  pctPlacarExato: number
+  pctVencedor: number
+  pctSaldo: number
   totalComPalpite: number
 }
 
@@ -49,14 +46,13 @@ export interface DetalheJogoRodada {
   pontos: number | null
 }
 
-/** Busca todas as stats pessoais de um participante. */
 export async function buscarMinhasStats(participantId: string): Promise<MinhasStatsReal> {
-  // 1. Lista rodadas finalizadas em ordem cronológica
+  // 1. Lista rodadas finalizadas em ordem cronológica REAL (por created_at)
   const { data: rounds } = await supabase
     .from('rounds')
     .select('id, number, name')
     .eq('finalized', true)
-    .order('number', { ascending: true })
+    .order('created_at', { ascending: true })
 
   const roundList = rounds ?? []
   const roundIds = roundList.map((r) => r.id)
@@ -70,7 +66,6 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     }
   }
 
-  // 2. Busca round_results do participante em todas as rodadas
   const { data: rrRows } = await supabase
     .from('round_results')
     .select('round_id, round_pts, exact_scores, correct_saldo, correct_winner')
@@ -79,10 +74,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
 
   const rrByRound = new Map((rrRows ?? []).map((r) => [r.round_id, r]))
 
-  // 3. Monta ptsPorRodada + agrega totais
   let cravadas = 0, vencedor = 0, saldo = 0, totalPts = 0, rodadas = 0, meuRecorde = 0
-  // Helper: rodadas 1-38 → "R1", "R38". Rodadas 100+ (extras) → "E1", "E2", etc.
-  // Padrão que escala sozinho conforme mais extras forem criadas (100, 101, 102...).
   const rodadasExtras = roundList.filter((r) => r.number >= 100).sort((a, b) => a.number - b.number)
   const mapaExtra = new Map(rodadasExtras.map((r, i) => [r.id, `E${i + 1}`]))
   function montarLabel(r: { id: string; number: number }): string {
@@ -113,7 +105,6 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
 
   const mediaPts = rodadas > 0 ? Math.round((totalPts / rodadas) * 10) / 10 : 0
 
-  // 4. Tendência (N=5): compara média das últimas 5 vs anteriores
   const pontosNumericos = ptsPorRodada.filter((p) => p.pontos !== null).map((p) => p.pontos!) as number[]
   let tendencia: MinhasStatsReal['tendencia'] = 'sem_dados'
   if (pontosNumericos.length >= 2) {
@@ -128,11 +119,10 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
       else if (diff < -1) tendencia = 'baixa'
       else tendencia = 'estavel'
     } else {
-      tendencia = 'estavel' // poucas rodadas pra calcular
+      tendencia = 'estavel'
     }
   }
 
-  // 5. Barras % — precisa contar palpites emitidos (não NP)
   const { data: matches } = await supabase
     .from('matches')
     .select('id, home_score, away_score')
@@ -162,8 +152,6 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
   }
 }
 
-/** Detalhes jogo-a-jogo de uma rodada específica (usado quando clica no
- *  heatmap pra abrir o detalhe daquela rodada). */
 export async function buscarDetalheRodada(
   roundId: string,
   participantId: string,
