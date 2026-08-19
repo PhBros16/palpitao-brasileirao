@@ -297,7 +297,7 @@ function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }
           <img
             src={frango.photoUrl}
             alt={frango.playerName}
-            className="mx-auto max-h-56 w-full rounded object-cover"
+            className="mx-auto max-h-96 w-auto max-w-full rounded object-contain"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
         </div>
