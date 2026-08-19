@@ -117,12 +117,14 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     supabase
       .from('round_results')
       .select('participant_id, round_pts'),
-    // 7. Última rodada finalizada (pro Frango)
+    // 7. Última rodada finalizada (pro Frango) — ordem por created_at pra
+    // pegar a criada mais recentemente, não a com maior number (que pode
+    // ser uma "extra" criada há tempos).
     supabase
       .from('rounds')
       .select('id, name')
       .eq('finalized', true)
-      .order('number', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
   ])
