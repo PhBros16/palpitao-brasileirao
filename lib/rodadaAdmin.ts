@@ -146,12 +146,142 @@ export async function buscarJogosSemPlacar(
     .map((m) => ({ id: m.id, home: m.home, away: m.away }))
 }
 
+/**
+ * Finaliza uma rodada:
+ *   1. Marca rounds.finalized = true e palpites_open = false
+ *   2. Popula round_results com pts/cravadas/saldos/vencedores calculados
+ *   3. Recalcula total_pts e position em cascata pra TODAS as rodadas
+ *      finalizadas (ordem: number crescente)
+ *
+ * Se der erro em qualquer passo, lança — não fica em estado parcial nos 2
+ * primeiros (mas passo 3 pode falhar mesmo com passos 1 e 2 ok).
+ */
 export async function finalizarRodada(roundId: string): Promise<void> {
-  const { error } = await supabase
+  // Passo 1: marca como finalizada
+  const { error: e1 } = await supabase
     .from('rounds')
     .update({ finalized: true, palpites_open: false })
     .eq('id', roundId)
-  if (error) throw error
+  if (e1) throw e1
+
+  // Passo 2: popula round_results dessa rodada
+  const { data: parts, error: ePart } = await supabase
+    .from('participants')
+    .select('id')
+  if (ePart) throw ePart
+
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('round_id', roundId)
+  const matchIds = (matches ?? []).map((m) => m.id)
+
+  const { data: preds } = matchIds.length > 0 ? await supabase
+    .from('predictions')
+    .select('participant_id, match_id, points')
+    .in('match_id', matchIds) : { data: [] as any[] }
+
+  const predsPorPart = new Map<string, Array<{ points: number | null }>>()
+  for (const p of preds ?? []) {
+    if (!predsPorPart.has(p.participant_id)) predsPorPart.set(p.participant_id, [])
+    predsPorPart.get(p.participant_id)!.push({ points: p.points })
+  }
+
+  // Limpa round_results existente dessa rodada (caso reabrir/refinalizar)
+  await supabase.from('round_results').delete().eq('round_id', roundId)
+
+  const rows = (parts ?? []).map((part) => {
+    const meusPalps = predsPorPart.get(part.id) ?? []
+    let pts = 0, exatos = 0, saldos = 0, vencedores = 0
+    for (const p of meusPalps) {
+      const pt = p.points ?? 0
+      pts += pt
+      if (pt === 5 || pt === 10) exatos++
+      else if (pt === 3 || pt === 6) saldos++
+      else if (pt === 1 || pt === 2) vencedores++
+    }
+    return {
+      round_id: roundId,
+      participant_id: part.id,
+      round_pts: pts,
+      total_pts: 0,
+      position: 0,
+      exact_scores: exatos,
+      correct_saldo: saldos,
+      correct_winner: vencedores,
+      missed: meusPalps.length === 0,
+    }
+  })
+
+  if (rows.length > 0) {
+    const { error: eIns } = await supabase.from('round_results').insert(rows)
+    if (eIns) throw eIns
+  }
+
+  // Passo 3: recalcula total_pts e position em cascata pra TODAS finalizadas
+  const { data: rodadasFinalizadas } = await supabase
+    .from('rounds')
+    .select('id, number')
+    .eq('finalized', true)
+    .order('number', { ascending: true })
+
+  if (!rodadasFinalizadas || rodadasFinalizadas.length === 0) return
+
+  const roundIds = rodadasFinalizadas.map((r) => r.id)
+  const { data: allRRs } = await supabase
+    .from('round_results')
+    .select('id, round_id, participant_id, round_pts')
+    .in('round_id', roundIds)
+
+  if (!allRRs || allRRs.length === 0) return
+
+  const ordemPorRound = new Map(rodadasFinalizadas.map((r, i) => [r.id, i]))
+
+  const rrsSorted = [...allRRs].sort((a, b) => {
+    const oa = ordemPorRound.get(a.round_id) ?? 0
+    const ob = ordemPorRound.get(b.round_id) ?? 0
+    return oa - ob
+  })
+
+  const acumPorPart = new Map<string, number>()
+  const totalPorRR = new Map<string, number>()
+
+  for (const rr of rrsSorted) {
+    const acumAnt = acumPorPart.get(rr.participant_id) ?? 0
+    const novoAcum = acumAnt + (rr.round_pts ?? 0)
+    acumPorPart.set(rr.participant_id, novoAcum)
+    totalPorRR.set(rr.id, novoAcum)
+  }
+
+  const posPorRR = new Map<string, number>()
+  for (const rd of rodadasFinalizadas) {
+    const rrsDaRodada = allRRs
+      .filter((rr) => rr.round_id === rd.id)
+      .map((rr) => ({
+        id: rr.id,
+        total: totalPorRR.get(rr.id) ?? 0,
+        round: rr.round_pts ?? 0,
+      }))
+      .sort((a, b) => b.total - a.total || b.round - a.round)
+
+    rrsDaRodada.forEach((rr, i) => {
+      posPorRR.set(rr.id, i + 1)
+    })
+  }
+
+  const updates = allRRs.map((rr) =>
+    supabase
+      .from('round_results')
+      .update({
+        total_pts: totalPorRR.get(rr.id) ?? 0,
+        position: posPorRR.get(rr.id) ?? 0,
+      })
+      .eq('id', rr.id),
+  )
+
+  const results = await Promise.all(updates)
+  const primeiroErro = results.find((r) => r.error)
+  if (primeiroErro?.error) throw primeiroErro.error
 }
 
 export async function reabrirRodada(roundId: string): Promise<void> {
