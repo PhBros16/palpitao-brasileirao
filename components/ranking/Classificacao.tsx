@@ -152,7 +152,7 @@ export function Classificacao({
             <colgroup>
               <col className="w-8" />
               <col className="w-[132px]" />
-              <col className="w-14" />
+              <col className="w-12" />
               <col className="w-11" />
               <col className="w-11" />
               <col className="w-11" />
@@ -164,7 +164,7 @@ export function Classificacao({
                 <th className="border-b border-r-2 border-papel-borda-300 bg-papel-100 px-2 py-2 text-left">
                   Nome
                 </th>
-                <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-right">Pontos</th>
+                <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-left">Pontos</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-1 py-2 text-right">Crav.</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-1 py-2 text-right">Venc.</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-1 py-2 text-right">Saldo</th>
@@ -193,7 +193,7 @@ export function Classificacao({
                       <span className="whitespace-nowrap" title={d.nome}>{abreviarNome(d.nome)}</span>
                     </div>
                   </td>
-                  <td className="border-b border-papel-borda-200/60 px-2 py-2 text-right font-mono text-xs font-bold text-tinta-300">
+                  <td className="border-b border-papel-borda-200/60 px-2 py-2 text-left font-mono text-xs font-bold text-tinta-300">
                     {d.pontos}
                   </td>
                   <td className="border-b border-papel-borda-200/60 px-1 py-2 text-right font-mono text-xs text-tinta-200">
