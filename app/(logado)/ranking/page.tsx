@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RankingScreen } from '@/components/ranking/RankingScreen'
-import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal''use client'
+import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 
 // /ranking — envolvida no AppLayout.
 
