@@ -3,13 +3,23 @@
 
 import { supabase } from './supabase'
 
+export interface CampeaoRodada {
+  nome: string
+  avatar: string | null
+  emoji: string | null
+  pts: number
+}
+
 export interface RodadaHistorico {
   id: string
   number: number
   name: string
   isDouble: boolean
   totalJogos: number
-  campeao: { nome: string; avatar: string | null; emoji: string | null; pts: number } | null
+  /** Primeiro campeão (mantido pra compatibilidade). Use `campeoes` pra ver todos. */
+  campeao: CampeaoRodada | null
+  /** Lista de campeões (mais de um em caso de empate perfeito). */
+  campeoes: CampeaoRodada[]
   meusPontos: number | null
 }
 
@@ -73,10 +83,10 @@ export async function buscarRodadasFinalizadasHistorico(
 
   const roundIds = rounds.map((r) => r.id)
 
-  // Todos os round_results das rodadas de uma vez
+  // Todos os round_results das rodadas de uma vez (com campos pra desempate)
   const { data: results } = await supabase
     .from('round_results')
-    .select('round_id, participant_id, round_pts, position')
+    .select('round_id, participant_id, round_pts, exact_scores, correct_winner, correct_saldo')
     .in('round_id', roundIds)
 
   // Todos os participantes (só não-admin)
@@ -104,16 +114,37 @@ export async function buscarRodadasFinalizadasHistorico(
   return rounds.map((r) => {
     const resultsRodada = (results ?? []).filter((x) => x.round_id === r.id)
 
-    // Campeão = quem fez mais pts NA RODADA (não usa position que é do campeonato)
-    const campeaoResult = resultsRodada
+    // Ordena por: pts → cravadas → vencedor → saldo (desc)
+    const ordenados = resultsRodada
       .filter((x) => partMap.has(x.participant_id))
-      .sort((a, b) => (b.round_pts ?? 0) - (a.round_pts ?? 0))[0]
+      .sort((a, b) => {
+        if ((b.round_pts ?? 0) !== (a.round_pts ?? 0)) return (b.round_pts ?? 0) - (a.round_pts ?? 0)
+        if ((b.exact_scores ?? 0) !== (a.exact_scores ?? 0)) return (b.exact_scores ?? 0) - (a.exact_scores ?? 0)
+        if ((b.correct_winner ?? 0) !== (a.correct_winner ?? 0)) return (b.correct_winner ?? 0) - (a.correct_winner ?? 0)
+        return (b.correct_saldo ?? 0) - (a.correct_saldo ?? 0)
+      })
 
-    let campeao: RodadaHistorico['campeao'] = null
-    if (campeaoResult) {
-      const p = partMap.get(campeaoResult.participant_id)
-      if (p) {
-        campeao = { nome: p.nome, avatar: p.avatar, emoji: p.emoji, pts: campeaoResult.round_pts ?? 0 }
+    // Campeões = todos que empatam TOTALMENTE (pts + cravadas + vencedor + saldo) com o primeiro
+    const campeoes: CampeaoRodada[] = []
+    if (ordenados.length > 0) {
+      const primeiro = ordenados[0]
+      for (const r of ordenados) {
+        const empatouTudo =
+          (r.round_pts ?? 0) === (primeiro.round_pts ?? 0) &&
+          (r.exact_scores ?? 0) === (primeiro.exact_scores ?? 0) &&
+          (r.correct_winner ?? 0) === (primeiro.correct_winner ?? 0) &&
+          (r.correct_saldo ?? 0) === (primeiro.correct_saldo ?? 0)
+        if (!empatouTudo) break
+
+        const p = partMap.get(r.participant_id)
+        if (p) {
+          campeoes.push({
+            nome: p.nome,
+            avatar: p.avatar,
+            emoji: p.emoji,
+            pts: r.round_pts ?? 0,
+          })
+        }
       }
     }
 
@@ -129,7 +160,8 @@ export async function buscarRodadasFinalizadasHistorico(
       name: r.name,
       isDouble: r.is_double ?? false,
       totalJogos: jogosPorRodada.get(r.id) ?? 0,
-      campeao,
+      campeao: campeoes[0] ?? null,
+      campeoes,
       meusPontos,
     }
   })
@@ -158,9 +190,6 @@ export async function buscarDetalheRodada(roundId: string): Promise<DetalheRodad
   })
 
   // 3. Ranking DA RODADA (ordenado por pts da rodada, não position do campeonato!)
-  // A coluna 'position' em round_results guarda a posição do CAMPEONATO
-  // acumulado até aquela rodada. Aqui queremos a posição DAQUELA RODADA
-  // específica — então ordena por round_pts desc, desempate por cravadas.
   const { data: results } = await supabase
     .from('round_results')
     .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
@@ -254,15 +283,32 @@ export async function buscarDetalheRodada(roundId: string): Promise<DetalheRodad
     ? { playerName: shameRow.player_name, text: shameRow.text ?? null, photoUrl: shameRow.photo_url ?? null }
     : null
 
+  // Detecta campeões (podem ser vários em empate perfeito)
+  const campeoes: CampeaoRodada[] = []
+  if (ranking.length > 0) {
+    const primeiro = ranking[0]
+    for (const r of ranking) {
+      if (
+        r.pontos === primeiro.pontos &&
+        r.cravadas === primeiro.cravadas &&
+        r.vencedor === primeiro.vencedor &&
+        r.saldo === primeiro.saldo
+      ) {
+        campeoes.push({ nome: r.nome, avatar: r.avatar, emoji: r.emoji, pts: r.pontos })
+      } else {
+        break
+      }
+    }
+  }
+
   const rodada: RodadaHistorico = {
     id: round.id,
     number: round.number,
     name: round.name,
     isDouble: round.is_double ?? false,
     totalJogos: (matches ?? []).length,
-    campeao: ranking[0]
-      ? { nome: ranking[0].nome, avatar: ranking[0].avatar, emoji: ranking[0].emoji, pts: ranking[0].pontos }
-      : null,
+    campeao: campeoes[0] ?? null,
+    campeoes,
     meusPontos: null,
   }
 
