@@ -21,14 +21,13 @@ export interface ChipJogadorProps {
 }
 
 export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick, carregando, avatar }: ChipJogadorProps) {
-  const tamanho = variante === 'titular' ? 56 : 48
+  const tamanho = variante === 'titular' ? 52 : 44
   const isAdmin = variante === 'admin'
   const isTecnico = variante === 'tecnico'
   const temSeloEspecial = isAdmin || isTecnico
 
   const avatarLimpo = avatar && avatar.trim().length > 0 ? avatar : null
   const [fotoFalhou, setFotoFalhou] = useState(false)
-  // Admin agora TAMBÉM mostra foto se tiver
   const temFoto = !!avatarLimpo && !fotoFalhou
 
   const wrapperStyle: CSSProperties = {
@@ -101,14 +100,14 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           <span
             className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600"
             style={{
-              right: -6,
-              top: -6,
-              width: 15,
-              height: 15,
+              right: -2,
+              top: -2,
+              width: 18,
+              height: 18,
               zIndex: 3,
             }}
           >
-            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 13.5c.04-.33.06-.66.06-1s-.02-.67-.06-1l2.1-1.6a.5.5 0 0 0 .12-.65l-2-3.4a.5.5 0 0 0-.6-.23l-2.5 1a7.6 7.6 0 0 0-1.7-1l-.38-2.65A.5.5 0 0 0 14 2.5h-4a.5.5 0 0 0-.5.43L9.12 5.6a7.6 7.6 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.23l-2 3.4a.5.5 0 0 0 .12.65l2.1 1.6c-.04.33-.06.66-.06 1s.02.67.06 1l-2.1 1.6a.5.5 0 0 0-.12.65l2 3.4c.14.23.4.32.6.23l2.5-1c.5.42 1.08.76 1.7 1l.38 2.65a.5.5 0 0 0 .5.43h4a.5.5 0 0 0 .5-.43l.38-2.65c.62-.24 1.2-.58 1.7-1l2.5 1c.2.09.46 0 .6-.23l2-3.4a.5.5 0 0 0-.12-.65z" />
             </svg>
@@ -117,15 +116,15 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           <span
             className="absolute flex items-center justify-center bg-couro-600"
             style={{
-              right: -8,
-              top: -8,
-              width: 17,
-              height: 17,
+              right: -3,
+              top: -3,
+              width: 20,
+              height: 20,
               clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
               zIndex: 3,
             }}
           >
-            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="var(--dourado-100)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--dourado-100)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5" y="4" width="14" height="17" rx="2" />
               <rect x="9" y="2" width="6" height="3" rx="1" fill="var(--dourado-100)" stroke="none" />
               <line x1="8" y1="11" x2="16" y2="11" />
@@ -136,12 +135,12 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
           <span
             className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600 font-mono font-bold text-dourado-100"
             style={{
-              right: -6,
-              top: -6,
-              minWidth: variante === 'titular' ? 18 : 15,
-              height: variante === 'titular' ? 18 : 15,
-              padding: '0 3px',
-              fontSize: variante === 'titular' ? 9 : 8,
+              right: -2,
+              top: -2,
+              minWidth: variante === 'titular' ? 20 : 17,
+              height: variante === 'titular' ? 20 : 17,
+              padding: '0 4px',
+              fontSize: variante === 'titular' ? 10 : 9,
               zIndex: 3,
             }}
           >
