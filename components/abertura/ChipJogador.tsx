@@ -21,7 +21,7 @@ export interface ChipJogadorProps {
 }
 
 export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick, carregando, avatar }: ChipJogadorProps) {
-  const tamanho = variante === 'titular' ? 44 : 38
+  const tamanho = variante === 'titular' ? 56 : 48
   const isAdmin = variante === 'admin'
   const isTecnico = variante === 'tecnico'
   const temSeloEspecial = isAdmin || isTecnico
