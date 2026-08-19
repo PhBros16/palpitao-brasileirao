@@ -151,11 +151,11 @@ export function Classificacao({
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
               <col className="w-8" />
-              <col className="w-[112px]" />
+              <col className="w-[132px]" />
               <col className="w-14" />
-              <col className="w-12" />
-              <col className="w-12" />
-              <col className="w-12" />
+              <col className="w-11" />
+              <col className="w-11" />
+              <col className="w-11" />
               <col className="w-14" />
             </colgroup>
             <thead>
@@ -187,10 +187,10 @@ export function Classificacao({
                     {i + 1}
                   </td>
                   <td className="border-b border-r-2 border-papel-borda-300 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
+                    <div className="flex items-center gap-1.5">
                       <AvatarMini avatar={d.avatar} nome={d.nome} />
                       {d.emoji && <span className="flex-shrink-0 text-sm leading-none">{d.emoji}</span>}
-                      <span className="truncate" title={d.nome}>{abreviarNome(d.nome)}</span>
+                      <span className="whitespace-nowrap" title={d.nome}>{abreviarNome(d.nome)}</span>
                     </div>
                   </td>
                   <td className="border-b border-papel-borda-200/60 px-2 py-2 text-right font-mono text-xs font-bold text-tinta-300">
