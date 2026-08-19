@@ -673,8 +673,8 @@ function SecaoResultadoCorrecao() {
 // ─── SEÇÃO: Frango da Rodada ─────────────────────────────────────────────────
 
 function SecaoFrango() {
-  const [roundId, setRoundId] = useState<string | null>(null)
-  const [rodadaNome, setRodadaNome] = useState('')
+  const [rodadas, setRodadas] = useState<Array<{ id: string; nome: string; finalizada: boolean }>>([])
+  const [roundIdSelecionada, setRoundIdSelecionada] = useState<string>('')
   const [jogador, setJogador] = useState('')
   const [fotoUrl, setFotoUrl] = useState('')
   const [texto, setTexto] = useState('')
@@ -682,58 +682,141 @@ function SecaoFrango() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
 
+  // Carrega lista de rodadas (todas finalizadas + ativa se houver)
   useEffect(() => {
-    Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
-      .then(async ([rodada, nomes]) => {
-        setRoundId(rodada.roundId); setRodadaNome(rodada.nome); setParticipantes(nomes)
-        if (rodada.roundId) {
-          const { data } = await supabase.from('shame').select('player_name, text, photo_url').eq('round_id', rodada.roundId).maybeSingle()
-          if (data) { setJogador(data.player_name ?? ''); setTexto(data.text ?? ''); setFotoUrl(data.photo_url ?? '') }
+    async function init() {
+      setCarregando(true)
+      try {
+        const nomes = await buscarParticipantesNomes()
+        setParticipantes(nomes)
+
+        // Rodada ativa (se houver)
+        const { data: ativa } = await supabase
+          .from('rounds')
+          .select('id, name, finalized')
+          .eq('palpites_open', true)
+          .order('number', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        // Todas finalizadas (ordem cronológica reversa)
+        const { data: finalizadas } = await supabase
+          .from('rounds')
+          .select('id, name, finalized, number')
+          .eq('finalized', true)
+          .order('number', { ascending: false })
+
+        // Junta: ativa primeiro (se existir), depois finalizadas
+        const lista: Array<{ id: string; nome: string; finalizada: boolean }> = []
+        if (ativa && !finalizadas?.some((r) => r.id === ativa.id)) {
+          lista.push({ id: ativa.id, nome: `${ativa.name} (em andamento)`, finalizada: false })
         }
-      })
-      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
-      .finally(() => setCarregando(false))
+        for (const r of finalizadas ?? []) {
+          lista.push({ id: r.id, nome: r.name, finalizada: true })
+        }
+        setRodadas(lista)
+
+        // Pré-seleciona: rodada ativa se houver, senão a última finalizada
+        const preselec = ativa?.id ?? finalizadas?.[0]?.id ?? ''
+        setRoundIdSelecionada(preselec)
+        if (preselec) await carregarFrangoDaRodada(preselec)
+      } catch (e) {
+        showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro')
+      } finally {
+        setCarregando(false)
+      }
+    }
+    init()
   }, [])
 
+  async function carregarFrangoDaRodada(rid: string) {
+    setJogador(''); setTexto(''); setFotoUrl('')
+    const { data } = await supabase
+      .from('shame')
+      .select('player_name, text, photo_url')
+      .eq('round_id', rid)
+      .maybeSingle()
+    if (data) {
+      setJogador(data.player_name ?? '')
+      setTexto(data.text ?? '')
+      setFotoUrl(data.photo_url ?? '')
+    }
+  }
+
+  async function trocarRodada(rid: string) {
+    setRoundIdSelecionada(rid)
+    if (rid) await carregarFrangoDaRodada(rid)
+  }
+
   async function salvar() {
-    if (!roundId) return
+    if (!roundIdSelecionada) return
     setSalvando(true)
     try {
-      await supabase.from('shame').delete().eq('round_id', roundId)
+      await supabase.from('shame').delete().eq('round_id', roundIdSelecionada)
       if (jogador.trim()) {
-        const { error } = await supabase.from('shame').insert({ round_id: roundId, player_name: jogador.trim(), text: texto.trim() || null, photo_url: fotoUrl.trim() || null })
+        const { error } = await supabase.from('shame').insert({
+          round_id: roundIdSelecionada,
+          player_name: jogador.trim(),
+          text: texto.trim() || null,
+          photo_url: fotoUrl.trim() || null,
+        })
         if (error) throw error
-        await gravarLog('FRANGO_ATRIBUIDO', { roundId, jogador, rodada: rodadaNome })
+        const rodadaNome = rodadas.find((r) => r.id === roundIdSelecionada)?.nome ?? ''
+        await gravarLog('FRANGO_ATRIBUIDO', { roundId: roundIdSelecionada, jogador, rodada: rodadaNome })
       }
       vibrar('sucesso')
       showToast('Frango salvo! 🐔', 'sucesso')
     } catch (e) {
       vibrar('erro')
       showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
-    } finally { setSalvando(false) }
+    } finally {
+      setSalvando(false)
+    }
   }
 
   async function limpar() {
-    if (!roundId) return
+    if (!roundIdSelecionada) return
     setSalvando(true)
     try {
-      await supabase.from('shame').delete().eq('round_id', roundId)
+      await supabase.from('shame').delete().eq('round_id', roundIdSelecionada)
       setJogador(''); setFotoUrl(''); setTexto('')
       vibrar('leve')
       showToast('Frango removido.', 'info')
     } catch (e) {
       vibrar('erro')
       showToast(`Erro ao limpar: ${(e as Error).message}`, 'erro')
-    } finally { setSalvando(false) }
+    } finally {
+      setSalvando(false)
+    }
   }
 
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando...</p></Card>
-  if (!roundId) return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada ativa.</p></Card>
+  if (rodadas.length === 0) return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada disponível.</p></Card>
+
+  const rodadaSel = rodadas.find((r) => r.id === roundIdSelecionada)
 
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">O frango de <b>{rodadaNome}</b> — carinhosamente constrangedor. 🐔</p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">
+          Escolha a rodada e defina o frango — carinhosamente constrangedor. 🐔
+        </p>
+        <Row label="Rodada">
+          <select
+            value={roundIdSelecionada}
+            onChange={(e) => trocarRodada(e.target.value)}
+            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none"
+          >
+            {rodadas.map((r) => (
+              <option key={r.id} value={r.id}>{r.nome}</option>
+            ))}
+          </select>
+        </Row>
+        {rodadaSel && (
+          <p className="mb-2 font-mono text-[10px] text-tinta-100">
+            {rodadaSel.finalizada ? '✅ Rodada finalizada' : '🟡 Rodada em andamento'}
+          </p>
+        )}
         <Row label="Jogador">
           <select value={jogador} onChange={(e) => setJogador(e.target.value)}
             className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none">
