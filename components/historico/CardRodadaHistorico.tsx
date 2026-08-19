@@ -26,6 +26,10 @@ export function CardRodadaHistorico({
 }) {
   const [aba, setAba] = useState<Aba>('ranking')
 
+  // Campeões: pode ter mais de 1 em caso de empate perfeito
+  const campeoes = rodada.campeoes ?? (rodada.campeao ? [rodada.campeao] : [])
+  const empateMultiplo = campeoes.length > 1
+
   return (
     <div id={`rodada-${rodada.id}`} className="scroll-mt-4 overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50 shadow-sm">
       <button
@@ -54,27 +58,48 @@ export function CardRodadaHistorico({
           </span>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-couro-700 bg-couro-900/40 px-2 py-1.5">
-          {rodada.campeao ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs">🏆</span>
-              <AvatarNome
-                avatar={rodada.campeao.avatar}
-                emoji={rodada.campeao.emoji}
-                nome={rodada.campeao.nome}
-                tema="escuro"
-              />
-              <span className="font-mono text-xs font-bold text-dourado-300">
-                {rodada.campeao.pts} pts
-              </span>
+        <div className="mt-2 rounded border border-couro-700 bg-couro-900/40 px-2 py-1.5">
+          {campeoes.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-xs">🏆</span>
+                {campeoes.map((c, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <AvatarNome
+                      avatar={c.avatar}
+                      emoji={c.emoji}
+                      nome={c.nome}
+                      tema="escuro"
+                    />
+                    {i < campeoes.length - 1 && (
+                      <span className="font-mono text-[10px] text-dourado-300/70">·</span>
+                    )}
+                  </div>
+                ))}
+                <span className="font-mono text-xs font-bold text-dourado-300">
+                  {campeoes[0].pts} pts
+                </span>
+                {empateMultiplo && (
+                  <span className="rounded bg-dourado-500/25 px-1 py-0.5 font-mono text-[8px] font-bold uppercase text-dourado-300">
+                    empate
+                  </span>
+                )}
+              </div>
+              {meuParticipantId && rodada.meusPontos !== null && (
+                <span className="rounded border border-dourado-400 bg-couro-900/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-dourado-200">
+                  Você: {rodada.meusPontos} pts
+                </span>
+              )}
             </div>
           ) : (
-            <span className="font-mono text-[10px] text-papel-100">Sem campeão registrado</span>
-          )}
-          {meuParticipantId && rodada.meusPontos !== null && (
-            <span className="rounded border border-dourado-400 bg-couro-900/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-dourado-200">
-              Você: {rodada.meusPontos} pts
-            </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-papel-100">Sem campeão registrado</span>
+              {meuParticipantId && rodada.meusPontos !== null && (
+                <span className="rounded border border-dourado-400 bg-couro-900/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-dourado-200">
+                  Você: {rodada.meusPontos} pts
+                </span>
+              )}
+            </div>
           )}
         </div>
       </button>
