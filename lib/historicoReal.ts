@@ -104,10 +104,10 @@ export async function buscarRodadasFinalizadasHistorico(
   return rounds.map((r) => {
     const resultsRodada = (results ?? []).filter((x) => x.round_id === r.id)
 
-    // Campeão = position=1 (mas filtra só não-admin)
+    // Campeão = quem fez mais pts NA RODADA (não usa position que é do campeonato)
     const campeaoResult = resultsRodada
       .filter((x) => partMap.has(x.participant_id))
-      .sort((a, b) => (a.position ?? 999) - (b.position ?? 999))[0]
+      .sort((a, b) => (b.round_pts ?? 0) - (a.round_pts ?? 0))[0]
 
     let campeao: RodadaHistorico['campeao'] = null
     if (campeaoResult) {
@@ -157,14 +157,16 @@ export async function buscarDetalheRodada(roundId: string): Promise<DetalheRodad
     partMap.set(p.id, { nome: p.name, avatar: p.avatar ?? null, emoji: p.emoji ?? null })
   })
 
-  // 3. Ranking da rodada (round_results)
+  // 3. Ranking DA RODADA (ordenado por pts da rodada, não position do campeonato!)
+  // A coluna 'position' em round_results guarda a posição do CAMPEONATO
+  // acumulado até aquela rodada. Aqui queremos a posição DAQUELA RODADA
+  // específica — então ordena por round_pts desc, desempate por cravadas.
   const { data: results } = await supabase
     .from('round_results')
-    .select('participant_id, round_pts, position, exact_scores, correct_saldo, correct_winner')
+    .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
     .eq('round_id', roundId)
-    .order('position', { ascending: true })
 
-  const ranking: LinhaRankingRodada[] = (results ?? [])
+  const rankingBruto = (results ?? [])
     .filter((r) => partMap.has(r.participant_id))
     .map((r) => {
       const p = partMap.get(r.participant_id)!
@@ -177,9 +179,20 @@ export async function buscarDetalheRodada(roundId: string): Promise<DetalheRodad
         cravadas: r.exact_scores ?? 0,
         vencedor: r.correct_winner ?? 0,
         saldo: r.correct_saldo ?? 0,
-        position: r.position ?? 0,
       }
     })
+    .sort((a, b) => {
+      if (b.pontos !== a.pontos) return b.pontos - a.pontos
+      if (b.cravadas !== a.cravadas) return b.cravadas - a.cravadas
+      if (b.vencedor !== a.vencedor) return b.vencedor - a.vencedor
+      if (b.saldo !== a.saldo) return b.saldo - a.saldo
+      return a.nome.localeCompare(b.nome, 'pt-BR')
+    })
+
+  const ranking: LinhaRankingRodada[] = rankingBruto.map((r, i) => ({
+    ...r,
+    position: i + 1,
+  }))
 
   // 4. Jogos da rodada
   const { data: matches } = await supabase
