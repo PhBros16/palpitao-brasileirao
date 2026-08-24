@@ -54,15 +54,33 @@ export interface DadosCampeonato {
   totalRodadasFinalizadas: number
 }
 
-// Dicionário para unificar nomes digitados errados ou com variações no banco
+// Normalizador inteligente: remove acentos e maiúsculas/minúsculas pra agrupar QUALQUER variação nos 20 times oficiais
 function normalizarNomeTime(nomeBruto: string): string {
-  const n = nomeBruto.trim()
-  if (n === 'Vasco da Gama') return 'Vasco'
-  if (n === 'Chape') return 'Chapecoense'
-  if (n === 'Galo') return 'Atlético-MG'
-  if (n === 'Inter') return 'Internacional'
-  if (n === 'Red Bull Bragantino') return 'RB Bragantino'
-  return n
+  if (!nomeBruto) return ''
+  const str = nomeBruto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+  if (str.includes('palmeiras')) return 'Palmeiras'
+  if (str.includes('flamengo')) return 'Flamengo'
+  if (str.includes('athletico') || str.includes('atletico-pr') || str.includes('atletico pr') || str.includes('cap')) return 'Athletico-PR'
+  if (str.includes('fluminense') || str.includes('flu')) return 'Fluminense'
+  if (str.includes('cruzeiro')) return 'Cruzeiro'
+  if (str.includes('bahia')) return 'Bahia'
+  if (str.includes('bragantino') || str.includes('red bull')) return 'RB Bragantino'
+  if (str.includes('coritiba') || str.includes('coxa')) return 'Coritiba'
+  if (str.includes('atletico-mg') || str.includes('atletico mg') || str.includes('galo')) return 'Atlético-MG'
+  if (str.includes('corinthians') || str.includes('timao')) return 'Corinthians'
+  if (str.includes('botafogo') || str.includes('bota')) return 'Botafogo'
+  if (str.includes('vitoria')) return 'Vitória'
+  if (str.includes('sao paulo') || str.includes('spfc')) return 'São Paulo'
+  if (str.includes('santos')) return 'Santos'
+  if (str.includes('gremio')) return 'Grêmio'
+  if (str.includes('internacional') || str.includes('inter')) return 'Internacional'
+  if (str.includes('mirassol')) return 'Mirassol'
+  if (str.includes('remo')) return 'Remo'
+  if (str.includes('vasco')) return 'Vasco'
+  if (str.includes('chapecoense') || str.includes('chape')) return 'Chapecoense'
+
+  return nomeBruto.trim()
 }
 
 export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
@@ -121,7 +139,6 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   const hoje = new Date().toISOString().split('T')[0]
   const proximosJogos = jogosFuturos
     .filter((j) => !j.date || j.date >= hoje)
-    // Ordena pela rodada pra agrupar bonitinho na tela
     .sort((a, b) => a.roundNumber - b.roundNumber || (a.date ?? '9999').localeCompare(b.date ?? '9999'))
     .slice(0, 30)
 
