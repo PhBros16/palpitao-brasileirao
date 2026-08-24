@@ -202,7 +202,6 @@ function EstatisticasCampeonato({ dados }: { dados: DadosCampeonato }) {
         </CardEnvelope>
       )}
 
-      {/* PROJEÇÃO MOVIDA E TURBINADA AQUI */}
       <CardEnvelope titulo="🔮 Projeção de Término (38 Rodadas)">
         <p className="px-3 pt-3 font-mono text-[9px] italic text-tinta-100">Simulação baseada no aproveitamento atual dos times.</p>
         <div className="p-3 space-y-2 max-h-72 overflow-y-auto scrollbar-tema">
@@ -232,7 +231,7 @@ function EstatisticasCampeonato({ dados }: { dados: DadosCampeonato }) {
         <ListaTop titulo="Rei do Empate" icone="🤝" corTexto="text-gray-600" lista={e.reiEmpate} sufixo=" emp" />
         <ListaTop titulo="A Fortaleza (Clean Sheets)" icone="🧱" corTexto="text-orange-700" lista={e.fortaleza} sufixo=" jogos" />
       </div>
-    </>
+    </div>
   )
 }
 
@@ -245,7 +244,6 @@ function AgendaCampeonato({ proximos, ultimos }: { proximos: JogoBrasileirao[], 
     return `${dia}/${mes}`
   }
 
-  // Agrupa os próximos jogos por Rodada
   const proximosPorRodada = new Map<string, JogoBrasileirao[]>()
   for (const j of proximos) {
     if (!proximosPorRodada.has(j.roundName)) proximosPorRodada.set(j.roundName, [])
@@ -254,7 +252,6 @@ function AgendaCampeonato({ proximos, ultimos }: { proximos: JogoBrasileirao[], 
 
   return (
     <div className="flex flex-col gap-4">
-      {/* PRÓXIMOS JOGOS (AGRUPADOS POR RODADA) */}
       <CardEnvelope titulo="📅 Próximos Jogos">
         <div className="space-y-4 p-3">
           {proximosPorRodada.size === 0 ? (
@@ -293,7 +290,6 @@ function AgendaCampeonato({ proximos, ultimos }: { proximos: JogoBrasileirao[], 
         </div>
       </CardEnvelope>
 
-      {/* ÚLTIMOS RESULTADOS */}
       <CardEnvelope titulo="✅ Últimos Resultados">
         <div className="space-y-2 p-3">
           {ultimos.length === 0 ? (
