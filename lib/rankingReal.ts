@@ -1,17 +1,18 @@
 import { supabase } from './supabase'
 import { lerConfig } from './appSettings'
+import { calcProjecaoPct } from './domain/projecao'
 
 // Camada de dados do Ranking real.
 //
 // Fonte oficial: tabela round_results (importada do histórico).
-// Pra rodadas NOVAS (19+), os pontos serão gravados em round_results via
-// a rotina de finalização de rodada (próxima etapa).
+// Pra rodadas NOVAS, os pontos são gravados em round_results via
+// a rotina de finalização de rodada.
 //
 // Regras:
 //   - Só participantes com is_admin=false
 //   - Só rodadas com finalized=true
 //   - Ordena por: total desc → cravadas desc → vencedor desc → saldo desc
-//   - Projeção %: config app_settings.projecao_janela
+//   - Projeção %: usa a mesma biblioteca oficial (lib/domain/projecao) lendo app_settings.projecao_janela
 
 export interface LinhaRanking {
   participantId: string
@@ -56,9 +57,6 @@ export interface FrenteFrenteRodada {
 
 /** Busca o ranking geral (de round_results, só finalizadas, só não-admins). */
 export async function buscarRankingReal(): Promise<LinhaRanking[]> {
-  // participants e rounds não dependem uma da outra — dispara as duas ao
-  // mesmo tempo em vez de esperar a primeira terminar pra só então pedir
-  // a segunda.
   const [
     { data: participants, error: pErr },
     { data: rounds, error: rErr },
@@ -109,9 +107,9 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     bucket.vencedor += row.correct_winner ?? 0
   }
 
-  // Projeção
+  // Projeção unificada com o Admin
   const projMap = roundIds.length >= 2
-    ? await calcularProjecoes(participants.map((p) => ({ id: p.id })), roundIds)
+    ? await calcularProjecoes(participants.map((p) => ({ id: p.id, name: p.name })), roundIds)
     : new Map<string, number>()
 
   const linhas = participants.map((p) => {
@@ -142,57 +140,64 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
 }
 
 async function calcularProjecoes(
-  participants: Array<{ id: string }>,
+  participants: Array<{ id: string; name: string }>,
   roundIdsFinalizadas: string[],
 ): Promise<Map<string, number>> {
   const cfg = await lerConfig<{ rodadas: number }>('projecao_janela')
   const janela = cfg?.rodadas ?? 3
-  const totalRodadas = 38
 
-  // Busca round_results + ordena por round number
+  // Busca rounds finalizadas em ordem de número
   const { data: roundsOrd } = await supabase
     .from('rounds')
     .select('id, number')
     .in('id', roundIdsFinalizadas)
     .order('number', { ascending: true })
-  const roundIdsSorted = (roundsOrd ?? []).map((r) => r.id)
+  if (!roundsOrd || roundsOrd.length === 0) return new Map()
+
+  const roundIdsSorted = roundsOrd.map((r) => r.id)
 
   const { data: rr } = await supabase
     .from('round_results')
     .select('participant_id, round_id, round_pts')
     .in('round_id', roundIdsSorted)
 
-  // Total acumulado por participante
-  const totalPorPart = new Map<string, number>()
-  // Pontos por rodada por participante
-  const porRound = new Map<string, Map<string, number>>()
-  for (const rid of roundIdsSorted) porRound.set(rid, new Map())
+  const idParaNome = new Map(participants.map((p) => [p.id, p.name]))
+  const nomeParaId = new Map(participants.map((p) => [p.name, p.id]))
+  const players = participants.map((p) => p.name)
+
+  const totalPoints: Record<string, number> = {}
+  for (const p of players) totalPoints[p] = 0
+
+  const roundScoresMap = new Map<string, Record<string, number>>()
+  for (const rid of roundIdsSorted) roundScoresMap.set(rid, {})
 
   for (const row of rr ?? []) {
-    totalPorPart.set(row.participant_id, (totalPorPart.get(row.participant_id) ?? 0) + (row.round_pts ?? 0))
-    const bucket = porRound.get(row.round_id)
-    if (bucket) bucket.set(row.participant_id, (bucket.get(row.participant_id) ?? 0) + (row.round_pts ?? 0))
+    const nome = idParaNome.get(row.participant_id)
+    if (!nome) continue
+    const pts = row.round_pts ?? 0
+    totalPoints[nome] = (totalPoints[nome] ?? 0) + pts
+    const bucket = roundScoresMap.get(row.round_id)!
+    bucket[nome] = (bucket[nome] ?? 0) + pts
   }
 
-  const rodadasJanela = janela === 0 ? roundIdsSorted : roundIdsSorted.slice(-janela)
-  const rodadasRestantes = Math.max(totalRodadas - roundIdsSorted.length, 0)
+  const historico = roundIdsSorted.map((rid) => ({
+    scores: roundScoresMap.get(rid) ?? {},
+  }))
 
-  const projTotal = new Map<string, number>()
-  for (const p of participants) {
-    let somaJanela = 0
-    for (const rid of rodadasJanela) {
-      somaJanela += porRound.get(rid)?.get(p.id) ?? 0
-    }
-    const media = rodadasJanela.length > 0 ? somaJanela / rodadasJanela.length : 0
-    const projecao = (totalPorPart.get(p.id) ?? 0) + media * rodadasRestantes
-    projTotal.set(p.id, projecao)
-  }
+  const slice = janela === 0 ? historico : historico.slice(-janela)
 
-  const somaTotal = Array.from(projTotal.values()).reduce((a, b) => a + b, 0)
+  // Chama a função matemática oficial
+  const projObj = calcProjecaoPct({
+    players,
+    totalPoints,
+    history: slice,
+    totalRodadas: 38,
+  })
+
   const pctMap = new Map<string, number>()
-  if (somaTotal <= 0) return pctMap
-  for (const [pid, proj] of projTotal.entries()) {
-    pctMap.set(pid, Math.round((proj / somaTotal) * 100))
+  for (const [nome, pct] of Object.entries(projObj)) {
+    const pid = nomeParaId.get(nome)
+    if (pid) pctMap.set(pid, pct)
   }
   return pctMap
 }
@@ -269,7 +274,6 @@ export async function buscarFrenteAFrente(
         pontosB: pB?.pts ?? null,
       }
     })
-    // Pontos do frente-a-frente vêm de round_results (mais confiável)
     const totalA = jogos.reduce((s, j) => s + (j.pontosA ?? 0), 0)
     const totalB = jogos.reduce((s, j) => s + (j.pontosB ?? 0), 0)
     return { roundId: r.id, numero: r.number, nome: r.name, jogos, totalA, totalB }
