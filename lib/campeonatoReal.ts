@@ -14,8 +14,7 @@ import { supabase } from './supabase'
 //   - Derrota: 0 pontos
 //
 // Considera TODAS as rodadas (normais + extras), mas dá pra filtrar depois.
-// Rodadas extras normalmente não contam pontos na tabela oficial do
-// Brasileirão — se quiser excluir, filtre por round.number < 100.
+// Rodadas extras (number >= 100) são ignoradas na tabela oficial.
 
 export type ResultadoUltimo = 'V' | 'E' | 'D'
 
@@ -143,10 +142,10 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   // Calcula estatísticas
   const estatisticas = calcularEstatisticas(jogosComPlacar, tabela)
 
-  // Próximos jogos (só os que têm data futura)
+  // Próximos jogos (jogos sem data definida OU com data futura)
   const hoje = new Date().toISOString().split('T')[0]
   const proximosJogos = jogosFuturos
-    .filter((j) => j.date && j.date >= hoje)
+    .filter((j) => !j.date || j.date >= hoje)
     .slice(0, 20)
 
   // Últimos resultados (os 10 mais recentes com placar)
