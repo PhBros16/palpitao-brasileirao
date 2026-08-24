@@ -1014,7 +1014,14 @@ function SecaoProjecao() {
     if (j === janela || calculando) return
     vibrar('leve')
     setJanela(j)
-    try { await salvarConfig('projecao_janela', { rodadas: j }) } catch { /* silencioso */ }
+    try { 
+      await salvarConfig('projecao_janela', { rodadas: j })
+      await gravarLog('PROJECAO_JANELA_ALTERADA', { rodadas: j })
+      showToast(`Janela de projeção alterada!`, 'sucesso')
+    } catch (e) {
+      vibrar('erro')
+      showToast(`Erro ao salvar config no banco: ${(e as Error).message}`, 'erro')
+    }
     await calcular(j)
   }
 
