@@ -154,7 +154,6 @@ function SecaoWhatsApp() {
   }
 
   async function montarTextoGeral(): Promise<string> {
-    // Usa round_results (só rodadas finalizadas) — mesma fonte do Ranking oficial
     const { data: rrs, error } = await supabase
       .from('round_results')
       .select('participant_id, total_pts, round_id, rounds!inner(finalized, number)')
@@ -164,7 +163,6 @@ function SecaoWhatsApp() {
     if (error) throw new Error(error.message)
     if (!rrs || rrs.length === 0) throw new Error('Nenhuma rodada finalizada ainda')
 
-    // Pega o total_pts mais recente de cada participante
     const totalPorParticipante = new Map<string, number>()
     for (const rr of rrs) {
       if (!totalPorParticipante.has(rr.participant_id)) {
@@ -172,7 +170,6 @@ function SecaoWhatsApp() {
       }
     }
 
-    // Busca nomes + filtra admin
     const { data: parts } = await supabase
       .from('participants')
       .select('id, name, is_admin')
@@ -306,6 +303,17 @@ function SecaoConfiguracaoRodada() {
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
   const [ehExtra, setEhExtra] = useState(false)
 
+  // Função pra resetar a tela quando for criar uma nova rodada do zero (Correção Bug 1)
+  function iniciarNovaRodada(numAtual: number) {
+    setRoundId(null)
+    setNome(`Rodada ${numAtual + 1}`)
+    setNumero(numAtual + 1)
+    setAberta(true)
+    setValeDobro(false)
+    setJogos([])
+    setIdsOriginais([])
+  }
+
   async function toggleExtra(v: boolean) {
     setEhExtra(v)
     if (v) {
@@ -325,9 +333,13 @@ function SecaoConfiguracaoRodada() {
   useEffect(() => {
     buscarRodadaAtiva()
       .then((r) => {
-        setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
-        setAberta(r.aberta); setValeDobro(r.valeDobro)
-        setJogos(r.jogos); setIdsOriginais(r.jogos.map((j) => j.id))
+        if (r.finalizada) {
+          iniciarNovaRodada(r.numero)
+        } else {
+          setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
+          setAberta(r.aberta); setValeDobro(r.valeDobro)
+          setJogos(r.jogos); setIdsOriginais(r.jogos.map((j) => j.id))
+        }
       })
       .catch((e) => {
         showToast(`Erro ao carregar: ${e.message}`, 'erro')
@@ -408,6 +420,24 @@ function SecaoConfiguracaoRodada() {
   return (
     <div className="space-y-3">
       <Card>
+        <div className="mb-3 flex items-center justify-between border-b border-papel-borda-200/60 pb-2">
+          <p className="font-sans text-sm font-semibold text-tinta-300">
+            {roundId ? '✏️ Editando Rodada Atual' : '✨ Criando Nova Rodada'}
+          </p>
+          {roundId && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Descartar a edição atual e começar uma rodada totalmente do zero?')) {
+                  iniciarNovaRodada(numero)
+                }
+              }}
+              className="font-mono text-[10px] text-dourado-600 hover:underline"
+            >
+              + Começar do Zero
+            </button>
+          )}
+        </div>
         <Row label="Nome"><InputText value={nome} onChange={setNome} placeholder="ex: Rodada 20" className="flex-1" /></Row>
         <Row label="Nº Rodada">
           <input type="number" min={1} value={numero} onChange={(e) => setNumero(parseInt(e.target.value) || 1)}
@@ -446,7 +476,12 @@ function SecaoConfiguracaoRodada() {
             <InputText value={j.away} onChange={(v) => patch(j.id, { away: v })} placeholder="Vasco" className="flex-1" />
           </Row>
           <Row label="Data">
-            <InputText value={j.date} onChange={(v) => patch(j.id, { date: v })} placeholder="AAAA-MM-DD" />
+            <input
+              type="date"
+              value={j.date}
+              onChange={(e) => patch(j.id, { date: e.target.value })}
+              className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
+            />
             {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ sem data</span>}
           </Row>
           <Row label="Horário">
@@ -547,15 +582,31 @@ function SecaoResultadoCorrecao() {
     setCalculando(true)
     try {
       const resultados: Record<string, { h: number; a: number }> = {}
+      const apagados: string[] = [] // Jogos que o admin deixou em branco
+
       for (const j of jogos) {
         const h = res[j.id]?.h; const a = res[j.id]?.a
-        if (h === '' || h === undefined || a === '' || a === undefined) continue
+        // Correção Bug 2: se o admin apagou os campos, a gente separa pra anular no banco!
+        if (h === '' || h === undefined || a === '' || a === undefined) {
+          apagados.push(j.id)
+          continue
+        }
         resultados[j.id] = { h: parseInt(h, 10), a: parseInt(a, 10) }
       }
+
+      // 1. Calcula normal os que têm placar válido
       await calcularPontosRodada(roundId, resultados, valeDobro)
+
+      // 2. Limpa no banco os que o admin deixou em branco na tela (anula o 0x0 se ele foi criado sem querer)
+      if (apagados.length > 0) {
+        await supabase.from('matches').update({ home_score: null, away_score: null }).in('id', apagados)
+        await supabase.from('predictions').update({ points: null }).in('match_id', apagados)
+      }
+
       await gravarLog('PONTOS_CALCULADOS', { roundId })
       vibrar('sucesso')
       showToast('Pontos calculados! ⚡', 'sucesso')
+      
       if (jogadorSel) {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
@@ -619,10 +670,13 @@ function SecaoResultadoCorrecao() {
             </div>
           </div>
         ))}
-        <div className="mt-3">
+        <div className="mt-3 space-y-3">
           <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>
             {calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}
           </Btn>
+          <p className="font-mono text-[10px] text-tinta-100">
+            💡 <b>Dica:</b> Se um jogo calculou errado (ficou como 0x0 sendo que não aconteceu), apague os números e deixe os <b>dois campos vazios</b>. Depois clique no botão acima e o sistema vai limpar o erro.
+          </p>
         </div>
       </Card>
 
