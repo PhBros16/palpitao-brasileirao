@@ -13,6 +13,7 @@ export interface LinhaTabela {
   golsSofridos: number
   saldoGols: number
   ultimos5: ResultadoUltimo[]
+  evolucaoPts: number[] // NOVO: Rastreia os pontos jogo a jogo pro gráfico
   posicao: number
   zona: 'libertadores' | 'pre-libertadores' | 'sulamericana' | 'meio' | 'z4'
 }
@@ -54,7 +55,6 @@ export interface DadosCampeonato {
   totalRodadasFinalizadas: number
 }
 
-// Normalizador inteligente: remove acentos e maiúsculas/minúsculas pra agrupar QUALQUER variação nos 20 times oficiais
 function normalizarNomeTime(nomeBruto: string): string {
   if (!nomeBruto) return ''
   const str = nomeBruto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -136,15 +136,14 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   const tabela = calcularTabela(jogosComPlacar)
   const estatisticas = calcularEstatisticas(jogosComPlacar, tabela)
 
+  // REMOVIDOS OS LIMITADORES (.slice) - Retorna todos!
   const hoje = new Date().toISOString().split('T')[0]
   const proximosJogos = jogosFuturos
     .filter((j) => !j.date || j.date >= hoje)
     .sort((a, b) => a.roundNumber - b.roundNumber || (a.date ?? '9999').localeCompare(b.date ?? '9999'))
-    .slice(0, 30)
 
   const ultimosResultados = [...jogosComPlacar]
-    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
-    .slice(0, 10)
+    .sort((a, b) => b.roundNumber - a.roundNumber || (b.date ?? '').localeCompare(a.date ?? ''))
 
   const totalRodadasFinalizadas = rounds.filter((r) => r.finalized && r.number < 100).length
 
@@ -155,15 +154,17 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
   const timesMap = new Map<string, {
     pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number;
     golsMarcados: number; golsSofridos: number; historico: Array<{ resultado: ResultadoUltimo; data: string | null }>
+    evolucaoPts: number[]
   }>()
 
   function getOrCreate(time: string) {
     if (!timesMap.has(time)) {
-      timesMap.set(time, { pontos: 0, jogos: 0, vitorias: 0, empates: 0, derrotas: 0, golsMarcados: 0, golsSofridos: 0, historico: [] })
+      timesMap.set(time, { pontos: 0, jogos: 0, vitorias: 0, empates: 0, derrotas: 0, golsMarcados: 0, golsSofridos: 0, historico: [], evolucaoPts: [0] })
     }
     return timesMap.get(time)!
   }
 
+  // Os jogos já vêm ordenados cronologicamente da query do banco
   for (const j of jogos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const home = getOrCreate(j.home)
@@ -189,6 +190,10 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
 
     home.historico.push({ resultado: resHome, data: j.date })
     away.historico.push({ resultado: resAway, data: j.date })
+    
+    // Registra a pontuação acumulada passo-a-passo (para o gráfico)
+    home.evolucaoPts.push(home.pontos)
+    away.evolucaoPts.push(away.pontos)
   }
 
   const linhas: LinhaTabela[] = Array.from(timesMap.entries()).map(([time, dados]) => {
@@ -197,7 +202,7 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
     return {
       time, pontos: dados.pontos, jogos: dados.jogos, vitorias: dados.vitorias, empates: dados.empates,
       derrotas: dados.derrotas, golsMarcados: dados.golsMarcados, golsSofridos: dados.golsSofridos,
-      saldoGols: dados.golsMarcados - dados.golsSofridos, ultimos5, posicao: 0, zona: 'meio' as const,
+      saldoGols: dados.golsMarcados - dados.golsSofridos, ultimos5, evolucaoPts: dados.evolucaoPts, posicao: 0, zona: 'meio' as const,
     }
   })
 
