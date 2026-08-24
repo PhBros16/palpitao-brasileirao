@@ -147,11 +147,11 @@ export function Classificacao({
 
       {/* Tabela dentro do card padrão */}
       <CardEnvelope titulo="📊 Classificação Geral">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-tema">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
               <col className="w-8" />
-              <col className="w-[108px]" />
+              <col className="w-[136px]" />
               <col className="w-12" />
               <col className="w-11" />
               <col className="w-11" />
@@ -190,7 +190,7 @@ export function Classificacao({
                     <div className="flex items-center gap-1.5">
                       <AvatarMini avatar={d.avatar} nome={d.nome} />
                       {d.emoji && <span className="flex-shrink-0 text-sm leading-none">{d.emoji}</span>}
-                      <span className="whitespace-nowrap" title={d.nome}>{abreviarNome(d.nome)}</span>
+                      <span className="whitespace-nowrap truncate" title={d.nome}>{abreviarNome(d.nome)}</span>
                     </div>
                   </td>
                   <td className="border-b border-papel-borda-200/60 px-1 py-2 text-center font-mono text-xs font-bold text-tinta-300">
