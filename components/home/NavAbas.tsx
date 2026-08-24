@@ -2,7 +2,7 @@
 
 // NavAbas — barra de navegação horizontal (mobile-first, scroll horizontal).
 //
-// 6 abas fixas + 1 condicional (Admin, se participants.is_admin=true).
+// 7 abas fixas + 1 condicional (Admin, se participants.is_admin=true).
 // Indicador ativo (fundo couro) desliza suavemente entre as abas usando
 // layoutId do Framer Motion. Press-down feedback ao tocar.
 
@@ -23,13 +23,14 @@ interface Aba {
 }
 
 const ABAS: Aba[] = [
-  { key: 'inicio',    label: 'Início',    emoji: '🏠', href: '/inicio' },
-  { key: 'palpites',  label: 'Palpites',  emoji: '✏️', href: '/palpites' },
-  { key: 'rodada',    label: 'Rodada',    emoji: '📊', href: '/rodada' },
-  { key: 'ranking',   label: 'Ranking',   emoji: '🏆', href: '/ranking' },
-  { key: 'historico', label: 'Histórico', emoji: '📅', href: '/historico' },
-  { key: 'guia',      label: 'Guia',      emoji: '📖', href: '/guia' },
-  { key: 'admin',     label: 'Admin',     emoji: '⚙️', href: '/admin', adminOnly: true },
+  { key: 'inicio',      label: 'Início',     emoji: '🏠', href: '/inicio' },
+  { key: 'palpites',    label: 'Palpites',   emoji: '✏️', href: '/palpites' },
+  { key: 'rodada',      label: 'Rodada',     emoji: '📊', href: '/rodada' },
+  { key: 'campeonato',  label: 'Série A',    emoji: '🇧🇷', href: '/campeonato' },
+  { key: 'ranking',     label: 'Ranking',    emoji: '🏆', href: '/ranking' },
+  { key: 'historico',   label: 'Histórico',  emoji: '📅', href: '/historico' },
+  { key: 'guia',        label: 'Guia',       emoji: '📖', href: '/guia' },
+  { key: 'admin',       label: 'Admin',      emoji: '⚙️', href: '/admin', adminOnly: true },
 ]
 
 export function NavAbas({ isAdmin }: { isAdmin: boolean }) {
