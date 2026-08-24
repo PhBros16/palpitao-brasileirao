@@ -24,9 +24,9 @@ interface Aba {
 
 const ABAS: Aba[] = [
   { key: 'inicio',      label: 'Início',     emoji: '🏠', href: '/inicio' },
+  { key: 'campeonato',  label: 'Série A',    emoji: '🇧🇷', href: '/campeonato' },
   { key: 'palpites',    label: 'Palpites',   emoji: '✏️', href: '/palpites' },
   { key: 'rodada',      label: 'Rodada',     emoji: '📊', href: '/rodada' },
-  { key: 'campeonato',  label: 'Série A',    emoji: '🇧🇷', href: '/campeonato' },
   { key: 'ranking',     label: 'Ranking',    emoji: '🏆', href: '/ranking' },
   { key: 'historico',   label: 'Histórico',  emoji: '📅', href: '/historico' },
   { key: 'guia',        label: 'Guia',       emoji: '📖', href: '/guia' },
