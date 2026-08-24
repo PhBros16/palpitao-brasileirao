@@ -32,6 +32,7 @@ import {
   type ParticipantePin,
   type AdminProfile,
 } from '@/lib/rodadaAdmin'
+import { buscarRankingReal } from '@/lib/rankingReal'
 import { getEscudo } from '@/lib/escudos'
 import { FORMACOES, getFormacao, type Formacao } from '@/lib/formacoes'
 import { lerConfig, salvarConfig, lerFormacaoId, salvarFormacaoId } from '@/lib/appSettings'
@@ -154,43 +155,21 @@ function SecaoWhatsApp() {
   }
 
   async function montarTextoGeral(): Promise<string> {
-    const { data: rrs, error } = await supabase
-      .from('round_results')
-      .select('participant_id, total_pts, round_id, rounds!inner(finalized, number)')
-      .eq('rounds.finalized', true)
-      .order('rounds(number)', { ascending: false })
+    const ranking = await buscarRankingReal()
+    if (!ranking || ranking.length === 0) throw new Error('Nenhum dado de ranking encontrado')
 
-    if (error) throw new Error(error.message)
-    if (!rrs || rrs.length === 0) throw new Error('Nenhuma rodada finalizada ainda')
-
-    const totalPorParticipante = new Map<string, number>()
-    for (const rr of rrs) {
-      if (!totalPorParticipante.has(rr.participant_id)) {
-        totalPorParticipante.set(rr.participant_id, rr.total_pts ?? 0)
-      }
-    }
-
-    const { data: parts } = await supabase
-      .from('participants')
-      .select('id, name, is_admin')
-      .eq('is_admin', false)
-
-    if (!parts) throw new Error('Sem participantes')
-
-    const ranking = parts
-      .map((p) => ({ nome: p.name, total: totalPorParticipante.get(p.id) ?? 0 }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
-
-    const linhas = ranking.map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
+    const top5 = ranking.slice(0, 5)
+    const linhas = top5.map((r, i) => `${posEmoji(i)} ${r.nome} — ${r.total} pts`).join('\n')
     return `🏆 *RANKING GERAL — Palpitão Brasileirão*\n\n${linhas}\n\n🔥 Confira a tabela completa no App do Palpitão`
   }
 
   async function montarTextoParcial(): Promise<string> {
     const rodada = await buscarRodadaAtiva()
-    if (!rodada.roundId) throw new Error('Nenhuma rodada ativa')
+    if (!rodada.roundId) throw new Error('Nenhuma rodada ativa encontrada')
 
-    const { data: matches } = await supabase.from('matches').select('id').eq('round_id', rodada.roundId)
+    const { data: matches, error: mErr } = await supabase.from('matches').select('id').eq('round_id', rodada.roundId)
+    if (mErr) throw mErr
+
     const matchIds = (matches ?? []).map((m) => m.id)
     if (matchIds.length === 0) {
       return `⚽ *${rodada.nome} — Palpitão Brasileirão*\n\nNenhum jogo cadastrado ainda.`
@@ -218,17 +197,19 @@ function SecaoWhatsApp() {
 
   async function montarTextoRodadaLiberada(): Promise<string> {
     const rodada = await buscarRodadaAtiva()
-    if (!rodada.roundId) throw new Error('Nenhuma rodada ativa')
+    if (!rodada.roundId) throw new Error('Nenhuma rodada ativa encontrada')
 
-    const { data: matches } = await supabase
+    const { data: matches, error: mErr } = await supabase
       .from('matches')
       .select('home, away, match_date, match_time')
       .eq('round_id', rodada.roundId)
       .order('match_date', { ascending: true })
       .order('match_time', { ascending: true })
 
+    if (mErr) throw mErr
+
     if (!matches || matches.length === 0) {
-      return `📢 *${rodada.nome} liberada!*\n\nSem jogos cadastrados ainda.`
+      return `📢 *${rodada.nome} LIBERADA!*\n\nSem jogos cadastrados ainda.`
     }
 
     function formatarDataHora(date: string | null, time: string | null): string {
@@ -255,11 +236,13 @@ function SecaoWhatsApp() {
       else if (tipo === 'parcial') texto = await montarTextoParcial()
       else texto = await montarTextoRodadaLiberada()
 
-      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+      // Usa API direta do WhatsApp que não é bloqueada como pop-up no celular
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`
+      window.location.href = url
       showToast('Abrindo WhatsApp...', 'info', 2000)
     } catch (e) {
       vibrar('erro')
-      showToast(`Erro: ${(e as Error).message}`, 'erro')
+      showToast(`Erro ao compartilhar: ${(e as Error).message}`, 'erro')
     } finally {
       setCarregando(false)
     }
@@ -333,6 +316,8 @@ function SecaoConfiguracaoRodada() {
   useEffect(() => {
     buscarRodadaAtiva()
       .then((r) => {
+        // Se a rodada retornada já está finalizada, é fallback do backend.
+        // Não tem rodada ativa, limpa a tela para criar uma nova.
         if (r.finalizada) {
           iniciarNovaRodada(r.numero)
         } else {
@@ -545,6 +530,7 @@ function SecaoConfiguracaoRodada() {
     </div>
   )
 }
+
 // ─── SEÇÃO: Resultado & Correção ─────────────────────────────────────────────
 
 type Placar = { h: string; a: string }
@@ -586,7 +572,7 @@ function SecaoResultadoCorrecao() {
 
       for (const j of jogos) {
         const h = res[j.id]?.h; const a = res[j.id]?.a
-        // Correção Bug 2: se o admin apagou os campos, a gente separa pra anular no banco!
+        // Correção Bug 2: se o admin apagou os campos, anula no banco
         if (h === '' || h === undefined || a === '' || a === undefined) {
           apagados.push(j.id)
           continue
@@ -597,7 +583,7 @@ function SecaoResultadoCorrecao() {
       // 1. Calcula normal os que têm placar válido
       await calcularPontosRodada(roundId, resultados, valeDobro)
 
-      // 2. Limpa no banco os que o admin deixou em branco na tela (anula o 0x0 se ele foi criado sem querer)
+      // 2. Limpa no banco os que ficaram em branco (anula 0x0 fantasma + retira pontos)
       if (apagados.length > 0) {
         await supabase.from('matches').update({ home_score: null, away_score: null }).in('id', apagados)
         await supabase.from('predictions').update({ points: null }).in('match_id', apagados)
@@ -606,7 +592,7 @@ function SecaoResultadoCorrecao() {
       await gravarLog('PONTOS_CALCULADOS', { roundId })
       vibrar('sucesso')
       showToast('Pontos calculados! ⚡', 'sucesso')
-      
+
       if (jogadorSel) {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
@@ -736,7 +722,6 @@ function SecaoFrango() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
 
-  // Carrega lista de rodadas (todas finalizadas + ativa se houver)
   useEffect(() => {
     async function init() {
       setCarregando(true)
@@ -744,7 +729,6 @@ function SecaoFrango() {
         const nomes = await buscarParticipantesNomes()
         setParticipantes(nomes)
 
-        // Rodada ativa (se houver)
         const { data: ativa } = await supabase
           .from('rounds')
           .select('id, name, finalized')
@@ -753,14 +737,12 @@ function SecaoFrango() {
           .limit(1)
           .maybeSingle()
 
-        // Todas finalizadas (ordem cronológica reversa)
         const { data: finalizadas } = await supabase
           .from('rounds')
           .select('id, name, finalized, number')
           .eq('finalized', true)
           .order('number', { ascending: false })
 
-        // Junta: ativa primeiro (se existir), depois finalizadas
         const lista: Array<{ id: string; nome: string; finalizada: boolean }> = []
         if (ativa && !finalizadas?.some((r) => r.id === ativa.id)) {
           lista.push({ id: ativa.id, nome: `${ativa.name} (em andamento)`, finalizada: false })
@@ -770,7 +752,6 @@ function SecaoFrango() {
         }
         setRodadas(lista)
 
-        // Pré-seleciona: rodada ativa se houver, senão a última finalizada
         const preselec = ativa?.id ?? finalizadas?.[0]?.id ?? ''
         setRoundIdSelecionada(preselec)
         if (preselec) await carregarFrangoDaRodada(preselec)
@@ -1387,9 +1368,7 @@ function SecaoMusica() {
   async function marcarTema(id: string) {
     setSalvando(id)
     try {
-      // Tira todos os is_tema primeiro
       await supabase.from('musicas').update({ is_tema: false }).eq('is_tema', true)
-      // Marca a nova
       const { error } = await supabase.from('musicas').update({ is_tema: true }).eq('id', id)
       if (error) throw error
       await gravarLog('MUSICA_TEMA_ALTERADA', { id })
@@ -1566,6 +1545,7 @@ function SecaoMusica() {
     </div>
   )
 }
+
 // ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
 
 const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
@@ -1992,7 +1972,6 @@ function SecaoLog() {
     PALPITE_EDITADO: '✏️',
   }
 
-  // Ações que são do usuário (não do admin)
   const ACOES_USUARIO = new Set(['PALPITE_SALVO', 'PALPITE_EDITADO'])
 
   const entradasFiltradas = entradas.filter((e) => {
@@ -2004,7 +1983,6 @@ function SecaoLog() {
   function renderPayload(entrada: EntradaLog): React.ReactNode {
     if (!entrada.payload || Object.keys(entrada.payload).length === 0) return null
 
-    // PALPITE_SALVO — mostra jogos e palpites
     if (entrada.action === 'PALPITE_SALVO' && Array.isArray(entrada.payload.jogos)) {
       return (
         <div className="mt-1 space-y-0.5">
@@ -2024,7 +2002,6 @@ function SecaoLog() {
       )
     }
 
-    // PALPITE_EDITADO — mostra antes → depois
     if (entrada.action === 'PALPITE_EDITADO' && Array.isArray(entrada.payload.jogos)) {
       return (
         <div className="mt-1 space-y-0.5">
@@ -2046,11 +2023,10 @@ function SecaoLog() {
       )
     }
 
-    // Genérico — chave: valor
     return (
       <p className="mt-0.5 font-mono text-[10px] text-tinta-100 truncate">
         {Object.entries(entrada.payload)
-          .filter(([k]) => k !== 'jogos') // já renderizado acima
+          .filter(([k]) => k !== 'jogos')
           .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
           .join(' · ')}
       </p>
