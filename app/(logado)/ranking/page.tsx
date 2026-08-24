@@ -2,7 +2,7 @@
 
 // /ranking — envolvida no AppLayout.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RankingScreen } from '@/components/ranking/RankingScreen'
 import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
@@ -21,6 +21,17 @@ export default function RankingPage() {
   const [frenteFrente, setFrenteFrente] = useState<{ a: LinhaRanking; b: LinhaRanking } | null>(null)
   const [novosTrofeus, setNovosTrofeus] = useState<TrofeuReal[]>([])
 
+  const carregarRanking = useCallback(async () => {
+    try {
+      const linhas = await buscarRankingReal()
+      setLinhasReais(linhas)
+      setDados(montarDadosRanking(linhas))
+      setErro(null)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }, [])
+
   useEffect(() => {
     let sessao: { id: string; nome: string } | null = null
     try {
@@ -35,12 +46,8 @@ export default function RankingPage() {
       return
     }
 
-    buscarRankingReal()
-      .then((linhas) => {
-        setLinhasReais(linhas)
-        setDados(montarDadosRanking(linhas))
-      })
-      .catch((e) => setErro((e as Error).message))
+    // Busca ranking fresquinho (inclui projecao_janela atual do Admin)
+    carregarRanking()
 
     if (sessao?.id) {
       buscarTrofeusJogador(sessao.id)
@@ -49,7 +56,22 @@ export default function RankingPage() {
         })
         .catch(() => { /* silencioso */ })
     }
-  }, [router])
+
+    // Revalida quando o usuário volta pra aba do navegador
+    // (ex: mudou a projeção no Admin em outra aba e voltou pro Ranking)
+    function onFocus() {
+      carregarRanking()
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'visible') carregarRanking()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [router, carregarRanking])
 
   function abrirFrenteFrenteReal(nome: string) {
     const clicada = linhasReais.find((l) => l.nome === nome)
