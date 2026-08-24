@@ -273,6 +273,7 @@ function SecaoWhatsApp() {
 type Jogo = { id: string; home: string; away: string; date: string; time: string; locked: boolean }
 
 function SecaoConfiguracaoRodada() {
+  const [listaRodadas, setListaRodadas] = useState<Array<{ id: string; number: number; name: string; finalized: boolean; palpites_open: boolean }>>([])
   const [roundId, setRoundId] = useState<string | null>(null)
   const [nome, setNome] = useState('Rodada 20')
   const [numero, setNumero] = useState(20)
@@ -286,7 +287,59 @@ function SecaoConfiguracaoRodada() {
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
   const [ehExtra, setEhExtra] = useState(false)
 
-  // Função pra resetar a tela quando for criar uma nova rodada do zero (Correção Bug 1)
+  // Carrega lista de todas as rodadas existentes no banco
+  async function carregarListaRodadas() {
+    const { data } = await supabase
+      .from('rounds')
+      .select('id, number, name, finalized, palpites_open')
+      .order('number', { ascending: true })
+    if (data) setListaRodadas(data)
+    return data ?? []
+  }
+
+  // Carrega uma rodada específica selecionada no dropdown
+  async function carregarRodadaPorId(id: string) {
+    setCarregando(true)
+    try {
+      const { data: round } = await supabase
+        .from('rounds')
+        .select('id, number, name, palpites_open, finalized, is_double')
+        .eq('id', id)
+        .single()
+
+      if (!round) return
+
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('id, home, away, match_date, match_time, travado_manual')
+        .eq('round_id', round.id)
+        .order('match_date', { ascending: true, nullsFirst: false })
+
+      setRoundId(round.id)
+      setNome(round.name)
+      setNumero(round.number)
+      setAberta(round.palpites_open)
+      setValeDobro(round.is_double ?? false)
+      setEhExtra(round.number >= 100)
+
+      const jogosMapeados: Jogo[] = (matches ?? []).map((m) => ({
+        id: m.id,
+        home: m.home,
+        away: m.away,
+        date: m.match_date ?? '',
+        time: m.match_time?.slice(0, 5) ?? '',
+        locked: m.travado_manual ?? false,
+      }))
+
+      setJogos(jogosMapeados)
+      setIdsOriginais(jogosMapeados.map((j) => j.id))
+    } catch (e) {
+      showToast(`Erro ao carregar rodada: ${(e as Error).message}`, 'erro')
+    } fontally: {
+      setCarregando(false)
+    }
+  }
+
   function iniciarNovaRodada(numAtual: number) {
     setRoundId(null)
     setNome(`Rodada ${numAtual + 1}`)
@@ -314,22 +367,19 @@ function SecaoConfiguracaoRodada() {
   }
 
   useEffect(() => {
-    buscarRodadaAtiva()
-      .then((r) => {
-        // Se a rodada retornada já está finalizada, é fallback do backend.
-        // Não tem rodada ativa, limpa a tela para criar uma nova.
-        if (r.finalizada) {
-          iniciarNovaRodada(r.numero)
-        } else {
-          setRoundId(r.roundId); setNome(r.nome); setNumero(r.numero)
-          setAberta(r.aberta); setValeDobro(r.valeDobro)
-          setJogos(r.jogos); setIdsOriginais(r.jogos.map((j) => j.id))
-        }
-      })
-      .catch((e) => {
-        showToast(`Erro ao carregar: ${e.message}`, 'erro')
-      })
-      .finally(() => setCarregando(false))
+    carregarListaRodadas().then((rodadas) => {
+      buscarRodadaAtiva()
+        .then((r) => {
+          if (r.finalizada) {
+            iniciarNovaRodada(r.numero)
+          } else if (r.roundId) {
+            carregarRodadaPorId(r.roundId)
+          }
+        })
+        .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
+        .finally(() => setCarregando(false))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function addJogo() {
@@ -347,8 +397,8 @@ function SecaoConfiguracaoRodada() {
     try {
       const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais)
       setRoundId(idFinal)
-      const atualizado = await buscarRodadaAtiva()
-      setJogos(atualizado.jogos); setIdsOriginais(atualizado.jogos.map((j) => j.id))
+      await carregarListaRodadas()
+      await carregarRodadaPorId(idFinal)
       vibrar('sucesso')
       showToast('Rodada salva!', 'sucesso')
       await gravarLog('RODADA_SALVA', { nome, numero })
@@ -378,6 +428,7 @@ function SecaoConfiguracaoRodada() {
       await finalizarRodada(roundId)
       await gravarLog('RODADA_FINALIZADA', { roundId, nome })
       setAberta(false)
+      await carregarListaRodadas()
       vibrar('sucesso')
       showToast('Rodada finalizada! Pontos lançados no Ranking. 🏆', 'sucesso', 4000)
     } catch (e) {
@@ -404,24 +455,35 @@ function SecaoConfiguracaoRodada() {
 
   return (
     <div className="space-y-3">
+      {/* SELETOR DE RODADAS NO TOPO */}
+      <Card>
+        <Row label="Selecionar">
+          <select
+            value={roundId ?? ''}
+            onChange={(e) => {
+              if (e.target.value === 'nova') {
+                iniciarNovaRodada(listaRodadas[listaRodadas.length - 1]?.number ?? 20)
+              } else if (e.target.value) {
+                carregarRodadaPorId(e.target.value)
+              }
+            }}
+            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
+          >
+            {listaRodadas.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} {r.palpites_open ? '🟢 (Aberta)' : r.finalizada ? '✅ (Finalizada)' : '🔒 (Fechada)'}
+              </option>
+            ))}
+            <option value="nova">+ Criar Nova Rodada do Zero</option>
+          </select>
+        </Row>
+      </Card>
+
       <Card>
         <div className="mb-3 flex items-center justify-between border-b border-papel-borda-200/60 pb-2">
           <p className="font-sans text-sm font-semibold text-tinta-300">
-            {roundId ? '✏️ Editando Rodada Atual' : '✨ Criando Nova Rodada'}
+            {roundId ? `✏️ Editando ${nome}` : '✨ Criando Nova Rodada'}
           </p>
-          {roundId && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm('Descartar a edição atual e começar uma rodada totalmente do zero?')) {
-                  iniciarNovaRodada(numero)
-                }
-              }}
-              className="font-mono text-[10px] text-dourado-600 hover:underline"
-            >
-              + Começar do Zero
-            </button>
-          )}
         </div>
         <Row label="Nome"><InputText value={nome} onChange={setNome} placeholder="ex: Rodada 20" className="flex-1" /></Row>
         <Row label="Nº Rodada">
@@ -467,7 +529,7 @@ function SecaoConfiguracaoRodada() {
               onChange={(e) => patch(j.id, { date: e.target.value })}
               className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
             />
-            {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ sem data</span>}
+            {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ A definir</span>}
           </Row>
           <Row label="Horário">
             <InputText value={j.time} onChange={(v) => patch(j.id, { time: v })} placeholder="19:00" className="w-24" />
