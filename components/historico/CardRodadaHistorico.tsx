@@ -26,9 +26,14 @@ export function CardRodadaHistorico({
 }) {
   const [aba, setAba] = useState<Aba>('ranking')
 
-  // Campeões: pode ter mais de 1 em caso de empate perfeito
-  const campeoes = rodada.campeoes ?? (rodada.campeao ? [rodada.campeao] : [])
+  // Campeões: busca com segurança em qualquer alias
+  const campeoes = rodada.campeoes ?? (rodada.campeao ? [rodada.campeao] : rodada.campeaoRodada ? [rodada.campeaoRodada] : [])
   const empateMultiplo = campeoes.length > 1
+
+  // Fallbacks de segurança garantem que NUNCA trave se a propriedade vier no detalhe ou na rodada
+  const linhasRanking = detalhe?.ranking ?? rodada.ranking ?? []
+  const listaJogos = detalhe?.jogos ?? rodada.jogos ?? []
+  const dadosFrango = detalhe?.frango ?? detalhe?.frangoRodada ?? rodada.frango ?? rodada.frangoRodada ?? null
 
   return (
     <div id={`rodada-${rodada.id}`} className="scroll-mt-4 overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50 shadow-sm">
@@ -41,16 +46,16 @@ export function CardRodadaHistorico({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-papel-50">
-                {rodada.name}
+                {rodada.nome || rodada.name}
               </h2>
-              {rodada.isDouble && (
+              {(rodada.isDouble || rodada.is_double) && (
                 <span className="rounded-sm bg-dourado-500 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-couro-900">
                   ⚡ Vale x2
                 </span>
               )}
             </div>
             <p className="mt-0.5 font-mono text-[10px] text-papel-100">
-              {rodada.totalJogos} jogo{rodada.totalJogos === 1 ? '' : 's'}
+              {rodada.totalJogos || rodada.qtdJogos || 0} jogo{(rodada.totalJogos || rodada.qtdJogos) === 1 ? '' : 's'}
             </p>
           </div>
           <span className="font-mono text-lg text-dourado-300">
@@ -68,7 +73,7 @@ export function CardRodadaHistorico({
                     <AvatarNome
                       avatar={c.avatar}
                       emoji={c.emoji}
-                      nome={c.nome}
+                      nome={c.nome || c.name}
                       tema="escuro"
                     />
                     {i < campeoes.length - 1 && (
@@ -77,7 +82,7 @@ export function CardRodadaHistorico({
                   </div>
                 ))}
                 <span className="font-mono text-xs font-bold text-dourado-300">
-                  {campeoes[0].pts} pts
+                  {campeoes[0].pts ?? campeoes[0].pontos ?? 0} pts
                 </span>
                 {empateMultiplo && (
                   <span className="rounded bg-dourado-500/25 px-1 py-0.5 font-mono text-[8px] font-bold uppercase text-dourado-300">
@@ -111,7 +116,7 @@ export function CardRodadaHistorico({
               Carregando detalhes...
             </div>
           )}
-          {!carregandoDetalhe && detalhe && (
+          {(!carregandoDetalhe || detalhe || rodada) && (
             <>
               <div className="flex border-b border-papel-borda-200 bg-papel-100">
                 <TabBtn label="🏅 Ranking" ativa={aba === 'ranking'} onClick={() => setAba('ranking')} />
@@ -120,13 +125,13 @@ export function CardRodadaHistorico({
                   label="🐔 Frango"
                   ativa={aba === 'frango'}
                   onClick={() => setAba('frango')}
-                  disabled={!detalhe.frango}
+                  disabled={!dadosFrango}
                 />
               </div>
               <div className="p-3">
-                {aba === 'ranking' && <AbaRanking linhas={detalhe.ranking} meuParticipantId={meuParticipantId} />}
-                {aba === 'jogos' && <AbaJogos jogos={detalhe.jogos} />}
-                {aba === 'frango' && <AbaFrango frango={detalhe.frango} />}
+                {aba === 'ranking' && <AbaRanking linhas={linhasRanking} meuParticipantId={meuParticipantId} />}
+                {aba === 'jogos' && <AbaJogos jogos={listaJogos} />}
+                {aba === 'frango' && <AbaFrango frango={dadosFrango} />}
               </div>
             </>
           )}
