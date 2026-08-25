@@ -13,9 +13,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo } from '@/lib/homeReal'
+import { supabase } from '@/lib/supabase' // ADICIONADO PARA LER AS NOVIDADES
 import { AvatarCirculo } from './HeaderUsuario'
 import { useRegistrarAtualizar } from './AtualizarContext'
 import { Accordion } from './Accordion'
+import { Modal } from './Modal' // ADICIONADO PARA O POP-UP
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -38,6 +40,9 @@ export function HomeReal() {
   const [participantId, setParticipantId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [atualizando, setAtualizando] = useState(false)
+  
+  // SISTEMA DE NOVIDADES 
+  const [novidade, setNovidade] = useState<{ id: string; titulo: string; resumo: string } | null>(null)
 
   useEffect(() => {
     let pid: string | null = null
@@ -53,6 +58,33 @@ export function HomeReal() {
     setParticipantId(pid)
     carregar(pid)
   }, [])
+
+  // CARREGA A NOVIDADE MAIS RECENTE
+  useEffect(() => {
+    async function carregarNovidade() {
+      const { data } = await supabase
+        .from('novidades')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        
+      if (data) {
+        const vista = localStorage.getItem(`novidade_vista_${data.id}`)
+        if (!vista) {
+          setNovidade(data)
+        }
+      }
+    }
+    carregarNovidade()
+  }, [])
+
+  function fecharNovidade() {
+    if (novidade) {
+      localStorage.setItem(`novidade_vista_${novidade.id}`, 'true')
+      setNovidade(null)
+    }
+  }
 
   async function carregar(pid: string) {
     setErro(null)
@@ -145,6 +177,25 @@ export function HomeReal() {
             <BlocoPodioRodada linhas={parcialOrdenada} />
           )}
         </>
+      )}
+
+      {/* MODAL DE NOVIDADES */}
+      {novidade && (
+        <Modal aberto onFechar={fecharNovidade} borda="border-dourado-400">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-dourado-500 text-couro-900 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase">Novo</span>
+            <p className="font-display text-lg font-bold text-tinta-300 truncate">{novidade.titulo}</p>
+          </div>
+          <p className="font-sans text-sm text-tinta-200 mb-4">{novidade.resumo}</p>
+          <div className="flex justify-end">
+            <button
+              onClick={fecharNovidade}
+              className="bg-dourado-500 text-papel-50 font-mono font-bold text-xs px-4 py-2 rounded-md hover:bg-dourado-600 transition-colors uppercase tracking-widest"
+            >
+              Entendi
+            </button>
+          </div>
+        </Modal>
       )}
     </>
   )
