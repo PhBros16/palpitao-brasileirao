@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
+import { Modal } from '@/components/home/Modal'
+import { getEscudo } from '@/lib/escudos'
 import {
   buscarMinhasStats,
   buscarDetalheRodada,
@@ -112,12 +115,25 @@ function BlocoMinhas() {
   const corTendencia = stats.tendencia === 'alta' ? 'text-green-600' : stats.tendencia === 'baixa' ? 'text-red-600' : 'text-tinta-200'
   const labelTendencia = stats.tendencia === 'alta' ? 'Em alta' : stats.tendencia === 'baixa' ? 'Em baixa' : stats.tendencia === 'estavel' ? 'Estável' : 'Sem dados'
 
+  const jogosPontuados = stats.cravadas + stats.saldo + stats.vencedor
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dourado-300 bg-dourado-50 p-3 text-center">
+          <span className="font-mono text-2xl font-bold text-dourado-800">{stats.totalComPalpite}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-dourado-700">Palpites Totais</span>
+        </div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dourado-300 bg-dourado-50 p-3 text-center">
+          <span className="font-mono text-2xl font-bold text-green-700">{stats.pctVencedor}%</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-green-800">Aproveitamento</span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-4 gap-2">
         <CardStat label="Rodadas" valor={stats.rodadas} cor="text-tinta-300" />
+        <CardStat label="Pontuou" valor={jogosPontuados} cor="text-blue-600" />
         <CardStat label="Cravadas" valor={stats.cravadas} cor="text-green-600" />
-        <CardStat label="Vencedor" valor={stats.vencedor} cor="text-blue-600" />
         <CardStat label="Saldo" valor={stats.saldo} cor="text-orange-600" />
       </div>
 
@@ -156,11 +172,9 @@ function BlocoMinhas() {
             <span className="font-mono text-xl font-bold text-dourado-600">{stats.placarFavorito ?? '—'}</span>
             <span className="font-sans text-[9px] text-tinta-200">Apostado {stats.placaresFrequentes?.[0]?.qtd ?? 0}x</span>
           </div>
-          
           <button onClick={() => setVerTodosPlacares(!verTodosPlacares)} className="mt-2 w-full font-mono text-[9px] text-tinta-200 hover:underline">
             {verTodosPlacares ? '▲ Ocultar' : '▼ Ver todos'}
           </button>
-          
           {verTodosPlacares && stats.placaresFrequentes && (
             <div className="mt-2 max-h-24 overflow-y-auto space-y-1 scrollbar-tema border-t border-papel-borda-200 pt-2">
               {stats.placaresFrequentes.map((p) => (
@@ -211,10 +225,10 @@ function BlocoMinhas() {
       </div>
 
       <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-tinta-100">📊 Acertos em {stats.totalComPalpite} palpites</p>
-        <BarraPct label="Acertei qualquer ponto" pct={stats.pctVencedor} cor="bg-blue-500" />
-        <BarraPct label="Acertei o placar exato" pct={stats.pctPlacarExato} cor="bg-green-600" />
-        <BarraPct label="Acertei apenas o saldo" pct={stats.pctSaldo} cor="bg-orange-500" />
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-tinta-100">📊 Detalhe dos Acertos</p>
+        <BarraPct label="Total de acertos (>0 pts)" pct={stats.pctVencedor} cor="bg-blue-500" />
+        <BarraPct label="Cravadas Exatas (5 pts)" pct={stats.pctPlacarExato} cor="bg-green-600" />
+        <BarraPct label="Apenas o Saldo (3 pts)" pct={stats.pctSaldo} cor="bg-orange-500" />
       </div>
 
       {rodadaDetalhe && (
@@ -244,23 +258,16 @@ function BlocoGrupo() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 1. Blocos de Acerto Básico */}
       <BlocoCravadasZeros dados={dados.cravadasZeros} />
       <BlocoAcertoVencedor dados={dados.acertoVencedor} />
       <BlocoDonoRodada dados={dados.donoRodada} />
-
-      {/* 2. Blocos de Perfil/Curiosidade */}
       <BlocoEmocionados dados={dados.emocionados} />
       <BlocoZebras dados={dados.cacadorZebras} />
       <BlocoViciadosEmpate dados={dados.viciadosEmpate} />
-      
-      {/* 3. Blocos de Padrões e Consistência */}
       <BlocoConsistencia dados={dados.consistencia} />
       <BlocoBipolares dados={dados.bipolares} />
       <BlocoOverUnder dados={dados.overUnder} />
       <BlocoPerfilAposta dados={dados.perfilAposta} />
-      
-      {/* 4. Historico */}
       <BlocoRecordes dados={dados.recordes} />
       <BlocoPlacares dados={dados.placares} />
     </div>
