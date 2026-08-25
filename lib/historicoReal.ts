@@ -1,14 +1,6 @@
 import { supabase } from './supabase'
 
-// Camada de dados do Histórico Real.
-//
-// Busca todas as rodadas finalizadas (finalized = true) ordenadas ESTRITAMENTE pelo NÚMERO da rodada (number DESC).
-// Retorna os dados completos de cada rodada:
-//   - Cabeçalho (Nome, número, se vale x2)
-//   - Campeão da rodada (quem fez mais pontos naquela rodada específica)
-//   - Frango da rodada (tabela shame)
-//   - Ranking interno da rodada (pontos, cravadas, saldos, vencedores de cada participante)
-//   - Lista de jogos com placares reais
+// Types esperados pelos componentes de Histórico
 
 export interface JogoHistorico {
   matchId: string
@@ -16,8 +8,6 @@ export interface JogoHistorico {
   away: string
   homeScore: number | null
   awayScore: number | null
-  date: string | null
-  time: string | null
 }
 
 export interface PalpiteHistorico {
@@ -44,7 +34,7 @@ export interface CampeaoHistorico {
   emoji: string | null
 }
 
-export interface RodadaHistoricoCompleta {
+export interface RodadaHistorico {
   roundId: string
   numero: number
   nome: string
@@ -76,12 +66,29 @@ export interface DetalheParticipanteRodada {
   jogos: DetalhePalpiteJogo[]
 }
 
+export interface DetalheRodadaHistorico {
+  roundId: string
+  numero: number
+  nome: string
+  participante: DetalheParticipanteRodada
+}
+
+// ─── Helper de categoria de acerto ──────────────────────────────────────────
+
+export function categorizarAcerto(pts: number | null): 'cravada' | 'saldo' | 'vencedor' | 'errou' | 'np' {
+  if (pts === null) return 'np'
+  if (pts === 5 || pts === 10) return 'cravada'
+  if (pts === 3 || pts === 6) return 'saldo'
+  if (pts === 1 || pts === 2) return 'vencedor'
+  return 'errou'
+}
+
+// ─── Funções de busca ────────────────────────────────────────────────────────
+
 /**
  * Busca todas as rodadas finalizadas ordenadas estritamente pelo NÚMERO da rodada (number DESC).
- * Isso garante que R24 apareça no topo, seguida por R23, R22, R21, etc., independentemente da data de criação no banco.
  */
-export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta[]> {
-  // 1. Busca rodadas finalizadas com ordenação estrita pelo NÚMERO da rodada (number DESC)
+export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistorico[]> {
   const { data: rounds, error: rErr } = await supabase
     .from('rounds')
     .select('id, number, name, finalized, is_double')
@@ -93,12 +100,11 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
 
   const roundIds = rounds.map((r) => r.id)
 
-  // 2. Busca jogos, resultados, participantes não-admin e frangos das rodadas em paralelo
   const [
-    { data: matches, error: mErr },
-    { data: roundResults, error: rrErr },
-    { data: participants, error: pErr },
-    { data: shames, error: sErr },
+    { data: matches },
+    { data: roundResults },
+    { data: participants },
+    { data: shames },
   ] = await Promise.all([
     supabase
       .from('matches')
@@ -119,15 +125,9 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
       .in('round_id', roundIds),
   ])
 
-  if (mErr) throw mErr
-  if (rrErr) throw rrErr
-  if (pErr) throw pErr
-  if (sErr) throw sErr
-
   const partMap = new Map((participants ?? []).map((p) => [p.id, p]))
   const shamesMap = new Map((shames ?? []).map((s) => [s.round_id, s]))
 
-  // 3. Monta cada rodada do histórico com ranking interno e campeão
   return rounds.map((r) => {
     const jogosDaRodada: JogoHistorico[] = (matches ?? [])
       .filter((m) => m.round_id === r.id)
@@ -137,8 +137,6 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
         away: m.away,
         homeScore: m.home_score,
         awayScore: m.away_score,
-        date: m.match_date ?? null,
-        time: m.match_time?.slice(0, 5) ?? null,
       }))
 
     const rrDaRodada = (roundResults ?? []).filter((rr) => rr.round_id === r.id)
@@ -161,8 +159,7 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
       .filter((x): x is PalpiteHistorico => x !== null)
       .sort((a, b) => b.pontos - a.pontos || b.cravadas - a.cravadas || b.saldos - a.saldos)
 
-    // Campeão é o primeiro do ranking interno da rodada
-    const campeao: CampeaoHistorico | null = ranking[0]
+    const campeao = ranking[0]
       ? {
           nome: ranking[0].nome,
           pontos: ranking[0].pontos,
@@ -172,7 +169,7 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
       : null
 
     const shame = shamesMap.get(r.id)
-    const frango: FrangoHistorico | null = shame
+    const frango = shame
       ? {
           jogador: shame.player_name,
           texto: shame.text ?? null,
@@ -194,14 +191,22 @@ export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta
   })
 }
 
+/** Alias para manter retrocompatibilidade */
+export const buscarHistoricoCompleto = buscarRodadasFinalizadasHistorico
+
 /**
- * Busca o detalhamento dos palpites e pontos de um participante em uma rodada específica do histórico.
+ * Busca os detalhes de uma rodada específica para o histórico.
  */
-export async function buscarDetalheParticipanteHistorico(
+export async function buscarDetalheRodada(
   roundId: string,
   participantId: string,
-): Promise<DetalheParticipanteRodada | null> {
-  const [{ data: part }, { data: matches }, { data: rr }] = await Promise.all([
+): Promise<DetalheRodadaHistorico | null> {
+  const [{ data: round }, { data: part }, { data: matches }, { data: rr }] = await Promise.all([
+    supabase
+      .from('rounds')
+      .select('id, number, name')
+      .eq('id', roundId)
+      .single(),
     supabase
       .from('participants')
       .select('id, name, avatar, emoji')
@@ -220,7 +225,7 @@ export async function buscarDetalheParticipanteHistorico(
       .maybeSingle(),
   ])
 
-  if (!part) return null
+  if (!round || !part) return null
 
   const matchIds = (matches ?? []).map((m) => m.id)
 
@@ -249,11 +254,24 @@ export async function buscarDetalheParticipanteHistorico(
   })
 
   return {
-    participantId: part.id,
-    nome: part.name,
-    avatar: part.avatar ?? null,
-    emoji: part.emoji ?? null,
-    pontosTotais: rr?.round_pts ?? 0,
-    jogos,
+    roundId: round.id,
+    numero: round.number,
+    nome: round.name,
+    participante: {
+      participantId: part.id,
+      nome: part.name,
+      avatar: part.avatar ?? null,
+      emoji: part.emoji ?? null,
+      pontosTotais: rr?.round_pts ?? 0,
+      jogos,
+    },
   }
+}
+
+export const buscarDetalheParticipanteHistorico = async (
+  roundId: string,
+  participantId: string,
+): Promise<DetalheParticipanteRodada | null> => {
+  const res = await buscarDetalheRodada(roundId, participantId)
+  return res ? res.participante : null
 }
