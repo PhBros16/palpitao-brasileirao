@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-// Types com suporte completo a todos os aliases dos componentes visuais
+// ─── Interfaces com suporte a todos os aliases de componentes ─────────────────
 
 export interface JogoHistorico {
   id: string
@@ -27,6 +27,7 @@ export interface PalpiteHistorico {
   pontos: number
   round_pts: number
   pts: number
+  total_pts: number
   cravadas: number
   exact_scores: number
   vencedores: number
@@ -47,6 +48,8 @@ export interface CampeaoHistorico {
   pontos: number
   pts: number
   round_pts: number
+  total_pts: number
+  score: number
   avatar: string | null
   emoji: string | null
 }
@@ -54,11 +57,13 @@ export interface CampeaoHistorico {
 export interface RodadaHistorico {
   id: string
   roundId: string
+  round_id: string
   numero: number
   number: number
   nome: string
   name: string
   finalizada: boolean
+  finalized: boolean
   isDouble: boolean
   is_double: boolean
   totalJogos: number
@@ -78,28 +83,43 @@ export interface RodadaHistorico {
 
 export interface DetalhePalpiteJogo {
   matchId: string
+  match_id: string
   home: string
   away: string
   homeScore: number | null
   awayScore: number | null
+  home_score: number | null
+  away_score: number | null
   predH: number | null
   predA: number | null
+  pred_h: number | null
+  pred_a: number | null
   pontos: number | null
+  pts: number | null
 }
 
 export interface DetalheParticipanteRodada {
   participantId: string
+  participant_id: string
   nome: string
+  name: string
   avatar: string | null
   emoji: string | null
   pontosTotais: number
+  pontos: number
+  pts: number
   jogos: DetalhePalpiteJogo[]
 }
 
 export interface DetalheRodadaHistorico {
+  id: string
   roundId: string
+  round_id: string
   numero: number
+  number: number
   nome: string
+  name: string
+  jogos: DetalhePalpiteJogo[]
   participante: DetalheParticipanteRodada
 }
 
@@ -124,18 +144,25 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
     } catch { /* ignora */ }
   }
 
-  // 1. ORDENAÇÃO CORRIGIDA: Ordena por data de criação/finalização (created_at DESC)
-  // Isso coloca as rodadas mais recentes no topo sem empurrar as Extras de forma artificial
+  // 1. Busca rodadas finalizadas no banco
   const { data: rounds, error: rErr } = await supabase
     .from('rounds')
     .select('id, number, name, finalized, is_double, created_at')
     .eq('finalized', true)
-    .order('created_at', { ascending: false })
 
   if (rErr) throw rErr
   if (!rounds || rounds.length === 0) return []
 
-  const roundIds = rounds.map((r) => r.id)
+  // ORDENAÇÃO: Rodadas normais (R24, R23, R22...) primeiro em ordem decrescente, e Extras por último ou ordem de criação
+  const roundsOrdenados = [...rounds].sort((a, b) => {
+    const isExtraA = a.number >= 100
+    const isExtraB = b.number >= 100
+    if (isExtraA && !isExtraB) return 1  // Extra vai pra baixo
+    if (!isExtraA && isExtraB) return -1 // Normal fica em cima
+    return b.number - a.number           // Decrescente (R24 em cima de R23)
+  })
+
+  const roundIds = roundsOrdenados.map((r) => r.id)
 
   const [
     { data: matches },
@@ -165,7 +192,7 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
   const partMap = new Map((participants ?? []).map((p) => [p.id, p]))
   const shamesMap = new Map((shames ?? []).map((s) => [s.round_id, s]))
 
-  return rounds.map((r) => {
+  return roundsOrdenados.map((r) => {
     const jogosDaRodada: JogoHistorico[] = (matches ?? [])
       .filter((m) => m.round_id === r.id)
       .map((m) => ({
@@ -200,6 +227,7 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
           pontos: pts,
           round_pts: pts,
           pts: pts,
+          total_pts: pts,
           cravadas: rr.exact_scores ?? 0,
           exact_scores: rr.exact_scores ?? 0,
           vencedores: rr.correct_winner ?? 0,
@@ -218,6 +246,8 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
           pontos: ranking[0].pontos,
           pts: ranking[0].pontos,
           round_pts: ranking[0].pontos,
+          total_pts: ranking[0].pontos,
+          score: ranking[0].pontos,
           avatar: ranking[0].avatar,
           emoji: ranking[0].emoji,
         }
@@ -241,11 +271,13 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
     return {
       id: r.id,
       roundId: r.id,
+      round_id: r.id,
       numero: num,
       number: num,
       nome: nomeRodada,
       name: nomeRodada,
       finalizada: r.finalized,
+      finalized: r.finalized,
       isDouble: r.is_double ?? false,
       is_double: r.is_double ?? false,
       totalJogos: jogosDaRodada.length,
@@ -294,28 +326,46 @@ export async function buscarDetalheRodada(
 
   const jogos: DetalhePalpiteJogo[] = (matches ?? []).map((m) => {
     const p = predMap.get(m.id)
+    const pts = p?.points ?? null
     return {
       matchId: m.id,
+      match_id: m.id,
       home: m.home,
       away: m.away,
       homeScore: m.home_score,
       awayScore: m.away_score,
+      home_score: m.home_score,
+      away_score: m.away_score,
       predH: p?.pred_h ?? null,
       predA: p?.pred_a ?? null,
-      pontos: p?.points ?? null,
+      pred_h: p?.pred_h ?? null,
+      pred_a: p?.pred_a ?? null,
+      pontos: pts,
+      pts: pts,
     }
   })
 
+  const ptsTotais = rr?.round_pts ?? 0
+
   return {
+    id: round.id,
     roundId: round.id,
+    round_id: round.id,
     numero: round.number,
+    number: round.number,
     nome: round.name,
+    name: round.name,
+    jogos,
     participante: {
       participantId: part.id,
+      participant_id: part.id,
       nome: part.name,
+      name: part.name,
       avatar: part.avatar ?? null,
       emoji: part.emoji ?? null,
-      pontosTotais: rr?.round_pts ?? 0,
+      pontosTotais: ptsTotais,
+      pontos: ptsTotais,
+      pts: ptsTotais,
       jogos,
     },
   }
