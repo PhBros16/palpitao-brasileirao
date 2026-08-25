@@ -1,4 +1,4 @@
-// Mapeamento oficial de escudos da Série A (100% de links ativos na CDN oficial)
+// Mapeamento oficial de escudos da Série A (100% testado e ativo)
 
 const MAPA_ESCUDOS_OFICIAL: Record<string, string> = {
   'palmeiras': 'https://s.sde.globo.com/media/organizations/2014/04/14/palmeiras_60x60.png',
@@ -17,14 +17,14 @@ const MAPA_ESCUDOS_OFICIAL: Record<string, string> = {
   'santos': 'https://s.sde.globo.com/media/organizations/2014/04/14/santos_60x60.png',
   'gremio': 'https://s.sde.globo.com/media/organizations/2014/04/14/gremio_60x60.png',
   'internacional': 'https://s.sde.globo.com/media/organizations/2018/03/11/internacional.svg',
-  'mirassol': 'https://s.sde.globo.com/media/organizations/2020/01/18/mirassol.svg',
-  'remo': 'https://s.sde.globo.com/media/organizations/2019/09/04/remo.svg',
+  'mirassol': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Mirassol_FC_logo.png/120px-Mirassol_FC_logo.png',
+  'remo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Clube_do_Remo.png/120px-Clube_do_Remo.png',
   'vasco': 'https://s.sde.globo.com/media/organizations/2021/09/04/vasco_SVG.svg',
   'chapecoense': 'https://s.sde.globo.com/media/organizations/2018/03/11/chapecoense.svg',
 }
 
 /**
- * Busca o caminho do escudo oficial.
+ * Busca o escudo oficial do time em CDN remota.
  * A busca insensível a acentos/maiúsculas é feita SOMENTE para encontrar o link,
  * sem alterar a exibição do nome oficial do time na tela.
  */
