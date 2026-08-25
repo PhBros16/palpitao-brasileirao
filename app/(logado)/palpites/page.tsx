@@ -1,7 +1,5 @@
 'use client'
 
-// Palpites real — envolvido no AppLayout pra ganhar Header + Nav + Player.
-
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PalpitesRodada } from '@/components/palpites'
@@ -16,23 +14,35 @@ export default function PalpitesPage() {
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
-    const sessaoRaw = localStorage.getItem('palpitao_sessao')
-    if (!sessaoRaw) {
-      router.push('/')
-      return
-    }
-    const sessao = JSON.parse(sessaoRaw) as { id: string; nome: string }
-    setParticipantId(sessao.id)
+    try {
+      const sessaoRaw = localStorage.getItem('palpitao_sessao')
+      if (!sessaoRaw) {
+        router.push('/')
+        return
+      }
+      const sessao = JSON.parse(sessaoRaw) as { id: string; nome: string }
+      if (!sessao || !sessao.id) {
+        router.push('/')
+        return
+      }
+      setParticipantId(sessao.id)
 
-    buscarRodadaAtivaPalpites()
-      .then(async (r) => {
-        setRodada(r)
-        if (r.roundId) {
-          const existentes = await buscarPalpitesExistentes(r.roundId, sessao.id)
-          setPalpitesIniciais(existentes)
-        }
-      })
-      .catch((e) => setErro(`Não consegui carregar a rodada: ${e.message}`))
+      buscarRodadaAtivaPalpites()
+        .then(async (r) => {
+          setRodada(r)
+          if (r && r.roundId) {
+            try {
+              const existentes = await buscarPalpitesExistentes(r.roundId, sessao.id)
+              setPalpitesIniciais(existentes ?? {})
+            } catch {
+              setPalpitesIniciais({})
+            }
+          }
+        })
+        .catch((e) => setErro(`Não consegui carregar a rodada: ${(e as Error).message}`))
+    } catch {
+      router.push('/')
+    }
   }, [router])
 
   return (
@@ -44,7 +54,7 @@ export default function PalpitesPage() {
       )}
       {!erro && !rodada && (
         <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-6 text-center font-sans text-sm text-tinta-100">
-          Carregando...
+          Carregando palpites...
         </div>
       )}
       {rodada && !rodada.roundId && (
