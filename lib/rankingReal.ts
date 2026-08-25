@@ -2,20 +2,6 @@ import { supabase } from './supabase'
 import { lerConfig } from './appSettings'
 import { calcProjecaoPct } from './domain/projecao'
 
-// Camada de dados do Ranking real.
-//
-// Lê da tabela round_results (fonte oficial compartilhada com o Histórico).
-//
-// Regras do Ranking Oficial:
-//   - PONTOS: soma de round_pts de todas as rodadas finalizadas
-//   - CRAV.: soma de exact_scores (cravadas)
-//   - SALDO: soma de correct_saldo (saldos)
-//   - VENC.: soma de correct_winner (vencedor puro = 1pt)
-//
-// Filtros:
-//   - Só participantes com is_admin = false
-//   - Só rodadas com finalized = true
-
 export interface LinhaRanking {
   participantId: string
   nome: string
@@ -94,7 +80,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }))
   }
 
-  // Busca agregados da tabela round_results
+  // Busca agregados da tabela round_results oficial
   const { data: rr, error: rrErr } = await supabase
     .from('round_results')
     .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
@@ -114,7 +100,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     bucket.total += (row.round_pts ?? 0)
     bucket.cravadas += (row.exact_scores ?? 0)
     bucket.saldo += (row.correct_saldo ?? 0)
-    bucket.vencedor += (row.correct_winner ?? 0) // Vencedor Puro (Opção B)
+    bucket.vencedor += (row.correct_winner ?? 0)
   }
 
   const projMap = roundIds.length >= 2
@@ -137,7 +123,6 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }
   })
 
-  // Ordenação oficial
   linhas.sort((a, b) => b.total - a.total || b.cravadas - a.cravadas || b.vencedor - a.vencedor || b.saldo - a.saldo)
   linhas.forEach((l, i) => { l.posicao = i + 1 })
 
