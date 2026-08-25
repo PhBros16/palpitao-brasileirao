@@ -29,17 +29,19 @@ const MAPA_ESCUDOS: Record<string, string> = {
  */
 export function getEscudo(nome: string | null | undefined): string | null {
   if (!nome) return null
+  
+  // Limpa o nome: converte pra minúsculo, remove acentos
   const str = nome.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
   if (str.includes('palmeiras')) return MAPA_ESCUDOS['palmeiras']
   if (str.includes('flamengo')) return MAPA_ESCUDOS['flamengo']
-  if (str.includes('athletico') || str.includes('atletico-pr') || str.includes('atletico pr') || str.includes('cap')) return MAPA_ESCUDOS['athletico-pr']
+  if (str.includes('athletico') || str.includes('cap')) return MAPA_ESCUDOS['athletico-pr']
   if (str.includes('fluminense') || str.includes('flu')) return MAPA_ESCUDOS['fluminense']
   if (str.includes('cruzeiro')) return MAPA_ESCUDOS['cruzeiro']
   if (str.includes('bahia')) return MAPA_ESCUDOS['bahia']
   if (str.includes('bragantino') || str.includes('red bull') || str.includes('rb')) return MAPA_ESCUDOS['rb bragantino']
   if (str.includes('coritiba') || str.includes('coxa')) return MAPA_ESCUDOS['coritiba']
-  if (str.includes('atletico') || str.includes('mg') || str.includes('galo')) return MAPA_ESCUDOS['atletico-mg']
+  if (str.includes('atletico') || str.includes('galo')) return MAPA_ESCUDOS['atletico-mg']
   if (str.includes('corinthians') || str.includes('timao')) return MAPA_ESCUDOS['corinthians']
   if (str.includes('botafogo') || str.includes('bota')) return MAPA_ESCUDOS['botafogo']
   if (str.includes('vitoria')) return MAPA_ESCUDOS['vitoria']
@@ -52,5 +54,5 @@ export function getEscudo(nome: string | null | undefined): string | null {
   if (str.includes('vasco')) return MAPA_ESCUDOS['vasco']
   if (str.includes('chapecoense') || str.includes('chape')) return MAPA_ESCUDOS['chapecoense']
 
-  return MAPA_ESCUDOS[str] ?? null
+  return null
 }
