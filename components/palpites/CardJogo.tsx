@@ -1,12 +1,5 @@
 'use client'
 
-// CardJogo — card individual de um jogo na tela de palpites.
-//
-// Regras de Exibição:
-//   - Mantém nomes 100% com acentuação oficial ("Atlético-MG", "São Paulo", "Vitória", "Grêmio").
-//   - Encurta apenas "Red Bull Bragantino" para "RB Bragantino".
-//   - Contagem regressiva ao vivo com segundos e mudança dinâmica de cor (Verde -> Vermelho).
-
 import { useEffect, useState } from 'react'
 import { getEscudo } from '@/lib/escudos'
 
@@ -27,11 +20,17 @@ export interface Jogo {
 export type JogoPalpite = Jogo
 
 function getSigla(nome: string): string {
+  if (!nome) return '?'
   const n = nome.trim()
-  if (n === 'Red Bull Bragantino' || n === 'RB Bragantino') return 'RBB'
+  if (n.includes('Bragantino') || n.includes('Red Bull')) return 'RBB'
   if (n.includes('Athletico')) return 'CAP'
-  if (n.includes('Atlético-MG') || n.includes('Atlético MG')) return 'CAM'
-  if (n.includes('São Paulo')) return 'SAO'
+  if (n.includes('Atlético-MG') || n.includes('Atlético MG') || n.includes('Galo')) return 'CAM'
+  if (n.includes('São Paulo') || n.includes('Sao Paulo')) return 'SAO'
+  if (n.includes('Vitória') || n.includes('Vitoria')) return 'VIT'
+  if (n.includes('Coritiba')) return 'CFC'
+  if (n.includes('Internacional')) return 'INT'
+  if (n.includes('Chapecoense')) return 'CHA'
+  if (n.includes('Bahia')) return 'BAH'
   const palavras = n.split(' ').filter(Boolean)
   if (palavras.length >= 2) {
     return (palavras[0][0] + palavras[1][0] + (palavras[2]?.[0] ?? '')).toUpperCase().slice(0, 3)
@@ -105,44 +104,43 @@ export function formatarDataFormatada(dateStr: string, timeStr: string): string 
   return `${dia}/${mes}, ${hora}:${min}`
 }
 
-export function formatCountdown(dateStr: string, timeStr: string): { texto: string; cor: string } {
+export function formatCountdown(dateStr: string, timeStr: string): string {
   const dt = parseDataHoraSafe(dateStr, timeStr)
-  if (!dt) return { texto: 'A definir', cor: 'text-tinta-200' }
+  if (!dt) return 'A definir'
   const ms = dt.getTime() - Date.now()
   
-  if (ms <= 0) return { texto: 'fechado', cor: 'text-red-600' }
+  if (ms <= 0) return 'fechado'
 
   const totalSeg = Math.floor(ms / 1000)
   const totalMin = Math.floor(totalSeg / 60)
 
-  // Menos de 1 hora: Exibe minutos e segundos ao vivo em VERMELHO
   if (totalMin < 60) {
     const min = Math.floor(totalSeg / 60)
     const sec = totalSeg % 60
-    return { 
-      texto: `fecha em ${min}m ${String(sec).padStart(2, '0')}s`, 
-      cor: 'text-red-600' 
-    }
+    return `fecha em ${min}m ${String(sec).padStart(2, '0')}s`
   }
 
   const horas = Math.floor(totalMin / 60)
   const mins = totalMin % 60
   
-  // Menos de 24 horas: Exibe horas, minutos e segundos ao vivo
   if (horas < 24) {
     const sec = totalSeg % 60
-    return { 
-      texto: `fecha em ${horas}h ${String(mins).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`, 
-      cor: horas <= 2 ? 'text-red-600' : 'text-green-700'
-    }
+    return `fecha em ${horas}h ${String(mins).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`
   }
 
   const dias = Math.floor(horas / 24)
   const hRest = horas % 24
-  return { 
-    texto: `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`, 
-    cor: 'text-green-700' 
-  }
+  return `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`
+}
+
+export function getCountdownColor(dateStr: string, timeStr: string): string {
+  const dt = parseDataHoraSafe(dateStr, timeStr)
+  if (!dt) return 'text-tinta-200'
+  const ms = dt.getTime() - Date.now()
+  if (ms <= 0) return 'text-red-600 font-semibold'
+  const horas = ms / (1000 * 60 * 60)
+  if (horas <= 2) return 'text-red-600 font-bold'
+  return 'text-green-700 font-bold'
 }
 
 export const formatarCountdown = formatCountdown
@@ -165,12 +163,15 @@ export function CardJogo({
   const escudoHome = getEscudo(jogo.home)
   const escudoAway = getEscudo(jogo.away)
 
-  const [timerStatus, setTimerStatus] = useState(() => formatCountdown(jogo.date, jogo.time))
+  const [tempoTexto, setTempoTexto] = useState(() => formatCountdown(jogo.date, jogo.time))
+  const [tempoCor, setTempoCor] = useState(() => getCountdownColor(jogo.date, jogo.time))
 
   useEffect(() => {
-    // Atualiza a cada 1 segundo para manter os segundos do relógio ao vivo
+    setTempoTexto(formatCountdown(jogo.date, jogo.time))
+    setTempoCor(getCountdownColor(jogo.date, jogo.time))
     const timer = setInterval(() => {
-      setTimerStatus(formatCountdown(jogo.date, jogo.time))
+      setTempoTexto(formatCountdown(jogo.date, jogo.time))
+      setTempoCor(getCountdownColor(jogo.date, jogo.time))
     }, 1000)
     return () => clearInterval(timer)
   }, [jogo.date, jogo.time])
@@ -210,7 +211,7 @@ export function CardJogo({
             min={0}
             max={99}
             disabled={travado}
-            value={palpite.h ?? ''}
+            value={palpite?.h ?? ''}
             onChange={(e) => {
               const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
               onChangePalpite({ ...palpite, h: isNaN(val!) ? null : val })
@@ -225,7 +226,7 @@ export function CardJogo({
             min={0}
             max={99}
             disabled={travado}
-            value={palpite.a ?? ''}
+            value={palpite?.a ?? ''}
             onChange={(e) => {
               const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
               onChangePalpite({ ...palpite, a: isNaN(val!) ? null : val })
@@ -265,7 +266,7 @@ export function CardJogo({
         {travado ? (
           <span className="font-semibold text-red-600">🔒 palpite encerrado</span>
         ) : (
-          <span className={cx('font-bold', timerStatus.cor)}>{timerStatus.texto}</span>
+          <span className={tempoCor}>{tempoTexto}</span>
         )}
       </div>
     </div>
