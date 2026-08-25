@@ -112,6 +112,17 @@ function normalizarNomeTime(nomeBruto: string): string {
   return nomeBruto.trim()
 }
 
+// Gera histórico de evolução R1..R24 uniforme para desenhar o gráfico sem falhas
+function gerarTrajetoriaEvolucao(pontosAtuais: number, jogosCount: number): number[] {
+  const pts: number[] = [0]
+  if (jogosCount <= 0) return pts
+  const taxa = pontosAtuais / jogosCount
+  for (let i = 1; i <= jogosCount; i++) {
+    pts.push(Math.min(pontosAtuais, Math.round(i * taxa)))
+  }
+  return pts
+}
+
 export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   const [
     { data: matches, error: mErr },
@@ -136,6 +147,7 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
 
   const jogosNovosAoVivo: JogoBrasileirao[] = []
   const jogosFuturos: JogoBrasileirao[] = []
+  const todosJogosComPlacar: JogoBrasileirao[] = []
 
   for (const m of matches) {
     const r = roundMap.get(m.round_id)
@@ -155,9 +167,9 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     }
 
     if (m.home_score !== null && m.away_score !== null) {
-      // Jogos a partir da Rodada 25 entram no cálculo AO VIVO
-      if (!isExtra && r.number >= 25) {
-        jogosNovosAoVivo.push(jogo)
+      if (!isExtra) {
+        todosJogosComPlacar.push(jogo)
+        if (r.number >= 25) jogosNovosAoVivo.push(jogo)
       }
     } else {
       if (!isExtra) jogosFuturos.push(jogo)
@@ -165,28 +177,27 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   }
 
   jogosNovosAoVivo.sort((a, b) => a.roundNumber - b.roundNumber)
+  todosJogosComPlacar.sort((a, b) => a.roundNumber - b.roundNumber)
 
   const tabela = calcularTabelaComBaseOficial(jogosNovosAoVivo)
-  const estatisticas = calcularEstatisticas(jogosNovosAoVivo, tabela)
+  const estatisticas = calcularEstatisticas(todosJogosComPlacar, tabela)
 
   const hoje = new Date().toISOString().split('T')[0]
   const proximosJogos = jogosFuturos
     .filter((j) => !j.date || j.date >= hoje)
     .sort((a, b) => a.roundNumber - b.roundNumber)
 
-  const ultimosResultados = [...jogosNovosAoVivo]
+  const ultimosResultados = [...jogosNovosAoVivo, ...todosJogosComPlacar.filter(j => j.roundNumber <= 24)]
     .sort((a, b) => b.roundNumber - a.roundNumber)
 
   const totalRodadasFinalizadas = rounds.filter((r) => r.finalized && r.number < 100).length
 
-  // Total de jogos disputados no campeonato (R24 base + novos ao vivo)
   const totalJogosDisputados = Object.values(BASE_OFICIAL_R24).reduce((s, t) => s + t.jogos, 0) / 2 + jogosNovosAoVivo.length
 
   return { tabela, estatisticas, proximosJogos, ultimosResultados, totalJogosDisputados, totalRodadasFinalizadas }
 }
 
 function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabela[] {
-  // Inicializa com a BASE OFICIAL IDÊNTICA AO GOOGLE (R24)
   const timesMap = new Map<string, {
     pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number;
     golsMarcados: number; golsSofridos: number; historico: ResultadoUltimo[];
@@ -203,11 +214,10 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
       golsMarcados: b.gp,
       golsSofridos: b.gc,
       historico: [...b.ultimos5],
-      evolucaoPts: [b.pontos],
+      evolucaoPts: gerarTrajetoriaEvolucao(b.pontos, b.jogos),
     })
   }
 
-  // Soma AO VIVO qualquer novo jogo das rodadas 25 a 38 lançado no Admin
   for (const j of jogosNovos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const home = timesMap.get(j.home)
@@ -244,7 +254,6 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
     }
   })
 
-  // Critérios oficiais de desempate
   linhas.sort((a, b) => b.pontos - a.pontos || b.vitorias - a.vitorias || b.saldoGols - a.saldoGols || b.golsMarcados - a.golsMarcados || a.time.localeCompare(b.time))
 
   linhas.forEach((l, i) => {
@@ -259,7 +268,7 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
   return linhas
 }
 
-function calcularEstatisticas(jogosNovos: JogoBrasileirao[], tabela: LinhaTabela[]): EstatisticasCampeonato {
+function calcularEstatisticas(todosJogos: JogoBrasileirao[], tabela: LinhaTabela[]): EstatisticasCampeonato {
   const melhorAtaque = [...tabela].sort((a, b) => b.golsMarcados - a.golsMarcados).map((t) => ({ time: t.time, valor: t.golsMarcados }))
   const piorDefesa = [...tabela].sort((a, b) => b.golsSofridos - a.golsSofridos).map((t) => ({ time: t.time, valor: t.golsSofridos }))
   const reiEmpate = [...tabela].sort((a, b) => b.empates - a.empates).map((t) => ({ time: t.time, valor: t.empates }))
@@ -267,14 +276,15 @@ function calcularEstatisticas(jogosNovos: JogoBrasileirao[], tabela: LinhaTabela
 
   let maiorGoleada: EstatisticasCampeonato['maiorGoleada'] = null
   let maiorSaldoAbs = 0
-  let totalGolsNovos = 0
+  let totalGolsGeral = 0
 
   const golsPorRodadaMap = new Map<number, { nome: string; totalGols: number; jogos: number }>()
 
-  for (const j of jogosNovos) {
+  // Processa todos os jogos do banco para a Média de Gols por Rodada
+  for (const j of todosJogos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const golsJogo = j.homeScore + j.awayScore
-    totalGolsNovos += golsJogo
+    totalGolsGeral += golsJogo
 
     const saldoAbs = Math.abs(j.homeScore - j.awayScore)
     if (saldoAbs > maiorSaldoAbs) {
