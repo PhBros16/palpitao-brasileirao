@@ -41,7 +41,7 @@ function getSigla(nome: string): string {
 
 function normalizarNomeExibicao(nome: string): string {
   if (!nome) return ''
-  if (nome === 'Red Bull Bragantino') return 'RB Bragantino'
+  if (nome.toLowerCase().includes('bragantino')) return 'RB Bragantino'
   return nome.trim()
 }
 
@@ -104,19 +104,42 @@ export function formatarDataFormatada(dateStr: string, timeStr: string): string 
   return `${dia}/${mes}, ${hora}:${min}`
 }
 
-export function formatCountdown(dateStr: string, timeStr: string): string {
+export function formatCountdown(dateStr: string, timeStr: string): { texto: string; cor: string } {
   const dt = parseDataHoraSafe(dateStr, timeStr)
-  if (!dt) return 'A definir'
+  if (!dt) return { texto: 'A definir', cor: 'text-tinta-200' }
   const ms = dt.getTime() - Date.now()
-  if (ms <= 0) return 'fechado'
+  
+  if (ms <= 0) return { texto: 'fechado', cor: 'text-raridade-frango-selo' }
+
   const totalMin = Math.floor(ms / 60000)
-  if (totalMin < 60) return `fecha em ${totalMin}min`
+  const totalSeg = Math.floor(ms / 1000)
+
+  if (totalMin < 60) {
+    const min = Math.floor(totalSeg / 60)
+    const sec = totalSeg % 60
+    return { 
+      texto: `fecha em ${min}m ${String(sec).padStart(2, '0')}s`, 
+      cor: 'text-red-500' 
+    }
+  }
+
   const horas = Math.floor(totalMin / 60)
   const mins = totalMin % 60
-  if (horas < 24) return `fecha em ${horas}h${mins > 0 ? ` ${mins}min` : ''}`
+  
+  if (horas < 24) {
+    const sec = totalSeg % 60
+    return { 
+      texto: `fecha em ${horas}h ${String(mins).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`, 
+      cor: horas <= 2 ? 'text-red-500' : 'text-green-600'
+    }
+  }
+
   const dias = Math.floor(horas / 24)
   const hRest = horas % 24
-  return `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`
+  return { 
+    texto: `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`, 
+    cor: 'text-green-600' 
+  }
 }
 
 export const formatarCountdown = formatCountdown
@@ -139,12 +162,13 @@ export function CardJogo({
   const escudoHome = getEscudo(jogo.home)
   const escudoAway = getEscudo(jogo.away)
 
-  const [tempoTexto, setTempoTexto] = useState(() => formatCountdown(jogo.date, jogo.time))
+  const [timerStatus, setTimerStatus] = useState(() => formatCountdown(jogo.date, jogo.time))
 
   useEffect(() => {
+    // Atualiza o relógio a cada 1 segundo para o countdown regressivo ser ao vivo
     const timer = setInterval(() => {
-      setTempoTexto(formatCountdown(jogo.date, jogo.time))
-    }, 30000)
+      setTimerStatus(formatCountdown(jogo.date, jogo.time))
+    }, 1000)
     return () => clearInterval(timer)
   }, [jogo.date, jogo.time])
 
@@ -238,7 +262,7 @@ export function CardJogo({
         {travado ? (
           <span className="font-semibold text-raridade-frango-selo">🔒 palpite encerrado</span>
         ) : (
-          <span className="text-dourado-700">{tempoTexto}</span>
+          <span className={cx("font-bold", timerStatus.cor)}>{timerStatus.texto}</span>
         )}
       </div>
     </div>
