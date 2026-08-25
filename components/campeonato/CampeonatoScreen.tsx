@@ -420,8 +420,8 @@ function EstatisticasCampeonato({
         </CardEnvelope>
       )}
 
-      {/* CARDS DE RESUMO (GOLS/JOGO CORRIGIDO) */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* CARDS DE RESUMO DO CAMPEONATO */}
+      <div className="grid grid-cols-2 gap-2 mb-2">
         <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
           <span className="font-mono text-xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Jogos Realizados</span>
@@ -430,8 +430,22 @@ function EstatisticasCampeonato({
           <span className="font-mono text-xl font-bold text-dourado-600">{dados.totalRodadasFinalizadas}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Rodadas Realizadas</span>
         </div>
-        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
-          <span className="font-mono text-xl font-bold text-green-600">{e.mediaGolsGeral}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
+          <span className="font-mono text-base font-bold text-green-600">{dados.tabela.reduce((s,t) => s + t.vitorias, 0) / 2}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Vitórias</span>
+        </div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
+          <span className="font-mono text-base font-bold text-gray-500">{dados.tabela.reduce((s,t) => s + t.empates, 0) / 2}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Empates</span>
+        </div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
+          <span className="font-mono text-base font-bold text-tinta-300">{dados.tabela.reduce((s,t) => s + t.golsMarcados, 0) / 2}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Gols</span>
+        </div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
+          <span className="font-mono text-base font-bold text-blue-600">{e.mediaGolsGeral}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Gols/Jogo</span>
         </div>
       </div>
