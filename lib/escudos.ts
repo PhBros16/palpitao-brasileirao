@@ -1,30 +1,30 @@
-// Mapeamento oficial de escudos da Série A (100% testado e ativo na CDN)
+// Mapeamento oficial de escudos da Série A — assets locais em /public/escudos
 
 const MAPA_ESCUDOS_OFICIAL: Record<string, string> = {
-  'palmeiras': 'https://s.sde.globo.com/media/organizations/2014/04/14/palmeiras_60x60.png',
-  'flamengo': 'https://s.sde.globo.com/media/organizations/2018/04/10/Flamengo-2018.svg',
-  'athletico-pr': 'https://s.sde.globo.com/media/organizations/2019/09/09/Athletico-PR.svg',
-  'fluminense': 'https://s.sde.globo.com/media/organizations/2014/04/14/fluminense_60x60.png',
-  'cruzeiro': 'https://s.sde.globo.com/media/organizations/2018/03/11/cruzeiro.svg',
-  'bahia': 'https://s.sde.globo.com/media/organizations/2014/04/14/bahia_60x60.png',
-  'rb bragantino': 'https://s.sde.globo.com/media/organizations/2021/06/28/bragantino.svg',
-  'coritiba': 'https://s.sde.globo.com/media/organizations/2018/03/11/coritiba.svg',
-  'atletico-mg': 'https://s.sde.globo.com/media/organizations/2018/03/10/atletico-mg.svg',
-  'corinthians': 'https://s.sde.globo.com/media/organizations/2019/09/30/Corinthians.svg',
-  'botafogo': 'https://s.sde.globo.com/media/organizations/2019/02/04/botafogo-svg.svg',
-  'vitoria': 'https://s.sde.globo.com/media/organizations/2018/03/11/vitoria.svg',
-  'sao paulo': 'https://s.sde.globo.com/media/organizations/2014/04/14/sao_paulo_60x60.png',
-  'santos': 'https://s.sde.globo.com/media/organizations/2014/04/14/santos_60x60.png',
-  'gremio': 'https://s.sde.globo.com/media/organizations/2014/04/14/gremio_60x60.png',
-  'internacional': 'https://s.sde.globo.com/media/organizations/2018/03/11/internacional.svg',
-  'mirassol': 'https://s.sde.globo.com/media/organizations/2020/07/02/mirassol-60x60.png',
-  'remo': 'https://s.sde.globo.com/media/organizations/2014/04/14/remo_60x60.png',
-  'vasco': 'https://s.sde.globo.com/media/organizations/2021/09/04/vasco_SVG.svg',
-  'chapecoense': 'https://s.sde.globo.com/media/organizations/2018/03/11/chapecoense.svg',
+  'palmeiras': '/escudos/palmeiras.png',
+  'flamengo': '/escudos/flamengo.svg',
+  'athletico-pr': '/escudos/athletico-pr.svg',
+  'fluminense': '/escudos/fluminense.svg',
+  'cruzeiro': '/escudos/cruzeiro.svg',
+  'bahia': '/escudos/bahia.svg',
+  'rb bragantino': '/escudos/rb-bragantino.png',
+  'coritiba': '/escudos/coritiba.svg',
+  'atletico-mg': '/escudos/atletico-mg.svg',
+  'corinthians': '/escudos/corinthians.png',
+  'botafogo': '/escudos/botafogo.svg',
+  'vitoria': '/escudos/vitoria.svg',
+  'sao paulo': '/escudos/sao-paulo.svg',
+  'santos': '/escudos/santos.png',
+  'gremio': '/escudos/gremio.svg',
+  'internacional': '/escudos/internacional.svg',
+  'mirassol': '/escudos/mirassol.png',
+  'remo': '/escudos/remo.svg',
+  'vasco': '/escudos/vasco-da-gama.svg',
+  'chapecoense': '/escudos/chapecoense.svg',
 }
 
 /**
- * Busca o escudo oficial do time em CDN remota.
+ * Busca o escudo oficial do time (asset local em /public/escudos).
  * A busca insensível a acentos/maiúsculas é feita SOMENTE para encontrar o link,
  * sem alterar a exibição do nome oficial do time na tela.
  */
