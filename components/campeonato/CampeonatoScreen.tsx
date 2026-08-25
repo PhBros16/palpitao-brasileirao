@@ -44,17 +44,23 @@ export function CampeonatoScreen({ dados }: { dados: DadosCampeonato }) {
       </div>
 
       {sub === 'tabela' && <TabelaBrasileirao linhas={dados.tabela} onClickTime={setTimeSel} />}
-      {sub === 'estatisticas' && <EstatisticasCampeonato dados={dados} onClickTime={(nome) => {
-        const t = dados.tabela.find((x) => x.time === nome)
-        if (t) setTimeSel(t)
-      }} />}
+      {sub === 'estatisticas' && (
+        <EstatisticasCampeonato
+          dados={dados}
+          onClickTime={(nome) => {
+            const t = dados.tabela.find((x) => x.time === nome)
+            if (t) setTimeSel(t)
+          }}
+        />
+      )}
       {sub === 'agenda' && <AgendaCampeonato jogos={dados.proximosJogos} tipo="proximos" />}
       {sub === 'resultados' && <AgendaCampeonato jogos={dados.ultimosResultados} tipo="resultados" />}
 
       {timeSel && (
         <ModalTime
           time={timeSel}
-          jogos={[...dados.ultimosResultados, ...dados.proximosJogos]}
+          jogos={dados.ultimosResultados}
+          projecao={dados.estatisticas.projecoes.find((p) => p.time === timeSel.time)}
           onFechar={() => setTimeSel(null)}
         />
       )}
@@ -99,8 +105,8 @@ function TabelaBrasileirao({
           <table className="w-full border-separate border-spacing-0 whitespace-nowrap">
             <thead>
               <tr className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">
-                <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-center w-6">#</th>
-                <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-left sticky left-0 z-10 w-36 border-r-2 border-r-papel-borda-300">Clube</th>
+                <th className="w-6 border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-center">#</th>
+                <th className="sticky left-0 z-10 w-36 border-b border-r-2 border-papel-borda-200 border-r-papel-borda-300 bg-papel-100 px-2 py-2 text-left">Clube</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-center font-bold text-tinta-300">Pts</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-center">J</th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-2 py-2 text-center">V</th>
@@ -117,18 +123,18 @@ function TabelaBrasileirao({
                 <tr
                   key={l.time}
                   onClick={() => onClickTime(l)}
-                  className="cursor-pointer hover:bg-papel-100 transition-colors"
+                  className="cursor-pointer transition-colors hover:bg-papel-100"
                 >
                   <td className={cx('border-b border-papel-borda-200/60 px-1.5 py-2 text-center font-mono text-xs font-bold text-tinta-200', getBordaLateral(l.zona))}>
                     {l.posicao}
                   </td>
-                  <td className="border-b border-r-2 border-r-papel-borda-300 border-papel-borda-200/60 bg-papel-50 px-2 py-2 sticky left-0 z-10">
+                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2">
                     <div className="flex items-center gap-2">
                       <img src={getEscudo(l.time)} alt={l.time} className="h-5 w-5 object-contain" />
-                      <span className="font-sans text-xs font-semibold text-tinta-300 truncate max-w-[110px]">{l.time}</span>
+                      <span className="max-w-[110px] truncate font-sans text-xs font-semibold text-tinta-300">{l.time}</span>
                     </div>
                   </td>
-                  <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-xs font-bold text-tinta-300 bg-papel-100/50">{l.pontos}</td>
+                  <td className="border-b border-papel-borda-200/60 bg-papel-100/50 px-2 py-2 text-center font-mono text-xs font-bold text-tinta-300">{l.pontos}</td>
                   <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-xs text-tinta-200">{l.jogos}</td>
                   <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-xs text-tinta-200">{l.vitorias}</td>
                   <td className="border-b border-papel-borda-200/60 px-2 py-2 text-center font-mono text-xs text-tinta-200">{l.empates}</td>
@@ -151,7 +157,7 @@ function TabelaBrasileirao({
         </div>
         <div className="border-t border-papel-borda-200 bg-papel-100 p-3">
           <p className="mb-1.5 font-mono text-[9px] uppercase tracking-widest text-tinta-100">
-            Toque em um time pra ver detalhes · Qualificação
+            👆 Toque em um time pra ver detalhes completos
           </p>
           <div className="grid grid-cols-2 gap-1.5 font-sans text-[10px] text-tinta-200">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-blue-600" /> Libertadores</span>
@@ -176,7 +182,13 @@ function EstatisticasCampeonato({
 }) {
   const e = dados.estatisticas
 
-  function ListaTop({ titulo, icone, corTexto, lista, sufixo = '' }: {
+  // Top 5 do ranking para o gráfico de evolução
+  const top5 = useMemo(() => dados.tabela.slice(0, 5), [dados.tabela])
+  const maxPtsTop5 = Math.max(...top5.map((t) => t.pontos), 1)
+
+  const CORES_TOP5 = ['#B8860B', '#2563EB', '#059669', '#DC2626', '#D97706']
+
+  function ListaExpandivel({ titulo, icone, corTexto, lista, sufixo = '' }: {
     titulo: string; icone: string; corTexto: string; lista: Array<{ time: string; valor: number }>; sufixo?: string
   }) {
     if (lista.length === 0) return null
@@ -185,7 +197,7 @@ function EstatisticasCampeonato({
         <p className={cx('mb-2 font-mono text-[10px] uppercase tracking-widest', corTexto)}>
           {icone} {titulo}
         </p>
-        <div className="space-y-1.5">
+        <div className="max-h-48 space-y-1.5 overflow-y-auto scrollbar-tema">
           {lista.map((item, i) => (
             <button
               key={item.time}
@@ -194,7 +206,7 @@ function EstatisticasCampeonato({
               className="flex w-full items-center justify-between rounded px-1 py-0.5 hover:bg-papel-100"
             >
               <div className="flex items-center gap-2">
-                <span className="w-3 text-center font-mono text-[9px] text-tinta-100">{i + 1}º</span>
+                <span className="w-4 text-center font-mono text-[9px] text-tinta-100">{i + 1}º</span>
                 <img src={getEscudo(item.time)} alt="" className="h-4 w-4 object-contain" />
                 <span className="font-sans text-xs font-semibold text-tinta-300">{item.time}</span>
               </div>
@@ -208,24 +220,92 @@ function EstatisticasCampeonato({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-3 text-center">
-          <span className="font-mono text-2xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Jogos Realizados</span>
+      {/* Cards de Resumo */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
+          <span className="font-mono text-xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Jogos</span>
         </div>
-        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-3 text-center">
-          <span className="font-mono text-2xl font-bold text-dourado-600">{dados.totalRodadasFinalizadas}</span>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Rodadas Finais</span>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
+          <span className="font-mono text-xl font-bold text-dourado-600">{dados.totalRodadasFinalizadas}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Rodadas</span>
+        </div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
+          <span className="font-mono text-xl font-bold text-green-600">{e.mediaGolsGeral}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Gols/Jogo</span>
         </div>
       </div>
 
+      {/* GRÁFICO DE EVOLUÇÃO DOS TOP 5 TIMES */}
+      {top5.length > 0 && (
+        <CardEnvelope titulo="📈 Corrida do Título (Evolução Top 5)">
+          <div className="p-3">
+            <div className="relative h-32 w-full overflow-hidden rounded bg-papel-100/50 p-2">
+              <svg viewBox="0 0 300 100" className="h-full w-full">
+                {top5.map((t, idx) => {
+                  const pts = t.evolucaoPts
+                  if (pts.length < 2) return null
+                  const path = pts.map((p, i) => {
+                    const x = 10 + (i / (pts.length - 1)) * 280
+                    const y = 90 - (p / maxPtsTop5) * 80
+                    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+                  }).join(' ')
+
+                  return (
+                    <path
+                      key={t.time}
+                      d={path}
+                      fill="none"
+                      stroke={CORES_TOP5[idx % CORES_TOP5.length]}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                  )
+                })}
+              </svg>
+            </div>
+
+            {/* Legenda do gráfico */}
+            <div className="mt-3 flex flex-wrap justify-center gap-3">
+              {top5.map((t, idx) => (
+                <button
+                  key={t.time}
+                  type="button"
+                  onClick={() => onClickTime(t.time)}
+                  className="flex items-center gap-1.5 font-sans text-xs font-semibold text-tinta-300 hover:underline"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CORES_TOP5[idx % CORES_TOP5.length] }} />
+                  <img src={getEscudo(t.time)} className="h-3.5 w-3.5 object-contain" alt="" />
+                  <span>{t.time}</span>
+                  <span className="font-mono text-[10px] text-tinta-100">({t.pontos}p)</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardEnvelope>
+      )}
+
+      {/* MÉDIA DE GOLS POR RODADA */}
+      <CardEnvelope titulo="⚽ Média de Gols por Rodada">
+        <div className="max-h-48 space-y-1.5 overflow-y-auto p-3 scrollbar-tema">
+          {e.golsPorRodada.map((r) => (
+            <div key={r.roundNumber} className="flex items-center justify-between border-b border-papel-borda-200/60 pb-1 last:border-0 font-mono text-xs">
+              <span className="font-semibold text-tinta-300">{r.roundName}</span>
+              <span className="text-tinta-100">{r.totalGols} gols</span>
+              <span className="font-bold text-dourado-600">{r.mediaGols} gols/jogo</span>
+            </div>
+          ))}
+        </div>
+      </CardEnvelope>
+
+      {/* MAIOR GOLEADA */}
       {e.maiorGoleada && (
         <CardEnvelope titulo="🔥 Maior Goleada">
           <div className="flex flex-col items-center justify-center py-4">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-red-600">Saldo de +{e.maiorGoleada.saldoAbs}</p>
             <div className="flex items-center gap-4">
               <div className="flex flex-col items-center gap-1">
-                <img src={getEscudo(e.maiorGoleada.home)} className="h-10 w-10 object-contain" />
+                <img src={getEscudo(e.maiorGoleada.home)} className="h-10 w-10 object-contain" alt="" />
                 <span className="font-sans text-[10px] font-bold text-tinta-300">{e.maiorGoleada.home}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -234,7 +314,7 @@ function EstatisticasCampeonato({
                 <span className="font-mono text-3xl font-bold text-tinta-300">{e.maiorGoleada.awayScore}</span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <img src={getEscudo(e.maiorGoleada.away)} className="h-10 w-10 object-contain" />
+                <img src={getEscudo(e.maiorGoleada.away)} className="h-10 w-10 object-contain" alt="" />
                 <span className="font-sans text-[10px] font-bold text-tinta-300">{e.maiorGoleada.away}</span>
               </div>
             </div>
@@ -242,8 +322,8 @@ function EstatisticasCampeonato({
         </CardEnvelope>
       )}
 
-      <CardEnvelope titulo="🔮 Projeção de Término (38 Rodadas)">
-        <p className="px-3 pt-3 font-mono text-[9px] italic text-tinta-100">Simulação baseada no aproveitamento atual.</p>
+      {/* PROJEÇÃO 20 TIMES */}
+      <CardEnvelope titulo="🔮 Projeção de Término (20 Times)">
         <div className="max-h-72 space-y-2 overflow-y-auto p-3 scrollbar-tema">
           {[...e.projecoes].sort((a, b) => b.projecaoFinal - a.projecaoFinal).map((t, i) => (
             <button
@@ -269,18 +349,19 @@ function EstatisticasCampeonato({
         </div>
       </CardEnvelope>
 
+      {/* OUTRAS ESTATÍSTICAS COM TODOS OS TIMES */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <ListaTop titulo="Melhor Ataque" icone="⚽" corTexto="text-green-700" lista={e.melhorAtaque} sufixo=" gols" />
-        <ListaTop titulo="Pior Defesa" icone="🥅" corTexto="text-red-700" lista={e.piorDefesa} sufixo=" sofridos" />
-        <ListaTop titulo="Mais Vitórias" icone="✅" corTexto="text-blue-700" lista={e.maisVitorias} sufixo=" vit" />
-        <ListaTop titulo="Rei do Empate" icone="🤝" corTexto="text-gray-600" lista={e.reiEmpate} sufixo=" emp" />
-        <ListaTop titulo="A Fortaleza (Clean Sheets)" icone="🧱" corTexto="text-orange-700" lista={e.fortaleza} sufixo=" jogos" />
+        <ListaExpandivel titulo="Melhor Ataque" icone="⚽" corTexto="text-green-700" lista={e.melhorAtaque} sufixo=" gols" />
+        <ListaExpandivel titulo="Pior Defesa" icone="🥅" corTexto="text-red-700" lista={e.piorDefesa} sufixo=" sofridos" />
+        <ListaExpandivel titulo="Mais Vitórias" icone="✅" corTexto="text-blue-700" lista={e.maisVitorias} sufixo=" vit" />
+        <ListaExpandivel titulo="Rei do Empate" icone="🤝" corTexto="text-gray-600" lista={e.reiEmpate} sufixo=" emp" />
+        <ListaExpandivel titulo="A Fortaleza (Clean Sheets)" icone="🧱" corTexto="text-orange-700" lista={e.fortaleza} sufixo=" jogos" />
       </div>
     </div>
   )
 }
 
-// ─── 3. Agenda / Resultados (com filtro de rodada) ───────────────────────────
+// ─── 3. Agenda / Resultados ───────────────────────────────────────────────────
 
 function AgendaCampeonato({
   jogos,
@@ -299,7 +380,6 @@ function AgendaCampeonato({
 
   const [filtro, setFiltro] = useState<string>('proximas')
 
-  // Defaults diferentes por tipo
   const opcoesFiltro = tipo === 'proximos'
     ? [
         { id: 'proximas', label: 'Próxima' },
@@ -322,7 +402,6 @@ function AgendaCampeonato({
       const nums = rodadasUnicas.slice(0, qtd).map((r) => r.num)
       return jogos.filter((j) => nums.includes(j.roundNumber))
     }
-    // filtro por número de rodada específico
     const n = parseInt(filtro, 10)
     return jogos.filter((j) => j.roundNumber === n)
   }, [jogos, filtro, rodadasUnicas])
@@ -344,7 +423,6 @@ function AgendaCampeonato({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Filtros rápidos */}
       <div className="flex flex-wrap gap-1.5">
         {opcoesFiltro.map((o) => (
           <button
@@ -363,13 +441,10 @@ function AgendaCampeonato({
         ))}
       </div>
 
-      {/* Seletor de rodada específica */}
       {rodadasUnicas.length > 0 && (
         <select
           value={['proximas', '3', '5', 'todas'].includes(filtro) ? '' : filtro}
-          onChange={(e) => {
-            if (e.target.value) setFiltro(e.target.value)
-          }}
+          onChange={(e) => { if (e.target.value) setFiltro(e.target.value) }}
           className="rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none"
         >
           <option value="">Ir pra rodada específica...</option>
@@ -393,10 +468,7 @@ function AgendaCampeonato({
                 </p>
                 <div className="space-y-2">
                   {lista.map((j) => (
-                    <div
-                      key={j.matchId}
-                      className="flex items-center justify-between rounded border border-papel-borda-200/60 bg-papel-50 p-2"
-                    >
+                    <div key={j.matchId} className="flex items-center justify-between rounded border border-papel-borda-200/60 bg-papel-50 p-2">
                       <div className="flex w-16 flex-col">
                         <span className="font-mono text-[10px] font-semibold text-tinta-300">{formatData(j.date)}</span>
                         {j.time && <span className="font-mono text-[9px] text-tinta-100">{j.time}</span>}
@@ -435,31 +507,33 @@ function AgendaCampeonato({
   )
 }
 
-// ─── 4. Modal do Time (stats + evolução) ─────────────────────────────────────
+// ─── 4. Modal do Time (stats + evolução + TODOS os jogos) ────────────────────
 
 function ModalTime({
   time,
   jogos,
+  projecao,
   onFechar,
 }: {
   time: LinhaTabela
   jogos: JogoBrasileirao[]
+  projecao?: { projecaoFinal: number; risco: string }
   onFechar: () => void
 }) {
+  // TODOS os jogos do time ordenados por Rodada (R1 até a mais recente)
   const jogosDoTime = useMemo(() => {
     return jogos
       .filter((j) => j.home === time.time || j.away === time.time)
       .filter((j) => j.homeScore !== null)
-      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+      .sort((a, b) => b.roundNumber - a.roundNumber) // Do mais recente pro mais antigo
   }, [jogos, time.time])
 
-  const maxPts = Math.max(...(time.evolucaoPts.length ? time.evolucaoPts : [1]), 1)
+  const mediaGolsPro = time.jogos > 0 ? (time.golsMarcados / time.jogos).toFixed(1) : '0'
+  const mediaGolsContra = time.jogos > 0 ? (time.golsSofridos / time.jogos).toFixed(1) : '0'
 
-  // SVG sparkline da evolução
+  const maxPts = Math.max(...(time.evolucaoPts.length ? time.evolucaoPts : [1]), 1)
   const pontos = time.evolucaoPts
-  const w = 280
-  const h = 80
-  const pad = 8
+  const w = 280, h = 80, pad = 8
   const path = pontos.length > 1
     ? pontos.map((p, i) => {
         const x = pad + (i / (pontos.length - 1)) * (w - pad * 2)
@@ -470,95 +544,90 @@ function ModalTime({
 
   return (
     <Modal aberto onFechar={onFechar} borda="border-dourado-300" className="max-h-[90vh] overflow-y-auto">
-      <div className="mb-4 flex items-center gap-3">
-        <img src={getEscudo(time.time)} alt="" className="h-12 w-12 object-contain" />
-        <div>
-          <p className="font-display text-lg font-bold text-tinta-300">{time.time}</p>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-tinta-100">
-            {time.posicao}º lugar · {time.pontos} pts
-          </p>
-        </div>
-      </div>
-
-      {/* Cards de stats */}
-      <div className="mb-4 grid grid-cols-4 gap-2">
-        {[
-          { l: 'J', v: time.jogos },
-          { l: 'V', v: time.vitorias },
-          { l: 'E', v: time.empates },
-          { l: 'D', v: time.derrotas },
-          { l: 'GP', v: time.golsMarcados },
-          { l: 'GC', v: time.golsSofridos },
-          { l: 'SG', v: time.saldoGols },
-          { l: 'Pts', v: time.pontos },
-        ].map((c) => (
-          <div key={c.l} className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2">
-            <span className="font-mono text-base font-bold text-tinta-300">{c.v}</span>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">{c.l}</span>
+      <div className="mb-4 flex items-center justify-between border-b border-papel-borda-200 pb-3">
+        <div className="flex items-center gap-3">
+          <img src={getEscudo(time.time)} alt="" className="h-12 w-12 object-contain" />
+          <div>
+            <p className="font-display text-lg font-bold text-tinta-300">{time.time}</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-tinta-100">
+              {time.posicao}º LUGAR · {time.pontos} PTS
+            </p>
           </div>
-        ))}
+        </div>
+
+        {/* Badge da Projeção */}
+        {projecao && (
+          <div className="flex flex-col items-end">
+            {projecao.risco === 'titulo' && <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-xs font-bold text-dourado-700">🏆 Título</span>}
+            {projecao.risco === 'libertadores' && <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-700">🔵 G4</span>}
+            {projecao.risco === 'sulamericana' && <span className="rounded bg-green-100 px-2 py-0.5 font-mono text-xs font-bold text-green-700">🟢 Sula</span>}
+            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Risco Z4</span>}
+            <span className="mt-0.5 font-mono text-[10px] text-tinta-200">Proj: {projecao.projecaoFinal} pts</span>
+          </div>
+        )}
       </div>
 
-      {/* Forma recente */}
-      <div className="mb-4">
-        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">Forma recente</p>
-        <div className="flex gap-1.5">
-          {time.ultimos5.map((res, i) => {
-            const cor = res === 'V' ? 'bg-green-600' : res === 'E' ? 'bg-gray-400' : 'bg-red-600'
-            return (
-              <span key={i} className={cx('flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white', cor)}>
-                {res}
-              </span>
-            )
-          })}
+      {/* Grid de Estatísticas */}
+      <div className="mb-4 grid grid-cols-4 gap-2">
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-tinta-300">{time.jogos}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">J</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-green-600">{time.vitorias}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">V</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-gray-500">{time.empates}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">E</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-red-600">{time.derrotas}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">D</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-tinta-300">{time.golsMarcados}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">GP</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-tinta-300">{time.golsSofridos}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">GC</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-tinta-300">{time.saldoGols}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">SG</span></div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2"><span className="font-mono text-base font-bold text-dourado-600">{time.pontos}</span><span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">PTS</span></div>
+      </div>
+
+      {/* Médias de Gols */}
+      <div className="mb-4 flex gap-2">
+        <div className="flex flex-1 items-center justify-between rounded-lg border border-papel-borda-200 bg-papel-50 px-3 py-2">
+          <span className="font-sans text-xs text-tinta-200">Gols Feitos/Jogo:</span>
+          <span className="font-mono text-sm font-bold text-green-700">{mediaGolsPro}</span>
+        </div>
+        <div className="flex flex-1 items-center justify-between rounded-lg border border-papel-borda-200 bg-papel-50 px-3 py-2">
+          <span className="font-sans text-xs text-tinta-200">Gols Sofridos/Jogo:</span>
+          <span className="font-mono text-sm font-bold text-red-700">{mediaGolsContra}</span>
         </div>
       </div>
 
-      {/* Gráfico de evolução */}
+      {/* Sparkline de Evolução */}
       {pontos.length > 1 && (
         <div className="mb-4">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">📈 Evolução de pontos</p>
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">📈 Evolução de Pontos</p>
           <div className="overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50 p-2">
             <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full">
               <path d={path} fill="none" stroke="#B8860B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              {/* ponto final */}
-              {pontos.length > 0 && (
-                <circle
-                  cx={pad + ((pontos.length - 1) / (pontos.length - 1)) * (w - pad * 2)}
-                  cy={h - pad - (pontos[pontos.length - 1] / maxPts) * (h - pad * 2)}
-                  r="4"
-                  fill="#B8860B"
-                />
-              )}
             </svg>
             <div className="mt-1 flex justify-between font-mono text-[9px] text-tinta-100">
-              <span>Início</span>
-              <span className="font-bold text-dourado-600">{time.pontos} pts agora</span>
+              <span>R1</span>
+              <span className="font-bold text-dourado-600">{time.pontos} pts hoje</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Últimos jogos do time */}
+      {/* LISTA COMPLETA DE TODOS OS JOGOS DISPUTADOS */}
       <div>
         <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">
-          Últimos jogos ({jogosDoTime.length})
+          Histórico Completo ({jogosDoTime.length} Jogos)
         </p>
-        <div className="max-h-48 space-y-1.5 overflow-y-auto scrollbar-tema">
-          {[...jogosDoTime].reverse().slice(0, 10).map((j) => {
+        <div className="max-h-60 space-y-1.5 overflow-y-auto scrollbar-tema">
+          {jogosDoTime.map((j) => {
             const mandante = j.home === time.time
             const gf = mandante ? j.homeScore! : j.awayScore!
             const gs = mandante ? j.awayScore! : j.homeScore!
             const res = gf > gs ? 'V' : gf < gs ? 'D' : 'E'
             const cor = res === 'V' ? 'text-green-600' : res === 'D' ? 'text-red-600' : 'text-gray-500'
             const adversario = mandante ? j.away : j.home
+
             return (
               <div key={j.matchId} className="flex items-center justify-between rounded border border-papel-borda-200/60 bg-papel-50 px-2 py-1.5">
-                <span className="w-14 font-mono text-[9px] text-tinta-100">{j.roundName}</span>
+                <span className="w-16 font-mono text-[9px] font-semibold text-dourado-600">{j.roundName}</span>
                 <div className="flex flex-1 items-center justify-center gap-2">
-                  <span className="font-sans text-[10px] text-tinta-200">{mandante ? 'vs' : '@'}</span>
+                  <span className="font-sans text-[10px] text-tinta-100">{mandante ? 'vs' : '@'}</span>
                   <img src={getEscudo(adversario)} className="h-4 w-4 object-contain" alt="" />
-                  <span className="font-sans text-xs font-semibold text-tinta-300">{adversario}</span>
+                  <span className="max-w-[90px] truncate font-sans text-xs font-semibold text-tinta-300">{adversario}</span>
                 </div>
                 <span className={cx('w-12 text-right font-mono text-xs font-bold', cor)}>
                   {gf}×{gs}
@@ -566,9 +635,6 @@ function ModalTime({
               </div>
             )
           })}
-          {jogosDoTime.length === 0 && (
-            <p className="text-center font-sans text-xs text-tinta-100">Sem jogos com placar ainda.</p>
-          )}
         </div>
       </div>
 
