@@ -1,362 +1,279 @@
 import { supabase } from './supabase'
-
-// Camada de dados da Home Real.
-//
-// Agrega tudo que a tela /inicio precisa numa query só (ou o mais próximo
-// disso). Devolve dados prontos pros 9 blocos visuais:
-//   - Card da rodada (nome + jogos totais/abertos/cravadas do jogador)
-//   - Countdown do próximo jogo
-//   - Parcial da rodada (14 participantes ordenados)
-//   - Frango da rodada anterior (tabela shame)
-//   - Por Placar (placares mais apostados por jogo)
-//   - Distribuição de palpites (mandante/empate/visitante)
-//   - Pódio atual (top 3 do ranking geral)
-//   - Pontos hoje do usuário logado + posição no ranking
-
-export interface RodadaAtiva {
-  roundId: string
-  numero: number
-  nome: string
-  isDouble: boolean
-  jogosTotais: number
-  jogosAbertos: number
-  proximoJogoFechaEm: number | null   // ms
-}
+import { calcPoints } from './domain/pontuacao'
 
 export interface ParcialLinha {
   participantId: string
   nome: string
-  emoji: string | null
   avatar: string | null
-  ptsRodada: number | null   // null = NP (ainda não palpitou)
-  totalGeral: number
-  posicao: number
-}
-
-export interface StatsUsuario {
-  ptsAcumulados: number       // total do participante
+  emoji: string | null
   ptsRodada: number | null
-  cravadasRodada: number
-  posicaoRanking: number       // 1-14
-  ptsPraSubir: number | null   // quanto falta pra ultrapassar quem tá à frente
-}
-
-export interface Frango {
-  playerName: string
-  text: string | null
-  photoUrl: string | null
-  rodadaNome: string
+  totalGeral: number
 }
 
 export interface PlacaresJogo {
   matchId: string
   home: string
   away: string
-  placares: Array<{ placar: string; qtd: number }>  // top placares desse jogo
+  placares: Array<{ placar: string; qtd: number }>
 }
 
 export interface DistribuicaoJogo {
   matchId: string
   home: string
   away: string
-  totalPalpites: number
-  mandante: number      // qtd palpites com H > A
+  mandante: number
   empate: number
   visitante: number
-}
-
-export interface PodioLinha {
-  nome: string
-  emoji: string | null
-  avatar: string | null
-  pts: number
+  totalPalpites: number
 }
 
 export interface HomeCompleta {
-  rodada: RodadaAtiva | null
-  stats: StatsUsuario | null
+  meuPerfil: { id: string; nome: string; avatar: string | null; emoji: string | null } | null
+  rodada: {
+    id: string
+    nome: string
+    isDouble: boolean
+    jogosTotais: number
+    jogosAbertos: number
+    proximoJogoFechaEm: number | null
+  } | null
   parcial: ParcialLinha[]
-  frango: Frango | null
-  placares: PlacaresJogo[]
+  stats: {
+    ptsRodada: number | null
+    posicaoRanking: number
+    ptsPraSubir: number | null
+    cravadasRodada: number
+  } | null
+  frango: {
+    jogador: string
+    texto: string | null
+    fotoUrl: string | null
+    rodadaNome: string
+  } | null
+  podioGeral: Array<{ id: string; nome: string; avatar: string | null; emoji: string | null; pts: number }>
   distribuicao: DistribuicaoJogo[]
-  podio: PodioLinha[]
-  usuarioNome: string
-  usuarioEmoji: string | null
-  usuarioAvatar: string | null
+  placares: PlacaresJogo[]
+  avisos: { meusFaltantes: number; rodadaNome: string } | null
+  formacaoId: string
 }
 
-// ─── Função principal ────────────────────────────────────────────────────────
-
 export async function buscarHomeCompleta(participantId: string): Promise<HomeCompleta> {
-  // 1, 2, 5 e 7 não dependem uma da outra — antes rodavam uma de cada vez
-  // (await sequencial), cada uma esperando a anterior terminar. Com
-  // Promise.all elas saem todas ao mesmo tempo, e o tempo total de espera
-  // vira o da mais lenta, não a soma de todas.
-  const [
-    { data: participants },
-    { data: rodadaRaw },
-    { data: rrTotais },
-    { data: ultimaFin },
-  ] = await Promise.all([
-    // 1. Participantes (com emoji + avatar)
-    supabase
-      .from('participants')
-      .select('id, name, emoji, avatar')
-      .eq('is_admin', false)
-      .order('name'),
-    // 2. Rodada ativa (palpites_open=true)
-    supabase
-      .from('rounds')
-      .select('id, number, name, is_double')
-      .eq('palpites_open', true)
-      .order('number', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    // 5. Total geral de todo mundo (usado no pódio E na parcial — antes
-    // essa mesma query rodava DUAS VEZES, uma pra cada uso).
-    supabase
-      .from('round_results')
-      .select('participant_id, round_pts'),
-    // 7. Última rodada finalizada (pro Frango) — ordem por created_at pra
-    // pegar a criada mais recentemente, não a com maior number (que pode
-    // ser uma "extra" criada há tempos).
-    supabase
-      .from('rounds')
-      .select('id, name')
-      .eq('finalized', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ])
+  const { data: parts } = await supabase.from('participants').select('id, name, avatar, emoji, is_admin').eq('is_admin', false)
+  const participants = parts ?? []
+  const eu = participants.find((p) => p.id === participantId) ?? null
 
-  const partList = participants ?? []
-  const partById = new Map(partList.map((p) => [p.id, p]))
-  const usuario = partById.get(participantId)
+  let formacaoId = '4-3-3'
+  try {
+    const { data: f } = await supabase.from('app_settings').select('value').eq('key', 'formacao').maybeSingle()
+    if (f?.value) formacaoId = (f.value as any).id ?? (f.value as any).nome ?? '4-3-3'
+  } catch { /* ignora */ }
 
-  const totaisRanking = new Map<string, number>()
-  for (const rr of rrTotais ?? []) {
-    totaisRanking.set(rr.participant_id, (totaisRanking.get(rr.participant_id) ?? 0) + (rr.round_pts ?? 0))
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('id, name, is_double, number')
+    .eq('palpites_open', true)
+    .order('number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!round) {
+    const podio = await calcPodioGeral(participants)
+    const f = await buscarUltimoFrango()
+    return {
+      meuPerfil: eu ? { id: eu.id, nome: eu.name, avatar: eu.avatar, emoji: eu.emoji } : null,
+      rodada: null, parcial: [], stats: null, frango: f, podioGeral: podio,
+      distribuicao: [], placares: [], avisos: null, formacaoId,
+    }
   }
 
-  let rodada: RodadaAtiva | null = null
-  let cravadasRodadaUsuario = 0
-  let ptsRodadaUsuario: number | null = null
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
+    .eq('round_id', round.id)
+    .order('match_date', { ascending: true })
+  
+  const mList = matches ?? []
+
+  const { data: preds } = mList.length > 0 ? await supabase
+    .from('predictions')
+    .select('participant_id, match_id, pred_h, pred_a')
+    .in('match_id', mList.map((m) => m.id)) : { data: [] }
+  
+  const pList = preds ?? []
+
+  let proximoFechaEm: number | null = null
+  let jogosAbertos = 0
+  const agora = Date.now()
+
+  for (const m of mList) {
+    let travado = m.travado_manual ?? false
+    let matchTimeStr = ''
+    if (!travado && m.match_date && m.match_time) {
+      // Ajuste crucial de data para aceitar YYYY-MM-DD e DD/MM/YYYY
+      const dateStr = m.match_date.includes('/') ? m.match_date.split('/').reverse().join('-') : m.match_date
+      matchTimeStr = `${dateStr}T${m.match_time}`
+      const ms = new Date(matchTimeStr).getTime()
+      if (agora >= ms) travado = true
+      else {
+        jogosAbertos++
+        const diff = ms - agora
+        if (proximoFechaEm === null || diff < proximoFechaEm) {
+          proximoFechaEm = diff
+        }
+      }
+    } else if (!travado) {
+      jogosAbertos++
+    }
+  }
+
+  const pontuacaoBase = await calcBaseRanking(participants)
+  const { parcial, cravadasMinhas, meusPtsRodada } = calcParcial(participants, mList, pList, round.is_double, pontuacaoBase, participantId)
+
+  let posicaoRanking = 1
+  let ptsPraSubir: number | null = null
+  if (parcial.length > 0) {
+    const ordenados = [...parcial].sort((a, b) => b.totalGeral - a.totalGeral)
+    const idx = ordenados.findIndex((l) => l.participantId === participantId)
+    if (idx >= 0) {
+      posicaoRanking = idx + 1
+      if (idx > 0) {
+        ptsPraSubir = ordenados[idx - 1].totalGeral - ordenados[idx].totalGeral
+      }
+    }
+  }
+
+  const stats = {
+    ptsRodada: meusPtsRodada,
+    posicaoRanking,
+    ptsPraSubir,
+    cravadasRodada: cravadasMinhas,
+  }
+
+  const meusPalpites = pList.filter((p) => p.participant_id === participantId)
+  const meusFaltantes = mList.length - meusPalpites.length
+
+  const { placares, distribuicao } = calcEstatisticasPalpites(mList, pList)
+
+  const podioGeral = await calcPodioGeral(participants)
+  const f = await buscarUltimoFrango()
+
+  return {
+    meuPerfil: eu ? { id: eu.id, nome: eu.name, avatar: eu.avatar, emoji: eu.emoji } : null,
+    rodada: {
+      id: round.id,
+      nome: round.name,
+      isDouble: round.is_double ?? false,
+      jogosTotais: mList.length,
+      jogosAbertos,
+      proximoJogoFechaEm: proximoFechaEm,
+    },
+    parcial, stats, frango: f, podioGeral, distribuicao, placares,
+    avisos: { meusFaltantes, rodadaNome: round.name },
+    formacaoId,
+  }
+}
+
+async function calcBaseRanking(parts: any[]) {
+  const { data: rounds } = await supabase.from('rounds').select('id').eq('finalized', true)
+  const rIds = (rounds ?? []).map((r) => r.id)
+  const res = new Map<string, number>()
+  for (const p of parts) res.set(p.id, 0)
+  if (rIds.length === 0) return res
+
+  const { data: rr } = await supabase.from('round_results').select('participant_id, round_pts').in('round_id', rIds)
+  for (const row of rr ?? []) {
+    res.set(row.participant_id, (res.get(row.participant_id) ?? 0) + (row.round_pts ?? 0))
+  }
+  return res
+}
+
+async function calcPodioGeral(parts: any[]) {
+  const base = await calcBaseRanking(parts)
+  const lista = parts.map((p) => ({
+    id: p.id,
+    nome: p.name,
+    avatar: p.avatar ?? null,
+    emoji: p.emoji ?? null,
+    pts: base.get(p.id) ?? 0,
+  }))
+  lista.sort((a, b) => b.pts - a.pts)
+  return lista.slice(0, 3).filter((l) => l.pts > 0)
+}
+
+async function buscarUltimoFrango() {
+  const { data: rounds } = await supabase.from('rounds').select('id, name').eq('finalized', true).order('number', { ascending: false }).limit(1).maybeSingle()
+  if (!rounds) return null
+  const { data: sh } = await supabase.from('shame').select('player_name, text, photo_url').eq('round_id', rounds.id).maybeSingle()
+  if (!sh) return null
+  return {
+    jogador: sh.player_name,
+    texto: sh.text ?? null,
+    fotoUrl: sh.photo_url ?? null,
+    rodadaNome: rounds.name,
+  }
+}
+
+function calcParcial(parts: any[], matches: any[], preds: any[], isDouble: boolean, pontuacaoBase: Map<string, number>, meuId: string) {
+  const pMap = new Map<string, Array<{ match_id: string; pred_h: number; pred_a: number }>>()
+  for (const p of preds) {
+    if (!pMap.has(p.participant_id)) pMap.set(p.participant_id, [])
+    pMap.get(p.participant_id)!.push(p)
+  }
+
   const parcial: ParcialLinha[] = []
+  let cravadasMinhas = 0
+  let meusPtsRodada: number | null = null
+
+  for (const pt of parts) {
+    const palps = pMap.get(pt.id) ?? []
+    const base = pontuacaoBase.get(pt.id) ?? 0
+    if (palps.length === 0) {
+      parcial.push({ participantId: pt.id, nome: pt.name, avatar: pt.avatar, emoji: pt.emoji, ptsRodada: null, totalGeral: base })
+      continue
+    }
+
+    let rodPts = 0
+    for (const p of palps) {
+      const m = matches.find((x) => x.id === p.match_id)
+      if (!m || m.home_score === null || m.away_score === null) continue
+      const val = calcPoints({ h: p.pred_h, a: p.pred_a }, { h: m.home_score, a: m.away_score })
+      if (val !== null) {
+        const pFinal = isDouble ? val * 2 : val
+        rodPts += pFinal
+        if (pt.id === meuId && (val === 5 || val === 10)) cravadasMinhas++
+      }
+    }
+    if (pt.id === meuId) meusPtsRodada = rodPts
+    parcial.push({ participantId: pt.id, nome: pt.name, avatar: pt.avatar, emoji: pt.emoji, ptsRodada: rodPts, totalGeral: base + rodPts })
+  }
+  return { parcial, cravadasMinhas, meusPtsRodada }
+}
+
+function calcEstatisticasPalpites(matches: any[], preds: any[]) {
   const placares: PlacaresJogo[] = []
   const distribuicao: DistribuicaoJogo[] = []
 
-  // 7b. Frango — também não depende da rodada ativa, então dispara junto
-  // com a busca de jogos (3) logo abaixo, em vez de esperar tudo terminar.
-  // Sempre é aguardado (com ou sem rodada ativa) via Promise.all abaixo.
-  let frango: Frango | null = null
-  const shamePromise = ultimaFin
-    ? supabase
-        .from('shame')
-        .select('player_name, text, photo_url')
-        .eq('round_id', ultimaFin.id)
-        .maybeSingle()
-    : Promise.resolve({ data: null } as { data: { player_name: string; text: string | null; photo_url: string | null } | null })
+  for (const m of matches) {
+    const pm = preds.filter((p) => p.match_id === m.id)
+    if (pm.length === 0) continue
 
-  // 3. Jogos da rodada ativa (só existe se rodadaRaw existir) — dispara ao
-  // mesmo tempo que o Frango (7b) acima, já que uma coisa não depende da
-  // outra.
-  const matchesPromise = rodadaRaw
-    ? supabase
-        .from('matches')
-        .select('id, home, away, home_score, away_score, match_date, match_time')
-        .eq('round_id', rodadaRaw.id)
-        .order('match_date', { ascending: true })
-        .order('match_time', { ascending: true })
-    : Promise.resolve({ data: [] as Array<{ id: string; home: string; away: string; home_score: number | null; away_score: number | null; match_date: string | null; match_time: string | null }> })
+    const homeNome = m.home === 'Red Bull Bragantino' ? 'RB Bragantino' : m.home
+    const awayNome = m.away === 'Red Bull Bragantino' ? 'RB Bragantino' : m.away
 
-  const [{ data: matchesRaw }, { data: shameRow }] = await Promise.all([matchesPromise, shamePromise])
-
-  if (shameRow && shameRow.player_name) {
-    frango = {
-      playerName: shameRow.player_name,
-      text: shameRow.text,
-      photoUrl: shameRow.photo_url,
-      rodadaNome: ultimaFin!.name,
+    const cnt = new Map<string, number>()
+    let mand = 0, emp = 0, vis = 0
+    for (const p of pm) {
+      const key = `${p.pred_h}×${p.pred_a}`
+      cnt.set(key, (cnt.get(key) ?? 0) + 1)
+      if (p.pred_h > p.pred_a) mand++
+      else if (p.pred_a > p.pred_h) vis++
+      else emp++
     }
+
+    const placs = Array.from(cnt.entries()).map(([placar, qtd]) => ({ placar, qtd })).sort((a, b) => b.qtd - a.qtd)
+    placares.push({ matchId: m.id, home: homeNome, away: awayNome, placares: placs })
+    distribuicao.push({ matchId: m.id, home: homeNome, away: awayNome, mandante: mand, empate: emp, visitante: vis, totalPalpites: pm.length })
   }
 
-  if (rodadaRaw) {
-    const matches = matchesRaw ?? []
-    const matchIds = matches.map((m) => m.id)
-
-    // Próximo jogo a fechar (ainda sem placar)
-    const agora = Date.now()
-    let proximoMs: number | null = null
-    for (const m of matches) {
-      if (m.home_score !== null) continue
-      if (!m.match_date || !m.match_time) continue
-      const dt = new Date(`${m.match_date}T${m.match_time}`).getTime()
-      const diff = dt - agora
-      if (diff > 0 && (proximoMs === null || diff < proximoMs)) {
-        proximoMs = diff
-      }
-    }
-
-    rodada = {
-      roundId: rodadaRaw.id,
-      numero: rodadaRaw.number,
-      nome: rodadaRaw.name,
-      isDouble: rodadaRaw.is_double ?? false,
-      jogosTotais: matches.length,
-      jogosAbertos: matches.filter((m) => m.home_score === null).length,
-      proximoJogoFechaEm: proximoMs,
-    }
-
-    // 4. Predictions de todos, nessa rodada
-    const { data: predsRaw } = matchIds.length > 0 ? await supabase
-      .from('predictions')
-      .select('participant_id, match_id, pred_h, pred_a, points')
-      .in('match_id', matchIds) : { data: [] as any[] }
-
-    const preds = predsRaw ?? []
-    const matchScoreMap = new Map(matches.map((m) => [m.id, { h: m.home_score, a: m.away_score }]))
-
-    // Agrega por participante
-    const aggMap = new Map<string, { pts: number | null; palpitou: boolean }>()
-    for (const p of partList) {
-      aggMap.set(p.id, { pts: null, palpitou: false })
-    }
-    for (const pred of preds) {
-      const agg = aggMap.get(pred.participant_id)
-      if (!agg) continue
-      if (!agg.palpitou) {
-        agg.palpitou = true
-        agg.pts = 0
-      }
-      if (pred.points !== null) {
-        agg.pts! += pred.points
-      }
-      // Cravadas do usuário logado
-      if (pred.participant_id === participantId) {
-        const res = matchScoreMap.get(pred.match_id)
-        if (res && res.h !== null && res.a !== null) {
-          if (pred.pred_h === res.h && pred.pred_a === res.a) cravadasRodadaUsuario++
-        }
-      }
-    }
-
-    // Placares mais apostados por jogo (top 3 de cada)
-    const placaresPorMatch = new Map<string, Map<string, number>>()
-    // Distribuição por jogo
-    const distPorMatch = new Map<string, { mandante: number; empate: number; visitante: number; total: number }>()
-
-    for (const pred of preds) {
-      // Placares
-      if (!placaresPorMatch.has(pred.match_id)) placaresPorMatch.set(pred.match_id, new Map())
-      const key = `${pred.pred_h}x${pred.pred_a}`
-      const mapP = placaresPorMatch.get(pred.match_id)!
-      mapP.set(key, (mapP.get(key) ?? 0) + 1)
-
-      // Distribuição
-      if (!distPorMatch.has(pred.match_id)) distPorMatch.set(pred.match_id, { mandante: 0, empate: 0, visitante: 0, total: 0 })
-      const d = distPorMatch.get(pred.match_id)!
-      d.total++
-      if (pred.pred_h > pred.pred_a) d.mandante++
-      else if (pred.pred_h < pred.pred_a) d.visitante++
-      else d.empate++
-    }
-
-    for (const m of matches) {
-      const mapP = placaresPorMatch.get(m.id)
-      if (mapP && mapP.size > 0) {
-        const top = Array.from(mapP.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([placar, qtd]) => ({ placar, qtd }))
-        placares.push({ matchId: m.id, home: m.home, away: m.away, placares: top })
-      }
-      const d = distPorMatch.get(m.id)
-      if (d && d.total > 0) {
-        distribuicao.push({
-          matchId: m.id,
-          home: m.home,
-          away: m.away,
-          totalPalpites: d.total,
-          mandante: d.mandante,
-          empate: d.empate,
-          visitante: d.visitante,
-        })
-      }
-    }
-
-    // Ptsrodada do usuário
-    const meuAgg = aggMap.get(participantId)
-    ptsRodadaUsuario = meuAgg?.pts ?? null
-
-    // Monta parcial — total geral já veio em paralelo lá em cima
-    // (totaisRanking), não precisa buscar de novo.
-    const linhasBrutas: ParcialLinha[] = partList.map((p) => {
-      const agg = aggMap.get(p.id)
-      return {
-        participantId: p.id,
-        nome: p.name,
-        emoji: p.emoji,
-        avatar: p.avatar,
-        ptsRodada: agg?.pts ?? null,
-        totalGeral: totaisRanking.get(p.id) ?? 0,
-        posicao: 0,
-      }
-    })
-
-    // Ordena: total geral desc → pts rodada desc → nome asc
-    linhasBrutas.sort((a, b) =>
-      b.totalGeral - a.totalGeral ||
-      (b.ptsRodada ?? -1) - (a.ptsRodada ?? -1) ||
-      a.nome.localeCompare(b.nome)
-    )
-    linhasBrutas.forEach((l, i) => { l.posicao = i + 1 })
-    parcial.push(...linhasBrutas)
-  }
-
-  // 5. Pódio (top 3 do ranking geral) — mesmo totaisRanking de cima
-  const podioList = partList
-    .map((p) => ({
-      nome: p.name,
-      emoji: p.emoji,
-      avatar: p.avatar,
-      pts: totaisRanking.get(p.id) ?? 0,
-    }))
-    .sort((a, b) => b.pts - a.pts)
-    .slice(0, 3)
-
-  // 6. Stats do usuário
-  const posUsuario = partList
-    .map((p) => ({ id: p.id, total: totaisRanking.get(p.id) ?? 0 }))
-    .sort((a, b) => b.total - a.total)
-    .findIndex((x) => x.id === participantId)
-
-  const totaisOrdenados = Array.from(totaisRanking.values()).sort((a, b) => b - a)
-  const ptsAcumuladosUsuario = totaisRanking.get(participantId) ?? 0
-  let ptsPraSubir: number | null = null
-  if (posUsuario > 0) {
-    const acimaPts = totaisOrdenados[posUsuario - 1]
-    ptsPraSubir = acimaPts - ptsAcumuladosUsuario + 1
-  }
-
-  const stats: StatsUsuario = {
-    ptsAcumulados: ptsAcumuladosUsuario,
-    ptsRodada: ptsRodadaUsuario,
-    cravadasRodada: cravadasRodadaUsuario,
-    posicaoRanking: posUsuario + 1,
-    ptsPraSubir,
-  }
-  // Frango já foi resolvido lá em cima, em paralelo com os jogos da rodada.
-
-  return {
-    rodada,
-    stats,
-    parcial,
-    frango,
-    placares,
-    distribuicao,
-    podio: podioList,
-    usuarioNome: usuario?.name ?? '?',
-    usuarioEmoji: usuario?.emoji ?? null,
-    usuarioAvatar: usuario?.avatar ?? null,
-  }
+  return { placares, distribuicao }
 }
