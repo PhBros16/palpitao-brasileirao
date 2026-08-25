@@ -1,338 +1,259 @@
-// Camada de dados do Histórico.
-// Busca rodadas finalizadas + monta pacote (ranking + jogos + palpites + frango).
-
 import { supabase } from './supabase'
 
-export interface CampeaoRodada {
-  nome: string
-  avatar: string | null
-  emoji: string | null
-  pts: number
+// Camada de dados do Histórico Real.
+//
+// Busca todas as rodadas finalizadas (finalized = true) ordenadas ESTRITAMENTE pelo NÚMERO da rodada (number DESC).
+// Retorna os dados completos de cada rodada:
+//   - Cabeçalho (Nome, número, se vale x2)
+//   - Campeão da rodada (quem fez mais pontos naquela rodada específica)
+//   - Frango da rodada (tabela shame)
+//   - Ranking interno da rodada (pontos, cravadas, saldos, vencedores de cada participante)
+//   - Lista de jogos com placares reais
+
+export interface JogoHistorico {
+  matchId: string
+  home: string
+  away: string
+  homeScore: number | null
+  awayScore: number | null
+  date: string | null
+  time: string | null
 }
 
-export interface RodadaHistorico {
-  id: string
-  number: number
-  name: string
-  isDouble: boolean
-  totalJogos: number
-  /** Primeiro campeão (mantido pra compatibilidade). Use `campeoes` pra ver todos. */
-  campeao: CampeaoRodada | null
-  /** Lista de campeões (mais de um em caso de empate perfeito). */
-  campeoes: CampeaoRodada[]
-  meusPontos: number | null
-}
-
-export interface LinhaRankingRodada {
+export interface PalpiteHistorico {
   participantId: string
   nome: string
   avatar: string | null
   emoji: string | null
   pontos: number
   cravadas: number
-  vencedor: number
-  saldo: number
-  position: number
+  vencedores: number
+  saldos: number
 }
 
-export interface JogoHistorico {
-  id: string
+export interface FrangoHistorico {
+  jogador: string
+  texto: string | null
+  fotoUrl: string | null
+}
+
+export interface CampeaoHistorico {
+  nome: string
+  pontos: number
+  avatar: string | null
+  emoji: string | null
+}
+
+export interface RodadaHistoricoCompleta {
+  roundId: string
+  numero: number
+  nome: string
+  finalizada: boolean
+  isDouble: boolean
+  jogos: JogoHistorico[]
+  ranking: PalpiteHistorico[]
+  campeaoRodada: CampeaoHistorico | null
+  frangoRodada: FrangoHistorico | null
+}
+
+export interface DetalhePalpiteJogo {
+  matchId: string
   home: string
   away: string
   homeScore: number | null
   awayScore: number | null
-  matchDate: string | null
-  matchTime: string | null
-  palpites: Array<{
-    participantId: string
-    nome: string
-    avatar: string | null
-    emoji: string | null
-    predH: number | null
-    predA: number | null
-    points: number
-  }>
+  predH: number | null
+  predA: number | null
+  pontos: number | null
 }
 
-export interface FrangoHistorico {
-  playerName: string
-  text: string | null
-  photoUrl: string | null
+export interface DetalheParticipanteRodada {
+  participantId: string
+  nome: string
+  avatar: string | null
+  emoji: string | null
+  pontosTotais: number
+  jogos: DetalhePalpiteJogo[]
 }
 
-export interface DetalheRodadaHistorico {
-  rodada: RodadaHistorico
-  ranking: LinhaRankingRodada[]
-  jogos: JogoHistorico[]
-  frango: FrangoHistorico | null
-}
-
-// ─── Listagem simples ────────────────────────────────────────────────────────
-
-export async function buscarRodadasFinalizadasHistorico(
-  meuParticipantId: string | null,
-): Promise<RodadaHistorico[]> {
-  const { data: rounds, error } = await supabase
+/**
+ * Busca todas as rodadas finalizadas ordenadas estritamente pelo NÚMERO da rodada (number DESC).
+ * Isso garante que R24 apareça no topo, seguida por R23, R22, R21, etc., independentemente da data de criação no banco.
+ */
+export async function buscarHistoricoCompleto(): Promise<RodadaHistoricoCompleta[]> {
+  // 1. Busca rodadas finalizadas com ordenação estrita pelo NÚMERO da rodada (number DESC)
+  const { data: rounds, error: rErr } = await supabase
     .from('rounds')
-    .select('id, number, name, is_double, finalized')
+    .select('id, number, name, finalized, is_double')
     .eq('finalized', true)
-    .order('created_at', { ascending: false })
+    .order('number', { ascending: false })
 
-  if (error) throw new Error(error.message)
+  if (rErr) throw rErr
   if (!rounds || rounds.length === 0) return []
 
   const roundIds = rounds.map((r) => r.id)
 
-  // Todos os round_results das rodadas de uma vez (com campos pra desempate)
-  const { data: results } = await supabase
-    .from('round_results')
-    .select('round_id, participant_id, round_pts, exact_scores, correct_winner, correct_saldo')
-    .in('round_id', roundIds)
+  // 2. Busca jogos, resultados, participantes não-admin e frangos das rodadas em paralelo
+  const [
+    { data: matches, error: mErr },
+    { data: roundResults, error: rrErr },
+    { data: participants, error: pErr },
+    { data: shames, error: sErr },
+  ] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('id, round_id, home, away, home_score, away_score, match_date, match_time')
+      .in('round_id', roundIds)
+      .order('match_date', { ascending: true, nullsFirst: false }),
+    supabase
+      .from('round_results')
+      .select('round_id, participant_id, round_pts, exact_scores, correct_winner, correct_saldo')
+      .in('round_id', roundIds),
+    supabase
+      .from('participants')
+      .select('id, name, avatar, emoji, is_admin')
+      .eq('is_admin', false),
+    supabase
+      .from('shame')
+      .select('round_id, player_name, text, photo_url')
+      .in('round_id', roundIds),
+  ])
 
-  // Todos os participantes (só não-admin)
-  const { data: parts } = await supabase
-    .from('participants')
-    .select('id, name, avatar, emoji, is_admin')
-    .eq('is_admin', false)
+  if (mErr) throw mErr
+  if (rrErr) throw rrErr
+  if (pErr) throw pErr
+  if (sErr) throw sErr
 
-  const partMap = new Map<string, { nome: string; avatar: string | null; emoji: string | null }>()
-  ;(parts ?? []).forEach((p) => {
-    partMap.set(p.id, { nome: p.name, avatar: p.avatar ?? null, emoji: p.emoji ?? null })
-  })
+  const partMap = new Map((participants ?? []).map((p) => [p.id, p]))
+  const shamesMap = new Map((shames ?? []).map((s) => [s.round_id, s]))
 
-  // Contagem de jogos por rodada
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('round_id')
-    .in('round_id', roundIds)
-
-  const jogosPorRodada = new Map<string, number>()
-  ;(matches ?? []).forEach((m) => {
-    jogosPorRodada.set(m.round_id, (jogosPorRodada.get(m.round_id) ?? 0) + 1)
-  })
-
+  // 3. Monta cada rodada do histórico com ranking interno e campeão
   return rounds.map((r) => {
-    const resultsRodada = (results ?? []).filter((x) => x.round_id === r.id)
+    const jogosDaRodada: JogoHistorico[] = (matches ?? [])
+      .filter((m) => m.round_id === r.id)
+      .map((m) => ({
+        matchId: m.id,
+        home: m.home,
+        away: m.away,
+        homeScore: m.home_score,
+        awayScore: m.away_score,
+        date: m.match_date ?? null,
+        time: m.match_time?.slice(0, 5) ?? null,
+      }))
 
-    // Ordena por: pts → cravadas → vencedor → saldo (desc)
-    const ordenados = resultsRodada
-      .filter((x) => partMap.has(x.participant_id))
-      .sort((a, b) => {
-        if ((b.round_pts ?? 0) !== (a.round_pts ?? 0)) return (b.round_pts ?? 0) - (a.round_pts ?? 0)
-        if ((b.exact_scores ?? 0) !== (a.exact_scores ?? 0)) return (b.exact_scores ?? 0) - (a.exact_scores ?? 0)
-        if ((b.correct_winner ?? 0) !== (a.correct_winner ?? 0)) return (b.correct_winner ?? 0) - (a.correct_winner ?? 0)
-        return (b.correct_saldo ?? 0) - (a.correct_saldo ?? 0)
-      })
+    const rrDaRodada = (roundResults ?? []).filter((rr) => rr.round_id === r.id)
 
-    // Campeões = todos que empatam TOTALMENTE (pts + cravadas + vencedor + saldo) com o primeiro
-    const campeoes: CampeaoRodada[] = []
-    if (ordenados.length > 0) {
-      const primeiro = ordenados[0]
-      for (const r of ordenados) {
-        const empatouTudo =
-          (r.round_pts ?? 0) === (primeiro.round_pts ?? 0) &&
-          (r.exact_scores ?? 0) === (primeiro.exact_scores ?? 0) &&
-          (r.correct_winner ?? 0) === (primeiro.correct_winner ?? 0) &&
-          (r.correct_saldo ?? 0) === (primeiro.correct_saldo ?? 0)
-        if (!empatouTudo) break
-
-        const p = partMap.get(r.participant_id)
-        if (p) {
-          campeoes.push({
-            nome: p.nome,
-            avatar: p.avatar,
-            emoji: p.emoji,
-            pts: r.round_pts ?? 0,
-          })
+    const ranking: PalpiteHistorico[] = rrDaRodada
+      .map((rr) => {
+        const p = partMap.get(rr.participant_id)
+        if (!p) return null
+        return {
+          participantId: p.id,
+          nome: p.name,
+          avatar: p.avatar ?? null,
+          emoji: p.emoji ?? null,
+          pontos: rr.round_pts ?? 0,
+          cravadas: rr.exact_scores ?? 0,
+          vencedores: rr.correct_winner ?? 0,
+          saldos: rr.correct_saldo ?? 0,
         }
-      }
-    }
+      })
+      .filter((x): x is PalpiteHistorico => x !== null)
+      .sort((a, b) => b.pontos - a.pontos || b.cravadas - a.cravadas || b.saldos - a.saldos)
 
-    let meusPontos: number | null = null
-    if (meuParticipantId) {
-      const meu = resultsRodada.find((x) => x.participant_id === meuParticipantId)
-      meusPontos = meu ? meu.round_pts ?? 0 : null
-    }
+    // Campeão é o primeiro do ranking interno da rodada
+    const campeao: CampeaoHistorico | null = ranking[0]
+      ? {
+          nome: ranking[0].nome,
+          pontos: ranking[0].pontos,
+          avatar: ranking[0].avatar,
+          emoji: ranking[0].emoji,
+        }
+      : null
+
+    const shame = shamesMap.get(r.id)
+    const frango: FrangoHistorico | null = shame
+      ? {
+          jogador: shame.player_name,
+          texto: shame.text ?? null,
+          fotoUrl: shame.photo_url ?? null,
+        }
+      : null
 
     return {
-      id: r.id,
-      number: r.number,
-      name: r.name,
+      roundId: r.id,
+      numero: r.number,
+      nome: r.name,
+      finalizada: r.finalized,
       isDouble: r.is_double ?? false,
-      totalJogos: jogosPorRodada.get(r.id) ?? 0,
-      campeao: campeoes[0] ?? null,
-      campeoes,
-      meusPontos,
+      jogos: jogosDaRodada,
+      ranking,
+      campeaoRodada: campeao,
+      frangoRodada: frango,
     }
   })
 }
 
-// ─── Detalhe completo de uma rodada ──────────────────────────────────────────
+/**
+ * Busca o detalhamento dos palpites e pontos de um participante em uma rodada específica do histórico.
+ */
+export async function buscarDetalheParticipanteHistorico(
+  roundId: string,
+  participantId: string,
+): Promise<DetalheParticipanteRodada | null> {
+  const [{ data: part }, { data: matches }, { data: rr }] = await Promise.all([
+    supabase
+      .from('participants')
+      .select('id, name, avatar, emoji')
+      .eq('id', participantId)
+      .single(),
+    supabase
+      .from('matches')
+      .select('id, home, away, home_score, away_score, match_date')
+      .eq('round_id', roundId)
+      .order('match_date', { ascending: true, nullsFirst: false }),
+    supabase
+      .from('round_results')
+      .select('round_pts')
+      .eq('round_id', roundId)
+      .eq('participant_id', participantId)
+      .maybeSingle(),
+  ])
 
-export async function buscarDetalheRodada(roundId: string): Promise<DetalheRodadaHistorico | null> {
-  // 1. Info da rodada
-  const { data: round, error: errR } = await supabase
-    .from('rounds')
-    .select('id, number, name, is_double')
-    .eq('id', roundId)
-    .maybeSingle()
-  if (errR || !round) return null
-
-  // 2. Participantes não-admin
-  const { data: parts } = await supabase
-    .from('participants')
-    .select('id, name, avatar, emoji')
-    .eq('is_admin', false)
-
-  const partMap = new Map<string, { nome: string; avatar: string | null; emoji: string | null }>()
-  ;(parts ?? []).forEach((p) => {
-    partMap.set(p.id, { nome: p.name, avatar: p.avatar ?? null, emoji: p.emoji ?? null })
-  })
-
-  // 3. Ranking DA RODADA (ordenado por pts da rodada, não position do campeonato!)
-  const { data: results } = await supabase
-    .from('round_results')
-    .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
-    .eq('round_id', roundId)
-
-  const rankingBruto = (results ?? [])
-    .filter((r) => partMap.has(r.participant_id))
-    .map((r) => {
-      const p = partMap.get(r.participant_id)!
-      return {
-        participantId: r.participant_id,
-        nome: p.nome,
-        avatar: p.avatar,
-        emoji: p.emoji,
-        pontos: r.round_pts ?? 0,
-        cravadas: r.exact_scores ?? 0,
-        vencedor: r.correct_winner ?? 0,
-        saldo: r.correct_saldo ?? 0,
-      }
-    })
-    .sort((a, b) => {
-      if (b.pontos !== a.pontos) return b.pontos - a.pontos
-      if (b.cravadas !== a.cravadas) return b.cravadas - a.cravadas
-      if (b.vencedor !== a.vencedor) return b.vencedor - a.vencedor
-      if (b.saldo !== a.saldo) return b.saldo - a.saldo
-      return a.nome.localeCompare(b.nome, 'pt-BR')
-    })
-
-  const ranking: LinhaRankingRodada[] = rankingBruto.map((r, i) => ({
-    ...r,
-    position: i + 1,
-  }))
-
-  // 4. Jogos da rodada
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id, home, away, home_score, away_score, match_date, match_time')
-    .eq('round_id', roundId)
-    .order('match_date', { ascending: true, nullsFirst: false })
-    .order('match_time', { ascending: true, nullsFirst: false })
+  if (!part) return null
 
   const matchIds = (matches ?? []).map((m) => m.id)
 
-  // 5. Palpites de todos os jogos
-  const { data: preds } = matchIds.length
+  const { data: preds } = matchIds.length > 0
     ? await supabase
         .from('predictions')
-        .select('match_id, participant_id, pred_h, pred_a, points')
+        .select('match_id, pred_h, pred_a, points')
+        .eq('participant_id', participantId)
         .in('match_id', matchIds)
-    : { data: [] as any[] }
+    : { data: [] }
 
-  const jogos: JogoHistorico[] = (matches ?? []).map((m) => {
-    const palpitesJogo = (preds ?? [])
-      .filter((p) => p.match_id === m.id && partMap.has(p.participant_id))
-      .map((p) => {
-        const part = partMap.get(p.participant_id)!
-        return {
-          participantId: p.participant_id,
-          nome: part.nome,
-          avatar: part.avatar,
-          emoji: part.emoji,
-          predH: p.pred_h,
-          predA: p.pred_a,
-          points: p.points ?? 0,
-        }
-      })
-      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const predMap = new Map((preds ?? []).map((p) => [p.match_id, p]))
 
+  const jogos: DetalhePalpiteJogo[] = (matches ?? []).map((m) => {
+    const p = predMap.get(m.id)
     return {
-      id: m.id,
+      matchId: m.id,
       home: m.home,
       away: m.away,
       homeScore: m.home_score,
       awayScore: m.away_score,
-      matchDate: m.match_date,
-      matchTime: m.match_time,
-      palpites: palpitesJogo,
+      predH: p?.pred_h ?? null,
+      predA: p?.pred_a ?? null,
+      pontos: p?.points ?? null,
     }
   })
 
-  // 6. Frango (se tem)
-  const { data: shameRow } = await supabase
-    .from('shame')
-    .select('player_name, text, photo_url')
-    .eq('round_id', roundId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const frango: FrangoHistorico | null = shameRow
-    ? { playerName: shameRow.player_name, text: shameRow.text ?? null, photoUrl: shameRow.photo_url ?? null }
-    : null
-
-  // Detecta campeões (podem ser vários em empate perfeito)
-  const campeoes: CampeaoRodada[] = []
-  if (ranking.length > 0) {
-    const primeiro = ranking[0]
-    for (const r of ranking) {
-      if (
-        r.pontos === primeiro.pontos &&
-        r.cravadas === primeiro.cravadas &&
-        r.vencedor === primeiro.vencedor &&
-        r.saldo === primeiro.saldo
-      ) {
-        campeoes.push({ nome: r.nome, avatar: r.avatar, emoji: r.emoji, pts: r.pontos })
-      } else {
-        break
-      }
-    }
+  return {
+    participantId: part.id,
+    nome: part.name,
+    avatar: part.avatar ?? null,
+    emoji: part.emoji ?? null,
+    pontosTotais: rr?.round_pts ?? 0,
+    jogos,
   }
-
-  const rodada: RodadaHistorico = {
-    id: round.id,
-    number: round.number,
-    name: round.name,
-    isDouble: round.is_double ?? false,
-    totalJogos: (matches ?? []).length,
-    campeao: campeoes[0] ?? null,
-    campeoes,
-    meusPontos: null,
-  }
-
-  return { rodada, ranking, jogos, frango }
-}
-
-// ─── Categoriza acerto por palpite ───────────────────────────────────────────
-
-export function categorizarAcerto(
-  predH: number | null,
-  predA: number | null,
-  realH: number | null,
-  realA: number | null,
-): 'cravou' | 'saldo' | 'vencedor' | 'errou' | 'sem-palpite' | 'sem-resultado' {
-  if (predH === null || predA === null) return 'sem-palpite'
-  if (realH === null || realA === null) return 'sem-resultado'
-  if (predH === realH && predA === realA) return 'cravou'
-
-  const saldoReal = realH - realA
-  const saldoPred = predH - predA
-  const vencedorReal = saldoReal > 0 ? 'H' : saldoReal < 0 ? 'A' : 'E'
-  const vencedorPred = saldoPred > 0 ? 'H' : saldoPred < 0 ? 'A' : 'E'
-
-  if (vencedorReal !== vencedorPred) return 'errou'
-  if (saldoReal === saldoPred) return 'saldo'
-  return 'vencedor'
 }
