@@ -4,13 +4,13 @@ import { calcProjecaoPct } from './domain/projecao'
 
 // Camada de dados do Ranking real.
 //
-// Lê da tabela round_results (336 linhas total - imune ao limite de 1000 linhas do Supabase).
+// Lê da tabela round_results (fonte oficial compartilhada com o Histórico).
 //
 // Regras do Ranking Oficial:
 //   - PONTOS: soma de round_pts de todas as rodadas finalizadas
-//   - CRAV.: soma de exact_scores (cravadas = 5/10 pts)
-//   - SALDO: soma de correct_saldo (saldos = 3/6 pts)
-//   - VENC.: soma de todos os palpites onde pontuou (>0 pts)
+//   - CRAV.: soma de exact_scores (cravadas)
+//   - SALDO: soma de correct_saldo (saldos)
+//   - VENC.: soma de correct_winner (vencedor puro = 1pt)
 //
 // Filtros:
 //   - Só participantes com is_admin = false
@@ -94,7 +94,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }))
   }
 
-  // Busca agregados da tabela round_results (336 linhas -> 100% completo, sem corte)
+  // Busca agregados da tabela round_results
   const { data: rr, error: rrErr } = await supabase
     .from('round_results')
     .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
@@ -111,16 +111,10 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     const bucket = agregado.get(row.participant_id)
     if (!bucket) continue
 
-    const pts = row.round_pts ?? 0
-    const crav = row.exact_scores ?? 0
-    const sald = row.correct_saldo ?? 0
-    const vencPuro = row.correct_winner ?? 0
-
-    bucket.total += pts
-    bucket.cravadas += crav
-    bucket.saldo += sald
-    // VENC. no Ranking oficial = Total de jogos onde fez qualquer ponto (>0)
-    bucket.vencedor += (crav + sald + vencPuro)
+    bucket.total += (row.round_pts ?? 0)
+    bucket.cravadas += (row.exact_scores ?? 0)
+    bucket.saldo += (row.correct_saldo ?? 0)
+    bucket.vencedor += (row.correct_winner ?? 0) // Vencedor Puro (Opção B)
   }
 
   const projMap = roundIds.length >= 2
@@ -143,7 +137,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }
   })
 
-  // Ordenação oficial do Ranking
+  // Ordenação oficial
   linhas.sort((a, b) => b.total - a.total || b.cravadas - a.cravadas || b.vencedor - a.vencedor || b.saldo - a.saldo)
   linhas.forEach((l, i) => { l.posicao = i + 1 })
 
