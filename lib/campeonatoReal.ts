@@ -127,14 +127,16 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
       roundName: r.name,
     }
 
+    // TABELA 100% AO VIVO: Se o jogo tem placar, entra na tabela oficial na HORA (mesmo se a rodada for ao vivo)
     if (m.home_score !== null && m.away_score !== null) {
-      if (!isExtra) jogosComPlacar.push(jogo)
+      if (!isExtra) {
+        jogosComPlacar.push(jogo)
+      }
     } else {
       if (!isExtra) jogosFuturos.push(jogo)
     }
   }
 
-  // Ordenação CRÍTICA por número de rodada (resolve o bug do pulo de R23 para R15)
   jogosComPlacar.sort((a, b) => a.roundNumber - b.roundNumber)
 
   const tabela = calcularTabela(jogosComPlacar)
@@ -227,7 +229,6 @@ function calcularEstatisticas(jogos: JogoBrasileirao[], tabela: LinhaTabela[]): 
   let maiorSaldoAbs = 0
   let totalGolsGeral = 0
 
-  // Média de Gols por Rodada
   const golsPorRodadaMap = new Map<number, { nome: string; totalGols: number; jogos: number }>()
 
   for (const j of jogos) {
