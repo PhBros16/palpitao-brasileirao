@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-// ─── Interfaces com suporte a todos os aliases dos componentes ────────────────
+// Types com suporte completo a todos os aliases dos componentes visuais
 
 export interface JogoHistorico {
   id: string
@@ -43,7 +43,10 @@ export interface FrangoHistorico {
 
 export interface CampeaoHistorico {
   nome: string
+  name: string
   pontos: number
+  pts: number
+  round_pts: number
   avatar: string | null
   emoji: string | null
 }
@@ -65,6 +68,7 @@ export interface RodadaHistorico {
   ranking: PalpiteHistorico[]
   campeao: CampeaoHistorico | null
   campeaoRodada: CampeaoHistorico | null
+  campeaoPontos: number
   meusPontos: number
   meuPontos: number
   meus_pontos: number
@@ -112,7 +116,6 @@ export function categorizarAcerto(pts: number | null): 'cravada' | 'saldo' | 've
 // ─── Função de Busca Principal ───────────────────────────────────────────────
 
 export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistorico[]> {
-  // Pega id do usuário logado se estiver no navegador
   let sessaoId: string | null = null
   if (typeof window !== 'undefined') {
     try {
@@ -121,12 +124,13 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
     } catch { /* ignora */ }
   }
 
-  // 1. Busca rodadas finalizadas em ordem decrescente pelo NÚMERO (24, 23, 22...)
+  // 1. ORDENAÇÃO CORRIGIDA: Ordena por data de criação/finalização (created_at DESC)
+  // Isso coloca as rodadas mais recentes no topo sem empurrar as Extras de forma artificial
   const { data: rounds, error: rErr } = await supabase
     .from('rounds')
-    .select('id, number, name, finalized, is_double')
+    .select('id, number, name, finalized, is_double, created_at')
     .eq('finalized', true)
-    .order('number', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (rErr) throw rErr
   if (!rounds || rounds.length === 0) return []
@@ -210,7 +214,10 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
     const campeao: CampeaoHistorico | null = ranking[0]
       ? {
           nome: ranking[0].nome,
+          name: ranking[0].nome,
           pontos: ranking[0].pontos,
+          pts: ranking[0].pontos,
+          round_pts: ranking[0].pontos,
           avatar: ranking[0].avatar,
           emoji: ranking[0].emoji,
         }
@@ -248,6 +255,7 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
       ranking,
       campeao,
       campeaoRodada: campeao,
+      campeaoPontos: campeao ? campeao.pontos : 0,
       meusPontos: meusPts,
       meuPontos: meusPts,
       meus_pontos: meusPts,
