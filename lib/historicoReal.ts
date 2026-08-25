@@ -1,24 +1,38 @@
 import { supabase } from './supabase'
 
-// Types esperados pelos componentes de Histórico
+// ─── Interfaces com suporte a todos os aliases dos componentes ────────────────
 
 export interface JogoHistorico {
+  id: string
   matchId: string
+  match_id: string
   home: string
   away: string
   homeScore: number | null
   awayScore: number | null
+  home_score: number | null
+  away_score: number | null
+  date: string | null
+  time: string | null
 }
 
 export interface PalpiteHistorico {
+  id: string
   participantId: string
+  participant_id: string
   nome: string
+  name: string
   avatar: string | null
   emoji: string | null
   pontos: number
+  round_pts: number
+  pts: number
   cravadas: number
+  exact_scores: number
   vencedores: number
+  correct_winner: number
   saldos: number
+  correct_saldo: number
 }
 
 export interface FrangoHistorico {
@@ -35,14 +49,26 @@ export interface CampeaoHistorico {
 }
 
 export interface RodadaHistorico {
+  id: string
   roundId: string
   numero: number
+  number: number
   nome: string
+  name: string
   finalizada: boolean
   isDouble: boolean
+  is_double: boolean
+  totalJogos: number
+  qtdJogos: number
+  total_jogos: number
   jogos: JogoHistorico[]
   ranking: PalpiteHistorico[]
+  campeao: CampeaoHistorico | null
   campeaoRodada: CampeaoHistorico | null
+  meusPontos: number
+  meuPontos: number
+  meus_pontos: number
+  frango: FrangoHistorico | null
   frangoRodada: FrangoHistorico | null
 }
 
@@ -83,12 +109,19 @@ export function categorizarAcerto(pts: number | null): 'cravada' | 'saldo' | 've
   return 'errou'
 }
 
-// ─── Funções de busca ────────────────────────────────────────────────────────
+// ─── Função de Busca Principal ───────────────────────────────────────────────
 
-/**
- * Busca todas as rodadas finalizadas ordenadas estritamente pelo NÚMERO da rodada (number DESC).
- */
 export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistorico[]> {
+  // Pega id do usuário logado se estiver no navegador
+  let sessaoId: string | null = null
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('palpitao_sessao')
+      if (raw) sessaoId = JSON.parse(raw).id ?? null
+    } catch { /* ignora */ }
+  }
+
+  // 1. Busca rodadas finalizadas em ordem decrescente pelo NÚMERO (24, 23, 22...)
   const { data: rounds, error: rErr } = await supabase
     .from('rounds')
     .select('id, number, name, finalized, is_double')
@@ -132,11 +165,17 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
     const jogosDaRodada: JogoHistorico[] = (matches ?? [])
       .filter((m) => m.round_id === r.id)
       .map((m) => ({
+        id: m.id,
         matchId: m.id,
+        match_id: m.id,
         home: m.home,
         away: m.away,
         homeScore: m.home_score,
         awayScore: m.away_score,
+        home_score: m.home_score,
+        away_score: m.away_score,
+        date: m.match_date ?? null,
+        time: m.match_time?.slice(0, 5) ?? null,
       }))
 
     const rrDaRodada = (roundResults ?? []).filter((rr) => rr.round_id === r.id)
@@ -145,21 +184,30 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
       .map((rr) => {
         const p = partMap.get(rr.participant_id)
         if (!p) return null
+        const pts = rr.round_pts ?? 0
         return {
+          id: p.id,
           participantId: p.id,
+          participant_id: p.id,
           nome: p.name,
+          name: p.name,
           avatar: p.avatar ?? null,
           emoji: p.emoji ?? null,
-          pontos: rr.round_pts ?? 0,
+          pontos: pts,
+          round_pts: pts,
+          pts: pts,
           cravadas: rr.exact_scores ?? 0,
+          exact_scores: rr.exact_scores ?? 0,
           vencedores: rr.correct_winner ?? 0,
+          correct_winner: rr.correct_winner ?? 0,
           saldos: rr.correct_saldo ?? 0,
+          correct_saldo: rr.correct_saldo ?? 0,
         }
       })
       .filter((x): x is PalpiteHistorico => x !== null)
       .sort((a, b) => b.pontos - a.pontos || b.cravadas - a.cravadas || b.saldos - a.saldos)
 
-    const campeao = ranking[0]
+    const campeao: CampeaoHistorico | null = ranking[0]
       ? {
           nome: ranking[0].nome,
           pontos: ranking[0].pontos,
@@ -168,8 +216,11 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
         }
       : null
 
+    const meuRank = sessaoId ? ranking.find((p) => p.participantId === sessaoId) : null
+    const meusPts = meuRank ? meuRank.pontos : 0
+
     const shame = shamesMap.get(r.id)
-    const frango = shame
+    const frango: FrangoHistorico | null = shame
       ? {
           jogador: shame.player_name,
           texto: shame.text ?? null,
@@ -177,52 +228,46 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
         }
       : null
 
+    const num = r.number
+    const nomeRodada = r.name || `Rodada ${num}`
+
     return {
+      id: r.id,
       roundId: r.id,
-      numero: r.number,
-      nome: r.name,
+      numero: num,
+      number: num,
+      nome: nomeRodada,
+      name: nomeRodada,
       finalizada: r.finalized,
       isDouble: r.is_double ?? false,
+      is_double: r.is_double ?? false,
+      totalJogos: jogosDaRodada.length,
+      qtdJogos: jogosDaRodada.length,
+      total_jogos: jogosDaRodada.length,
       jogos: jogosDaRodada,
       ranking,
+      campeao,
       campeaoRodada: campeao,
+      meusPontos: meusPts,
+      meuPontos: meusPts,
+      meus_pontos: meusPts,
+      frango,
       frangoRodada: frango,
     }
   })
 }
 
-/** Alias para manter retrocompatibilidade */
 export const buscarHistoricoCompleto = buscarRodadasFinalizadasHistorico
 
-/**
- * Busca os detalhes de uma rodada específica para o histórico.
- */
 export async function buscarDetalheRodada(
   roundId: string,
   participantId: string,
 ): Promise<DetalheRodadaHistorico | null> {
   const [{ data: round }, { data: part }, { data: matches }, { data: rr }] = await Promise.all([
-    supabase
-      .from('rounds')
-      .select('id, number, name')
-      .eq('id', roundId)
-      .single(),
-    supabase
-      .from('participants')
-      .select('id, name, avatar, emoji')
-      .eq('id', participantId)
-      .single(),
-    supabase
-      .from('matches')
-      .select('id, home, away, home_score, away_score, match_date')
-      .eq('round_id', roundId)
-      .order('match_date', { ascending: true, nullsFirst: false }),
-    supabase
-      .from('round_results')
-      .select('round_pts')
-      .eq('round_id', roundId)
-      .eq('participant_id', participantId)
-      .maybeSingle(),
+    supabase.from('rounds').select('id, number, name').eq('id', roundId).single(),
+    supabase.from('participants').select('id, name, avatar, emoji').eq('id', participantId).single(),
+    supabase.from('matches').select('id, home, away, home_score, away_score, match_date').eq('round_id', roundId).order('match_date', { ascending: true, nullsFirst: false }),
+    supabase.from('round_results').select('round_pts').eq('round_id', roundId).eq('participant_id', participantId).maybeSingle(),
   ])
 
   if (!round || !part) return null
