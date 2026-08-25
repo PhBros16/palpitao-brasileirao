@@ -30,9 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <head>
-        {/* PRECONNECTS DE ALTA VELOCIDADE (Acelera Imagens, Banco e Fontes) */}
-        <link rel="preconnect" href="https://s.sde.globo.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://upload.wikimedia.org" crossOrigin="anonymous" />
+        {/* PRECONNECTS (Fontes e Banco) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://vvdrtjceipikxedebfvh.supabase.co" crossOrigin="anonymous" />
