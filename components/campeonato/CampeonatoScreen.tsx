@@ -59,6 +59,7 @@ export function CampeonatoScreen({ dados }: { dados: DadosCampeonato }) {
       {timeSel && (
         <ModalTime
           time={timeSel}
+          tabelaCompleta={dados.tabela}
           jogos={dados.ultimosResultados}
           projecao={dados.estatisticas.projecoes.find((p) => p.time === timeSel.time)}
           onFechar={() => setTimeSel(null)}
@@ -181,9 +182,14 @@ function EstatisticasCampeonato({
   onClickTime: (nome: string) => void
 }) {
   const e = dados.estatisticas
-  const [filtroEvo, setFiltroEvo] = useState(5)
+  const [filtroEvo, setFiltroEvo] = useState<number | 'z4'>(5)
 
-  const timesEvo = useMemo(() => dados.tabela.slice(0, filtroEvo), [dados.tabela, filtroEvo])
+  // Filtro inteligente para o gráfico de evolução
+  const timesEvo = useMemo(() => {
+    if (filtroEvo === 'z4') return dados.tabela.slice(-4)
+    return dados.tabela.slice(0, filtroEvo)
+  }, [dados.tabela, filtroEvo])
+
   const maxPtsEvo = Math.max(...timesEvo.map((t) => t.pontos), 1)
 
   const CORES_EVO = [
@@ -192,21 +198,25 @@ function EstatisticasCampeonato({
     '#0284C7', '#0369A1', '#1D4ED8', '#4338CA', '#5B21B6', '#7E22CE', '#A21CAF', '#BE185D'
   ]
 
-  // Cálculo dinâmico das probabilidades baseado em pontos projetados
+  // Probabilidades proporcionais entre os postulantes
   const chancesTitulo = useMemo(() => {
-    const maxProj = Math.max(...e.projecoes.map(p => p.projecaoFinal), 1)
-    return e.projecoes
-      .map(p => {
-        const diff = maxProj - p.projecaoFinal
-        let chance = 0
-        if (diff === 0) chance = 68
-        else if (diff <= 3) chance = 22
-        else if (diff <= 6) chance = 8
-        else if (diff <= 9) chance = 2
-        return { time: p.time, chance, proj: p.projecaoFinal }
-      })
-      .filter(t => t.chance > 0)
-      .sort((a, b) => b.chance - a.chance)
+    const liderProj = Math.max(...e.projecoes.map(p => p.projecaoFinal), 1)
+    const timesProximos = e.projecoes.filter(p => p.projecaoFinal >= liderProj - 15)
+    
+    // Calcula pesos exponenciais baseados nos pontos projetados
+    const pesos = timesProximos.map(p => ({
+      time: p.time,
+      peso: Math.pow(Math.max(1, p.projecaoFinal - 50), 2.5),
+      proj: p.projecaoFinal
+    }))
+    
+    const somaPesos = pesos.reduce((s, p) => s + p.peso, 0) || 1
+
+    return pesos.map(p => ({
+      time: p.time,
+      chance: Math.min(99, Math.max(1, Math.round((p.peso / somaPesos) * 100))),
+      proj: p.proj
+    })).sort((a, b) => b.chance - a.chance)
   }, [e.projecoes])
 
   const riscoZ4 = useMemo(() => {
@@ -215,9 +225,9 @@ function EstatisticasCampeonato({
         let risco = 0
         if (p.projecaoFinal <= 35) risco = 99
         else if (p.projecaoFinal <= 39) risco = 85
-        else if (p.projecaoFinal <= 42) risco = 55
-        else if (p.projecaoFinal <= 44) risco = 25
-        else if (p.projecaoFinal === 45) risco = 8
+        else if (p.projecaoFinal <= 42) risco = 60
+        else if (p.projecaoFinal <= 44) risco = 35
+        else if (p.projecaoFinal === 45) risco = 12
         return { time: p.time, risco, proj: p.projecaoFinal }
       })
       .filter(t => t.risco > 0)
@@ -257,15 +267,15 @@ function EstatisticasCampeonato({
   return (
     <div className="flex flex-col gap-3">
 
-      {/* PROJEÇÃO DO CAMPEONATO (NO TOPO) */}
+      {/* PROJEÇÃO DO CAMPEONATO (NO TOPO COM EXPLICAÇÃO COMPLETA) */}
       <CardEnvelope titulo="🔮 Projeção do Campeonato">
         <div className="border-b border-papel-borda-200 bg-papel-100 px-3 py-2">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-tinta-200">Fórmula da Projeção</p>
+          <p className="font-mono text-[9px] uppercase tracking-widest text-tinta-200">Fórmula da Projeção Matemática</p>
           <p className="mt-0.5 font-sans text-[11px] font-semibold text-tinta-300">
             <code>Projeção = (Pontos Atuais ÷ Jogos Disputados) × 38 rodadas</code>
           </p>
-          <p className="mt-0.5 font-sans text-[10px] text-tinta-200">
-            <i>Exemplo (Flamengo):</i> (45 pts ÷ 23 jogos) = 1.95 pts/jogo × 38 = <b>74 pts projetados</b>.
+          <p className="mt-1 font-sans text-[10px] text-tinta-200 leading-tight">
+            <i>Exemplo (Flamengo):</i> (45 pts ÷ 23 jogos) = 1.95 pts/jogo × 38 = <b>74 pts projetados</b> no final.
           </p>
         </div>
         <div className="max-h-72 space-y-1 overflow-y-auto p-2 scrollbar-tema">
@@ -297,7 +307,7 @@ function EstatisticasCampeonato({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-dourado-300 bg-dourado-50 p-3">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-dourado-800">🏆 Chance de Título</p>
-          <p className="mb-3 font-sans text-[9px] text-dourado-700 italic">Baseado em projeção $\ge 72$ pts</p>
+          <p className="mb-3 font-sans text-[9px] text-dourado-700 italic">Proporção baseada em projeção ≥ 70 pts</p>
           <div className="space-y-3">
             {chancesTitulo.length === 0 && <p className="font-sans text-[10px] text-dourado-700">Disputa aberta</p>}
             {chancesTitulo.map((t) => (
@@ -319,7 +329,7 @@ function EstatisticasCampeonato({
 
         <div className="rounded-lg border border-red-300 bg-red-50 p-3">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-red-800">🚨 Risco de Rebaixamento</p>
-          <p className="mb-3 font-sans text-[9px] text-red-700 italic">Baseado em nota de corte de 45 pts</p>
+          <p className="mb-3 font-sans text-[9px] text-red-700 italic">Proporção para projeção ≤ 45 pts</p>
           <div className="max-h-48 space-y-3 overflow-y-auto pr-1 scrollbar-tema">
             {riscoZ4.length === 0 && <p className="font-sans text-[10px] text-red-700">Nenhum time em risco crítico</p>}
             {riscoZ4.map((t) => (
@@ -349,12 +359,13 @@ function EstatisticasCampeonato({
                 { val: 3, label: 'G3' },
                 { val: 5, label: 'G5' },
                 { val: 10, label: 'G10' },
-                { val: 20, label: 'Todos (G20)' },
+                { val: 'z4', label: 'Z4' },
+                { val: 20, label: 'Todos' },
               ].map((b) => (
                 <button
-                  key={b.val}
+                  key={String(b.val)}
                   type="button"
-                  onClick={() => setFiltroEvo(b.val)}
+                  onClick={() => setFiltroEvo(b.val as any)}
                   className={cx(
                     'rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
                     filtroEvo === b.val ? 'border-dourado-400 bg-dourado-100 text-dourado-700' : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
@@ -384,7 +395,7 @@ function EstatisticasCampeonato({
                       d={path}
                       fill="none"
                       stroke={CORES_EVO[idx % CORES_EVO.length]}
-                      strokeWidth={filtroEvo > 5 ? '1.5' : '2.5'}
+                      strokeWidth={filtroEvo === 20 ? '1.5' : '2.5'}
                       strokeLinecap="round"
                     />
                   )
@@ -409,7 +420,7 @@ function EstatisticasCampeonato({
         </CardEnvelope>
       )}
 
-      {/* CARDS DE RESUMO (COM RÓTULO CORRIGIDO) */}
+      {/* CARDS DE RESUMO (GOLS/JOGO CORRIGIDO) */}
       <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
           <span className="font-mono text-xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
@@ -425,7 +436,7 @@ function EstatisticasCampeonato({
         </div>
       </div>
 
-      {/* MÉDIA DE GOLS POR RODADA (COM DADOS POPULADOS DE R1 A R24) */}
+      {/* MÉDIA DE GOLS POR RODADA (COM R1 A R24 TOTALMENTE PREENCHIDAS) */}
       <CardEnvelope titulo="⚽ Média de Gols por Rodada">
         <div className="max-h-56 space-y-1.5 overflow-y-auto p-3 scrollbar-tema">
           {e.golsPorRodada.length === 0 ? (
@@ -442,26 +453,30 @@ function EstatisticasCampeonato({
         </div>
       </CardEnvelope>
 
-      {/* MAIOR GOLEADA */}
-      {e.maiorGoleada && (
-        <CardEnvelope titulo="🔥 Maior Goleada">
-          <div className="flex flex-col items-center justify-center py-4">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-red-600">Saldo de +{e.maiorGoleada.saldoAbs}</p>
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col items-center gap-1">
-                <img src={getEscudo(e.maiorGoleada.home)} className="h-10 w-10 object-contain" alt="" />
-                <span className="font-sans text-[10px] font-bold text-tinta-300">{e.maiorGoleada.home}</span>
+      {/* MAIORES GOLEADAS (LISTA COMPLETA) */}
+      {(e.maioresGoleadas?.length ?? 0) > 0 && (
+        <CardEnvelope titulo="🔥 Maiores Goleadas do Campeonato">
+          <div className="space-y-2 p-3">
+            {e.maioresGoleadas.map((g, idx) => (
+              <div key={idx} className="flex items-center justify-between rounded border border-papel-borda-200/60 bg-papel-50 p-2">
+                <span className="w-16 font-mono text-[9px] text-tinta-100">{g.roundName ?? 'Série A'}</span>
+                <div className="flex flex-1 items-center justify-center gap-3">
+                  <div className="flex flex-1 items-center justify-end gap-1.5">
+                    <span className="max-w-[80px] truncate font-sans text-xs font-semibold text-tinta-300">{g.home}</span>
+                    <img src={getEscudo(g.home)} className="h-5 w-5 object-contain" alt="" />
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded bg-papel-200 px-2 py-0.5">
+                    <span className="font-mono text-sm font-bold text-tinta-300">{g.homeScore}</span>
+                    <span className="text-xs text-tinta-100">×</span>
+                    <span className="font-mono text-sm font-bold text-tinta-300">{g.awayScore}</span>
+                  </div>
+                  <div className="flex flex-1 items-center justify-start gap-1.5">
+                    <img src={getEscudo(g.away)} className="h-5 w-5 object-contain" alt="" />
+                    <span className="max-w-[80px] truncate font-sans text-xs font-semibold text-tinta-300">{g.away}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-3xl font-bold text-tinta-300">{e.maiorGoleada.homeScore}</span>
-                <span className="text-xs text-tinta-100">×</span>
-                <span className="font-mono text-3xl font-bold text-tinta-300">{e.maiorGoleada.awayScore}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <img src={getEscudo(e.maiorGoleada.away)} className="h-10 w-10 object-contain" alt="" />
-                <span className="font-sans text-[10px] font-bold text-tinta-300">{e.maiorGoleada.away}</span>
-              </div>
-            </div>
+            ))}
           </div>
         </CardEnvelope>
       )}
@@ -624,19 +639,28 @@ function AgendaCampeonato({
   )
 }
 
-// ─── 4. Modal do Time (stats + evolução + TODOS os jogos) ────────────────────
+// ─── 4. Modal do Time (stats + comparativo com rival no gráfico) ────────────
 
 function ModalTime({
   time,
+  tabelaCompleta,
   jogos,
   projecao,
   onFechar,
 }: {
   time: LinhaTabela
+  tabelaCompleta: LinhaTabela[]
   jogos: JogoBrasileirao[]
   projecao?: { projecaoFinal: number; risco: string }
   onFechar: () => void
 }) {
+  const [rivalNome, setRivalNome] = useState<string>('lider')
+
+  const rivalTime = useMemo(() => {
+    if (rivalNome === 'lider') return tabelaCompleta[0]?.time !== time.time ? tabelaCompleta[0] : tabelaCompleta[1]
+    return tabelaCompleta.find((t) => t.time === rivalNome) ?? null
+  }, [rivalNome, tabelaCompleta, time.time])
+
   const jogosDoTime = useMemo(() => {
     return jogos
       .filter((j) => j.home === time.time || j.away === time.time)
@@ -647,13 +671,25 @@ function ModalTime({
   const mediaGolsPro = time.jogos > 0 ? (time.golsMarcados / time.jogos).toFixed(1) : '0'
   const mediaGolsContra = time.jogos > 0 ? (time.golsSofridos / time.jogos).toFixed(1) : '0'
 
-  const maxPts = Math.max(...(time.evolucaoPts.length ? time.evolucaoPts : [1]), 1)
-  const pontos = time.evolucaoPts
+  const maxPtsGraph = Math.max(
+    ...(time.evolucaoPts.length ? time.evolucaoPts : [1]),
+    ...(rivalTime?.evolucaoPts.length ? rivalTime.evolucaoPts : [1]),
+    1
+  )
+
   const w = 280, h = 80, pad = 8
-  const path = pontos.length > 1
-    ? pontos.map((p, i) => {
-        const x = pad + (i / (pontos.length - 1)) * (w - pad * 2)
-        const y = h - pad - (p / maxPts) * (h - pad * 2)
+  const pathTime = time.evolucaoPts.length > 1
+    ? time.evolucaoPts.map((p, i) => {
+        const x = pad + (i / (time.evolucaoPts.length - 1)) * (w - pad * 2)
+        const y = h - pad - (p / maxPtsGraph) * (h - pad * 2)
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+      }).join(' ')
+    : ''
+
+  const pathRival = rivalTime && rivalTime.evolucaoPts.length > 1
+    ? rivalTime.evolucaoPts.map((p, i) => {
+        const x = pad + (i / (rivalTime.evolucaoPts.length - 1)) * (w - pad * 2)
+        const y = h - pad - (p / maxPtsGraph) * (h - pad * 2)
         return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
       }).join(' ')
     : ''
@@ -676,7 +712,7 @@ function ModalTime({
             {projecao.risco === 'titulo' && <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-xs font-bold text-dourado-700">🏆 Título</span>}
             {projecao.risco === 'libertadores' && <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-700">🔵 G4</span>}
             {projecao.risco === 'sulamericana' && <span className="rounded bg-green-100 px-2 py-0.5 font-mono text-xs font-bold text-green-700">🟢 Sula</span>}
-            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Risco Z4</span>}
+            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Z4</span>}
             <span className="mt-0.5 font-mono text-[10px] text-tinta-200">Proj: {projecao.projecaoFinal} pts</span>
           </div>
         )}
@@ -704,21 +740,43 @@ function ModalTime({
         </div>
       </div>
 
-      {pontos.length > 1 && (
-        <div className="mb-4">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">📈 Evolução de Pontos</p>
-          <div className="overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50 p-2">
-            <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full">
-              <path d={path} fill="none" stroke="#B8860B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <div className="mt-1 flex justify-between font-mono text-[9px] text-tinta-100">
-              <span>R1</span>
-              <span className="font-bold text-dourado-600">{time.pontos} pts hoje</span>
-            </div>
+      {/* GRÁFICO COMPARATIVO COM RIVAL */}
+      <div className="mb-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-tinta-100">📈 Comparativo de Evolução</p>
+          <select
+            value={rivalNome}
+            onChange={(e) => setRivalNome(e.target.value)}
+            className="rounded border border-papel-borda-300 bg-papel-50 px-1.5 py-0.5 font-sans text-[10px] text-tinta-300 outline-none"
+          >
+            <option value="lider">vs Líder ({tabelaCompleta[0]?.time})</option>
+            {tabelaCompleta.filter(t => t.time !== time.time).map(t => (
+              <option key={t.time} value={t.time}>vs {t.time}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-papel-borda-200 bg-papel-50 p-2">
+          <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full">
+            {pathRival && <path d={pathRival} fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeDasharray="3,3" />}
+            {pathTime && <path d={pathTime} fill="none" stroke="#B8860B" strokeWidth="2.5" strokeLinecap="round" />}
+          </svg>
+          <div className="mt-2 flex items-center justify-between font-mono text-[10px]">
+            <span className="flex items-center gap-1 font-bold text-dourado-700">
+              <span className="h-2 w-2 rounded-full bg-dourado-500" />
+              {time.time}: {time.pontos} pts
+            </span>
+            {rivalTime && (
+              <span className="flex items-center gap-1 font-bold text-gray-500">
+                <span className="h-2 w-2 rounded-full bg-gray-400" />
+                {rivalTime.time}: {rivalTime.pontos} pts
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
+      {/* HISTÓRICO DE JOGOS REALIZADOS */}
       <div>
         <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-tinta-100">
           Jogos Realizados ({jogosDoTime.length})
