@@ -2,10 +2,10 @@
 
 // CardJogo — card individual de um jogo na tela de palpites.
 //
-// Exports fornecidos para compatibilidade total:
-//   - CardJogo (componente React)
-//   - formatCountdown (função de formatação de tempo restante)
-//   - Jogo, JogoPalpite, Palpite (interfaces de tipos)
+// Regras de Exibição:
+//   - Mantém nomes 100% com acentuação oficial ("Atlético-MG", "São Paulo", "Vitória", "Grêmio").
+//   - Encurta apenas "Red Bull Bragantino" para "RB Bragantino".
+//   - Contagem regressiva ao vivo com segundos e mudança dinâmica de cor (Verde -> Vermelho).
 
 import { useEffect, useState } from 'react'
 import { getEscudo } from '@/lib/escudos'
@@ -29,9 +29,9 @@ export type JogoPalpite = Jogo
 function getSigla(nome: string): string {
   const n = nome.trim()
   if (n === 'Red Bull Bragantino' || n === 'RB Bragantino') return 'RBB'
-  if (n === 'Athletico-PR' || n === 'Athletico PR') return 'CAP'
-  if (n === 'Atlético-MG' || n === 'Atlético MG') return 'CAM'
-  if (n === 'São Paulo') return 'SAO'
+  if (n.includes('Athletico')) return 'CAP'
+  if (n.includes('Atlético-MG') || n.includes('Atlético MG')) return 'CAM'
+  if (n.includes('São Paulo')) return 'SAO'
   const palavras = n.split(' ').filter(Boolean)
   if (palavras.length >= 2) {
     return (palavras[0][0] + palavras[1][0] + (palavras[2]?.[0] ?? '')).toUpperCase().slice(0, 3)
@@ -41,8 +41,9 @@ function getSigla(nome: string): string {
 
 function normalizarNomeExibicao(nome: string): string {
   if (!nome) return ''
-  if (nome.toLowerCase().includes('bragantino')) return 'RB Bragantino'
-  return nome.trim()
+  const clean = nome.trim()
+  if (clean === 'Red Bull Bragantino') return 'RB Bragantino'
+  return clean
 }
 
 export function parseDataHoraSafe(dateStr: string | null | undefined, timeStr: string | null | undefined): Date | null {
@@ -109,28 +110,30 @@ export function formatCountdown(dateStr: string, timeStr: string): { texto: stri
   if (!dt) return { texto: 'A definir', cor: 'text-tinta-200' }
   const ms = dt.getTime() - Date.now()
   
-  if (ms <= 0) return { texto: 'fechado', cor: 'text-raridade-frango-selo' }
+  if (ms <= 0) return { texto: 'fechado', cor: 'text-red-600' }
 
-  const totalMin = Math.floor(ms / 60000)
   const totalSeg = Math.floor(ms / 1000)
+  const totalMin = Math.floor(totalSeg / 60)
 
+  // Menos de 1 hora: Exibe minutos e segundos ao vivo em VERMELHO
   if (totalMin < 60) {
     const min = Math.floor(totalSeg / 60)
     const sec = totalSeg % 60
     return { 
       texto: `fecha em ${min}m ${String(sec).padStart(2, '0')}s`, 
-      cor: 'text-red-500' 
+      cor: 'text-red-600' 
     }
   }
 
   const horas = Math.floor(totalMin / 60)
   const mins = totalMin % 60
   
+  // Menos de 24 horas: Exibe horas, minutos e segundos ao vivo
   if (horas < 24) {
     const sec = totalSeg % 60
     return { 
       texto: `fecha em ${horas}h ${String(mins).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`, 
-      cor: horas <= 2 ? 'text-red-500' : 'text-green-600'
+      cor: horas <= 2 ? 'text-red-600' : 'text-green-700'
     }
   }
 
@@ -138,7 +141,7 @@ export function formatCountdown(dateStr: string, timeStr: string): { texto: stri
   const hRest = horas % 24
   return { 
     texto: `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`, 
-    cor: 'text-green-600' 
+    cor: 'text-green-700' 
   }
 }
 
@@ -165,7 +168,7 @@ export function CardJogo({
   const [timerStatus, setTimerStatus] = useState(() => formatCountdown(jogo.date, jogo.time))
 
   useEffect(() => {
-    // Atualiza o relógio a cada 1 segundo para o countdown regressivo ser ao vivo
+    // Atualiza a cada 1 segundo para manter os segundos do relógio ao vivo
     const timer = setInterval(() => {
       setTimerStatus(formatCountdown(jogo.date, jogo.time))
     }, 1000)
@@ -260,9 +263,9 @@ export function CardJogo({
         <span>⏱ {formatarDataFormatada(jogo.date, jogo.time)}</span>
         <span>·</span>
         {travado ? (
-          <span className="font-semibold text-raridade-frango-selo">🔒 palpite encerrado</span>
+          <span className="font-semibold text-red-600">🔒 palpite encerrado</span>
         ) : (
-          <span className={cx("font-bold", timerStatus.cor)}>{timerStatus.texto}</span>
+          <span className={cx('font-bold', timerStatus.cor)}>{timerStatus.texto}</span>
         )}
       </div>
     </div>
