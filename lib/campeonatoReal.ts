@@ -13,7 +13,7 @@ export interface LinhaTabela {
   golsSofridos: number
   saldoGols: number
   ultimos5: ResultadoUltimo[]
-  evolucaoPts: number[] // NOVO: Rastreia os pontos jogo a jogo pro gráfico
+  evolucaoPts: number[]
   posicao: number
   zona: 'libertadores' | 'pre-libertadores' | 'sulamericana' | 'meio' | 'z4'
 }
@@ -44,6 +44,8 @@ export interface EstatisticasCampeonato {
   fortaleza: EstatisticaTime[]
   maisVitorias: EstatisticaTime[]
   projecoes: Array<{ time: string; projecaoFinal: number; risco: 'titulo' | 'libertadores' | 'sulamericana' | 'meio' | 'rebaixamento' }>
+  mediaGolsGeral: number
+  golsPorRodada: Array<{ roundNumber: number; roundName: string; totalGols: number; mediaGols: number }>
 }
 
 export interface DadosCampeonato {
@@ -91,11 +93,11 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     supabase
       .from('matches')
       .select('id, home, away, home_score, away_score, match_date, match_time, round_id')
-      .order('match_date', { ascending: true, nullsFirst: false })
-      .order('match_time', { ascending: true, nullsFirst: false }),
+      .order('match_date', { ascending: true, nullsFirst: false }),
     supabase
       .from('rounds')
-      .select('id, number, name, finalized'),
+      .select('id, number, name, finalized')
+      .order('number', { ascending: true }),
   ])
 
   if (mErr) throw mErr
@@ -113,7 +115,6 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     if (!r) continue
 
     const isExtra = r.number >= 100
-
     const jogo: JogoBrasileirao = {
       matchId: m.id,
       home: normalizarNomeTime(m.home),
@@ -133,17 +134,19 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     }
   }
 
+  // Ordenação CRÍTICA por número de rodada (resolve o bug do pulo de R23 para R15)
+  jogosComPlacar.sort((a, b) => a.roundNumber - b.roundNumber)
+
   const tabela = calcularTabela(jogosComPlacar)
   const estatisticas = calcularEstatisticas(jogosComPlacar, tabela)
 
-  // REMOVIDOS OS LIMITADORES (.slice) - Retorna todos!
   const hoje = new Date().toISOString().split('T')[0]
   const proximosJogos = jogosFuturos
     .filter((j) => !j.date || j.date >= hoje)
-    .sort((a, b) => a.roundNumber - b.roundNumber || (a.date ?? '9999').localeCompare(b.date ?? '9999'))
+    .sort((a, b) => a.roundNumber - b.roundNumber)
 
   const ultimosResultados = [...jogosComPlacar]
-    .sort((a, b) => b.roundNumber - a.roundNumber || (b.date ?? '').localeCompare(a.date ?? ''))
+    .sort((a, b) => b.roundNumber - a.roundNumber)
 
   const totalRodadasFinalizadas = rounds.filter((r) => r.finalized && r.number < 100).length
 
@@ -153,7 +156,7 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
 function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
   const timesMap = new Map<string, {
     pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number;
-    golsMarcados: number; golsSofridos: number; historico: Array<{ resultado: ResultadoUltimo; data: string | null }>
+    golsMarcados: number; golsSofridos: number; historico: Array<{ resultado: ResultadoUltimo; roundNumber: number }>;
     evolucaoPts: number[]
   }>()
 
@@ -164,21 +167,16 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
     return timesMap.get(time)!
   }
 
-  // Os jogos já vêm ordenados cronologicamente da query do banco
   for (const j of jogos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const home = getOrCreate(j.home)
     const away = getOrCreate(j.away)
 
-    home.jogos++
-    away.jogos++
-    home.golsMarcados += j.homeScore
-    home.golsSofridos += j.awayScore
-    away.golsMarcados += j.awayScore
-    away.golsSofridos += j.homeScore
+    home.jogos++; away.jogos++
+    home.golsMarcados += j.homeScore; home.golsSofridos += j.awayScore
+    away.golsMarcados += j.awayScore; away.golsSofridos += j.homeScore
 
-    let resHome: ResultadoUltimo
-    let resAway: ResultadoUltimo
+    let resHome: ResultadoUltimo, resAway: ResultadoUltimo
 
     if (j.homeScore > j.awayScore) {
       home.pontos += 3; home.vitorias++; away.derrotas++; resHome = 'V'; resAway = 'D'
@@ -188,16 +186,15 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
       home.pontos++; away.pontos++; home.empates++; away.empates++; resHome = 'E'; resAway = 'E'
     }
 
-    home.historico.push({ resultado: resHome, data: j.date })
-    away.historico.push({ resultado: resAway, data: j.date })
-    
-    // Registra a pontuação acumulada passo-a-passo (para o gráfico)
+    home.historico.push({ resultado: resHome, roundNumber: j.roundNumber })
+    away.historico.push({ resultado: resAway, roundNumber: j.roundNumber })
+
     home.evolucaoPts.push(home.pontos)
     away.evolucaoPts.push(away.pontos)
   }
 
   const linhas: LinhaTabela[] = Array.from(timesMap.entries()).map(([time, dados]) => {
-    const historicoOrdenado = [...dados.historico].sort((a, b) => (a.data ?? '').localeCompare(b.data ?? ''))
+    const historicoOrdenado = [...dados.historico].sort((a, b) => a.roundNumber - b.roundNumber)
     const ultimos5 = historicoOrdenado.slice(-5).map((h) => h.resultado)
     return {
       time, pontos: dados.pontos, jogos: dados.jogos, vitorias: dados.vitorias, empates: dados.empates,
@@ -221,21 +218,47 @@ function calcularTabela(jogos: JogoBrasileirao[]): LinhaTabela[] {
 }
 
 function calcularEstatisticas(jogos: JogoBrasileirao[], tabela: LinhaTabela[]): EstatisticasCampeonato {
-  const melhorAtaque = [...tabela].sort((a, b) => b.golsMarcados - a.golsMarcados).slice(0, 5).map((t) => ({ time: t.time, valor: t.golsMarcados }))
-  const piorDefesa = [...tabela].sort((a, b) => b.golsSofridos - a.golsSofridos).slice(0, 5).map((t) => ({ time: t.time, valor: t.golsSofridos }))
-  const reiEmpate = [...tabela].sort((a, b) => b.empates - a.empates).slice(0, 5).map((t) => ({ time: t.time, valor: t.empates }))
-  const maisVitorias = [...tabela].sort((a, b) => b.vitorias - a.vitorias).slice(0, 5).map((t) => ({ time: t.time, valor: t.vitorias }))
+  const melhorAtaque = [...tabela].sort((a, b) => b.golsMarcados - a.golsMarcados).map((t) => ({ time: t.time, valor: t.golsMarcados }))
+  const piorDefesa = [...tabela].sort((a, b) => b.golsSofridos - a.golsSofridos).map((t) => ({ time: t.time, valor: t.golsSofridos }))
+  const reiEmpate = [...tabela].sort((a, b) => b.empates - a.empates).map((t) => ({ time: t.time, valor: t.empates }))
+  const maisVitorias = [...tabela].sort((a, b) => b.vitorias - a.vitorias).map((t) => ({ time: t.time, valor: t.vitorias }))
 
   let maiorGoleada: EstatisticasCampeonato['maiorGoleada'] = null
   let maiorSaldoAbs = 0
+  let totalGolsGeral = 0
+
+  // Média de Gols por Rodada
+  const golsPorRodadaMap = new Map<number, { nome: string; totalGols: number; jogos: number }>()
+
   for (const j of jogos) {
     if (j.homeScore === null || j.awayScore === null) continue
+    const golsJogo = j.homeScore + j.awayScore
+    totalGolsGeral += golsJogo
+
     const saldoAbs = Math.abs(j.homeScore - j.awayScore)
     if (saldoAbs > maiorSaldoAbs) {
       maiorSaldoAbs = saldoAbs
       maiorGoleada = { home: j.home, away: j.away, homeScore: j.homeScore, awayScore: j.awayScore, saldoAbs }
     }
+
+    if (!golsPorRodadaMap.has(j.roundNumber)) {
+      golsPorRodadaMap.set(j.roundNumber, { nome: j.roundName, totalGols: 0, jogos: 0 })
+    }
+    const r = golsPorRodadaMap.get(j.roundNumber)!
+    r.totalGols += golsJogo
+    r.jogos++
   }
+
+  const mediaGolsGeral = jogos.length > 0 ? Math.round((totalGolsGeral / jogos.length) * 100) / 100 : 0
+
+  const golsPorRodada = Array.from(golsPorRodadaMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([num, d]) => ({
+      roundNumber: num,
+      roundName: d.nome,
+      totalGols: d.totalGols,
+      mediaGols: d.jogos > 0 ? Math.round((d.totalGols / d.jogos) * 100) / 100 : 0,
+    }))
 
   const cleanSheetsMap = new Map<string, number>()
   for (const j of jogos) {
@@ -243,7 +266,7 @@ function calcularEstatisticas(jogos: JogoBrasileirao[], tabela: LinhaTabela[]): 
     if (j.awayScore === 0) cleanSheetsMap.set(j.home, (cleanSheetsMap.get(j.home) ?? 0) + 1)
     if (j.homeScore === 0) cleanSheetsMap.set(j.away, (cleanSheetsMap.get(j.away) ?? 0) + 1)
   }
-  const fortaleza = Array.from(cleanSheetsMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([time, valor]) => ({ time, valor }))
+  const fortaleza = Array.from(cleanSheetsMap.entries()).sort((a, b) => b[1] - a[1]).map(([time, valor]) => ({ time, valor }))
 
   const projecoes = tabela.map((t) => {
     const media = t.jogos > 0 ? t.pontos / t.jogos : 0
@@ -257,13 +280,13 @@ function calcularEstatisticas(jogos: JogoBrasileirao[], tabela: LinhaTabela[]): 
     return { time: t.time, projecaoFinal, risco }
   })
 
-  return { melhorAtaque, piorDefesa, reiEmpate, maiorGoleada, fortaleza, maisVitorias, projecoes }
+  return { melhorAtaque, piorDefesa, reiEmpate, maiorGoleada, fortaleza, maisVitorias, projecoes, mediaGolsGeral, golsPorRodada }
 }
 
 function vazio(): DadosCampeonato {
   return {
     tabela: [],
-    estatisticas: { melhorAtaque: [], piorDefesa: [], reiEmpate: [], maiorGoleada: null, fortaleza: [], maisVitorias: [], projecoes: [] },
+    estatisticas: { melhorAtaque: [], piorDefesa: [], reiEmpate: [], maiorGoleada: null, fortaleza: [], maisVitorias: [], projecoes: [], mediaGolsGeral: 0, golsPorRodada: [] },
     proximosJogos: [], ultimosResultados: [], totalJogosDisputados: 0, totalRodadasFinalizadas: 0
   }
 }
