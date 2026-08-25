@@ -1054,19 +1054,22 @@ function SecaoProjecao() {
     finally { setCalculando(false) }
   }
 
-  async function mudarJanela(j: number) {
-    if (j === janela || calculando) return
+  async function salvar(j: number) {
     vibrar('leve')
-    setJanela(j)
+    setCalculando(true)
     try {
       await salvarConfig('projecao_janela', { rodadas: j })
       await gravarLog('PROJECAO_JANELA_ALTERADA', { rodadas: j })
-      showToast('Janela de projeção alterada!', 'sucesso')
+      setJanela(j)
+      await calcular(j)
+      vibrar('sucesso')
+      showToast('Janela de projeção salva no banco!', 'sucesso')
     } catch (e) {
       vibrar('erro')
       showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
+    } finally {
+      setCalculando(false)
     }
-    await calcular(j)
   }
 
   const maxPct = projecoes[0]?.pct ?? 1
@@ -1077,12 +1080,16 @@ function SecaoProjecao() {
         <p className="mb-3 font-sans text-sm text-tinta-200">Define quantas rodadas usar pra calcular a chance de cada um ser campeão no Ranking.</p>
         <div className="flex flex-wrap gap-2">
           {OPCOES_JANELA.map(([val, label]) => (
-            <button key={val} type="button" onClick={() => mudarJanela(val)} disabled={calculando || carregando}
+            <button key={val} type="button" onClick={() => setJanela(val)} disabled={calculando || carregando}
               className={cx('rounded-md border px-3 py-1.5 font-mono text-xs font-bold transition-colors disabled:opacity-40',
                 janela === val ? 'border-dourado-400 bg-dourado-100 text-dourado-600' : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100')}>
               {label}
             </button>
           ))}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Btn variant="outline" onClick={() => calcular(janela)} disabled={calculando}>🔄 Preview</Btn>
+          <Btn variant="gold" onClick={() => salvar(janela)} disabled={calculando}>💾 Salvar no Ranking</Btn>
         </div>
       </Card>
       <Card>
