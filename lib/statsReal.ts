@@ -38,6 +38,7 @@ export interface MinhasStatsReal {
 
   // NOVAS
   placarFavorito: string | null
+  placaresFrequentes: Array<{ placar: string; qtd: number }>
   taxaCoragemPct: number
   jogosCorajosos: number
   melhorRodada: { nome: string; pts: number } | null
@@ -71,7 +72,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     mediaPts: 0, meuRecorde: 0, tendencia: 'sem_dados',
     ptsPorRodada: [],
     pctPlacarExato: 0, pctVencedor: 0, pctSaldo: 0, totalComPalpite: 0,
-    placarFavorito: null, taxaCoragemPct: 0, jogosCorajosos: 0,
+    placarFavorito: null, placaresFrequentes: [], taxaCoragemPct: 0, jogosCorajosos: 0,
     melhorRodada: null, piorRodada: null
   }
 
@@ -92,6 +93,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
 
   const rodadasExtras = roundList.filter((r) => r.number >= 100).sort((a, b) => a.number - b.number)
   const mapaExtra = new Map(rodadasExtras.map((r, i) => [r.id, `E${i + 1}`]))
+  
   function montarLabel(r: { id: string; number: number }): string {
     return mapaExtra.get(r.id) ?? `R${r.number}`
   }
@@ -106,6 +108,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     if (!rr) {
       return { roundId: r.id, numero: r.number, label, nome: r.name, pontos: null, cravadas: 0, saldos: 0, vencedores: 0 }
     }
+    
     const pts = rr.round_pts ?? 0
     cravadas += rr.exact_scores ?? 0
     vencedor += rr.correct_winner ?? 0
@@ -156,11 +159,11 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
 
   let totalComPalpite = 0
   let placarFavorito: string | null = null
+  let placaresFrequentes: Array<{ placar: string; qtd: number }> = []
   let taxaCoragemPct = 0
   let jogosCorajosos = 0
 
   if (matchIds.length > 0) {
-    // Todos os palpites (pra calcular coragem contra o grupo)
     const { data: allPreds } = await supabase
       .from('predictions')
       .select('participant_id, match_id, pred_h, pred_a')
@@ -172,15 +175,21 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     // Placar Favorito
     const placarCount = new Map<string, number>()
     for (const p of meusPalpites) {
-      const key = `${p.pred_h}x${p.pred_a}`
-      placarCount.set(key, (placarCount.get(key) ?? 0) + 1)
+      if (p.pred_h !== null && p.pred_a !== null) {
+        const key = `${p.pred_h}x${p.pred_a}`
+        placarCount.set(key, (placarCount.get(key) ?? 0) + 1)
+      }
     }
+    
     if (placarCount.size > 0) {
-      placarFavorito = Array.from(placarCount.entries()).sort((a, b) => b[1] - a[1])[0][0]
+      placaresFrequentes = Array.from(placarCount.entries())
+        .sort((a, b) => b[1] - a[1]) // Do mais repetido pro menos
+        .map(([placar, qtd]) => ({ placar, qtd }))
+        
+      placarFavorito = placaresFrequentes[0].placar
     }
 
-    // Taxa de Coragem (quantos palpites meus foram contra a tendência da MAIORIA no jogo)
-    // Maioria = Vitória H, Vitória A, ou Empate.
+    // Taxa de Coragem
     const grupoPorJogo = new Map<string, { h: number, a: number, e: number }>()
     for (const p of allPreds ?? []) {
       if (!grupoPorJogo.has(p.match_id)) grupoPorJogo.set(p.match_id, { h: 0, a: 0, e: 0 })
@@ -195,13 +204,11 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
       if (!j) continue
       const meuLado = p.pred_h > p.pred_a ? 'h' : p.pred_a > p.pred_h ? 'a' : 'e'
       
-      // Qual foi o lado mais votado do grupo?
       let ladoMaioria = 'h'
       let maxVotos = j.h
       if (j.a > maxVotos) { ladoMaioria = 'a'; maxVotos = j.a }
       if (j.e > maxVotos) { ladoMaioria = 'e'; maxVotos = j.e }
 
-      // Se meu lado não for a maioria, fui corajoso!
       if (meuLado !== ladoMaioria) jogosCorajosos++
     }
 
@@ -211,7 +218,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
   }
 
   const pctPlacarExato = totalComPalpite > 0 ? Math.round((cravadas / totalComPalpite) * 100) : 0
-  const pctVencedor = totalComPalpite > 0 ? Math.round(((cravadas + vencedor + saldo) / totalComPalpite) * 100) : 0 // Correção do 358% (Acerto é QUALQUER ponto ganho)
+  const pctVencedor = totalComPalpite > 0 ? Math.round(((cravadas + vencedor + saldo) / totalComPalpite) * 100) : 0
   const pctSaldo = totalComPalpite > 0 ? Math.round((saldo / totalComPalpite) * 100) : 0
 
   return {
@@ -219,7 +226,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     mediaPts, meuRecorde: meuRecordeNormal, tendencia,
     ptsPorRodada,
     pctPlacarExato, pctVencedor, pctSaldo, totalComPalpite,
-    placarFavorito, taxaCoragemPct, jogosCorajosos, melhorRodada: melhor, piorRodada: pior
+    placarFavorito, placaresFrequentes, taxaCoragemPct, jogosCorajosos, melhorRodada: melhor, piorRodada: pior
   }
 }
 
