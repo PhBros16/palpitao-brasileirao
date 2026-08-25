@@ -417,7 +417,7 @@ function EstatisticasCampeonato({
         </CardEnvelope>
       )}
 
-      {/* CARDS DE RESUMO TOTAIS */}
+      {/* CARDS DE RESUMO TOTAIS DO CAMPEONATO */}
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
           <span className="font-mono text-xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
