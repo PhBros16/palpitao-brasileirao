@@ -1,32 +1,32 @@
-// Mapeamento oficial de escudos da pasta public/escudos/
+// Mapeamento oficial de escudos da Série A (CDN oficial em alta definição)
 
 const MAPA_ESCUDOS: Record<string, string> = {
-  'palmeiras': '/escudos/palmeiras.png',
-  'flamengo': '/escudos/flamengo.png',
-  'athletico-pr': '/escudos/athletico-pr.png',
-  'fluminense': '/escudos/fluminense.png',
-  'cruzeiro': '/escudos/cruzeiro.png',
-  'bahia': '/escudos/bahia.png',
-  'rb bragantino': '/escudos/rb-bragantino.png',
-  'coritiba': '/escudos/coritiba.png',
-  'atletico-mg': '/escudos/atletico-mg.png',
-  'corinthians': '/escudos/corinthians.png',
-  'botafogo': '/escudos/botafogo.png',
-  'vitoria': '/escudos/vitoria.png',
-  'sao paulo': '/escudos/sao-paulo.png',
-  'santos': '/escudos/santos.png',
-  'gremio': '/escudos/gremio.png',
-  'internacional': '/escudos/internacional.png',
-  'mirassol': '/escudos/mirassol.png',
-  'remo': '/escudos/remo.png',
-  'vasco': '/escudos/vasco.png',
-  'chapecoense': '/escudos/chapecoense.png',
+  'palmeiras': 'https://s.sde.globo.com/media/organizations/2014/04/14/palmeiras_60x60.png',
+  'flamengo': 'https://s.sde.globo.com/media/organizations/2018/04/10/Flamengo-2018.svg',
+  'athletico-pr': 'https://s.sde.globo.com/media/organizations/2019/09/09/Athletico-PR.svg',
+  'fluminense': 'https://s.sde.globo.com/media/organizations/2014/04/14/fluminense_60x60.png',
+  'cruzeiro': 'https://s.sde.globo.com/media/organizations/2021/02/13/cruzeiro_bitci_45.png',
+  'bahia': 'https://s.sde.globo.com/media/organizations/2014/04/14/bahia_60x60.png',
+  'rb bragantino': 'https://s.sde.globo.com/media/organizations/2020/01/01/RedBullBragantino.svg',
+  'coritiba': 'https://s.sde.globo.com/media/organizations/2014/04/14/coritiba_60x60.png',
+  'atletico-mg': 'https://s.sde.globo.com/media/organizations/2018/03/10/atletico-mg.svg',
+  'corinthians': 'https://s.sde.globo.com/media/organizations/2019/09/30/Corinthians.svg',
+  'botafogo': 'https://s.sde.globo.com/media/organizations/2019/02/04/botafogo-svg.svg',
+  'vitoria': 'https://s.sde.globo.com/media/organizations/2024/04/09/vitoria-2024.svg',
+  'sao paulo': 'https://s.sde.globo.com/media/organizations/2014/04/14/sao_paulo_60x60.png',
+  'santos': 'https://s.sde.globo.com/media/organizations/2014/04/14/santos_60x60.png',
+  'gremio': 'https://s.sde.globo.com/media/organizations/2014/04/14/gremio_60x60.png',
+  'internacional': 'https://s.sde.globo.com/media/organizations/2016/05/03/inter60.png',
+  'mirassol': 'https://s.sde.globo.com/media/organizations/2020/07/02/mirassol-30.png',
+  'remo': 'https://s.sde.globo.com/media/organizations/2014/04/14/remo_60x60.png',
+  'vasco': 'https://s.sde.globo.com/media/organizations/2021/09/04/vasco_SVG.svg',
+  'chapecoense': 'https://s.sde.globo.com/media/organizations/2021/06/21/chapecoense-2021.svg',
 }
 
 /**
- * Busca o caminho do arquivo PNG do escudo.
- * A busca insensível a acentos/maiúsculas é feita SOMENTE para encontrar o arquivo no servidor,
- * sem alterar em nada o nome oficial acentuado exibido na tela.
+ * Busca o caminho do escudo oficial.
+ * A busca insensível a acentos/maiúsculas é feita SOMENTE para encontrar o link,
+ * sem alterar a exibição do nome oficial do time na tela.
  */
 export function getEscudo(nome: string | null | undefined): string | null {
   if (!nome) return null
