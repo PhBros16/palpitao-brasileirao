@@ -2,14 +2,9 @@ import { supabase } from './supabase'
 
 // Camada de dados das Estatísticas do Ranking (aba Minhas).
 //
-// Duas fontes principais:
+// Fontes:
 //   - round_results (agregado por rodada — fonte oficial de pontos/cravadas/etc)
-//   - predictions   (para detalhamento por jogo — palpite vs resultado e coragem)
-//
-// Regras: 
-//   - Só rodadas com finalized=true entram. 
-//   - Só participantes com is_admin=false.
-//   - Rodadas Extras (number >= 100) são excluídas de Médias e Recordes.
+//   - matches + predictions (para contadores exatos por partida)
 
 export interface MinhasStatsReal {
   rodadas: number
@@ -153,11 +148,23 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     }
   }
 
-  // 2. Busca Predictions para Placar Exato, Vencedor e Coragem
-  const { data: matches } = await supabase.from('matches').select('id').in('round_id', roundIds)
+  // 2. Busca o TOTAL DE PARTIDAS em que o participante palpita (Calcula a porcentagem correta)
+  const { data: matches } = await supabase.from('matches').select('id, round_id').in('round_id', roundIds)
   const matchIds = (matches ?? []).map((m) => m.id)
 
+  // Conta total de partidas disputadas nas rodadas em que o usuário participou
+  const matchCountByRound = new Map<string, number>()
+  for (const m of matches ?? []) {
+    matchCountByRound.set(m.round_id, (matchCountByRound.get(m.round_id) ?? 0) + 1)
+  }
+
   let totalComPalpite = 0
+  for (const r of roundList) {
+    if (rrByRound.has(r.id)) {
+      totalComPalpite += (matchCountByRound.get(r.id) ?? 0)
+    }
+  }
+
   let placarFavorito: string | null = null
   let placaresFrequentes: Array<{ placar: string; qtd: number }> = []
   let taxaCoragemPct = 0
@@ -170,7 +177,6 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
       .in('match_id', matchIds)
 
     const meusPalpites = (allPreds ?? []).filter((p) => p.participant_id === participantId)
-    totalComPalpite = meusPalpites.length
 
     // Placar Favorito
     const placarCount = new Map<string, number>()
@@ -183,7 +189,7 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     
     if (placarCount.size > 0) {
       placaresFrequentes = Array.from(placarCount.entries())
-        .sort((a, b) => b[1] - a[1]) // Do mais repetido pro menos
+        .sort((a, b) => b[1] - a[1])
         .map(([placar, qtd]) => ({ placar, qtd }))
         
       placarFavorito = placaresFrequentes[0].placar
@@ -217,9 +223,11 @@ export async function buscarMinhasStats(participantId: string): Promise<MinhasSt
     }
   }
 
-  const pctPlacarExato = totalComPalpite > 0 ? Math.round((cravadas / totalComPalpite) * 100) : 0
-  const pctVencedor = totalComPalpite > 0 ? Math.round(((cravadas + vencedor + saldo) / totalComPalpite) * 100) : 0
-  const pctSaldo = totalComPalpite > 0 ? Math.round((saldo / totalComPalpite) * 100) : 0
+  // PORCENTAGENS CORRIGIDAS (Divididas pelo total de jogos disputados ~226)
+  const totalPontuados = cravadas + saldo + vencedor
+  const pctVencedor = totalComPalpite > 0 ? Math.min(100, Math.round((totalPontuados / totalComPalpite) * 100)) : 0
+  const pctPlacarExato = totalComPalpite > 0 ? Math.min(100, Math.round((cravadas / totalComPalpite) * 100)) : 0
+  const pctSaldo = totalComPalpite > 0 ? Math.min(100, Math.round((saldo / totalComPalpite) * 100)) : 0
 
   return {
     rodadas: rodadasGerais, cravadas, vencedor, saldo,
