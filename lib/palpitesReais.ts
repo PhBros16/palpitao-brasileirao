@@ -16,36 +16,6 @@ export interface RodadaPalpites {
   jogos: JogoParaPalpite[]
 }
 
-// Normaliza o nome do time para garantir que o escudo seja encontrado 
-// e o layout não quebre com nomes muito longos.
-function normalizarNomeParaPalpite(nomeBruto: string): string {
-  if (!nomeBruto) return ''
-  const str = nomeBruto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
-  if (str.includes('palmeiras')) return 'Palmeiras'
-  if (str.includes('flamengo')) return 'Flamengo'
-  if (str.includes('athletico') || str.includes('atletico-pr') || str.includes('atletico pr') || str.includes('cap')) return 'Athletico-PR'
-  if (str.includes('fluminense') || str.includes('flu')) return 'Fluminense'
-  if (str.includes('cruzeiro')) return 'Cruzeiro'
-  if (str.includes('bahia')) return 'Bahia'
-  if (str.includes('bragantino') || str.includes('red bull')) return 'RB Bragantino'
-  if (str.includes('coritiba') || str.includes('coxa')) return 'Coritiba'
-  if (str.includes('atletico-mg') || str.includes('atletico mg') || str.includes('galo')) return 'Atlético-MG'
-  if (str.includes('corinthians') || str.includes('timao')) return 'Corinthians'
-  if (str.includes('botafogo') || str.includes('bota')) return 'Botafogo'
-  if (str.includes('vitoria')) return 'Vitória'
-  if (str.includes('sao paulo') || str.includes('spfc')) return 'São Paulo'
-  if (str.includes('santos')) return 'Santos'
-  if (str.includes('gremio')) return 'Grêmio'
-  if (str.includes('internacional') || str.includes('inter')) return 'Internacional'
-  if (str.includes('mirassol')) return 'Mirassol'
-  if (str.includes('remo')) return 'Remo'
-  if (str.includes('vasco')) return 'Vasco'
-  if (str.includes('chapecoense') || str.includes('chape')) return 'Chapecoense'
-
-  return nomeBruto.trim()
-}
-
 export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
   const { data: round } = await supabase
     .from('rounds')
@@ -69,16 +39,26 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     // Calcula se já passou da hora (travamento automático)
     let isLocked = m.travado_manual ?? false
     if (!isLocked && m.match_date && m.match_time) {
-      const dateTimeStr = `${m.match_date}T${m.match_time}`
+      // Formata data caso tenha vindo como AAAA-MM-DD do banco
+      const dateStr = m.match_date.includes('/') 
+        ? m.match_date.split('/').reverse().join('-') 
+        : m.match_date
+      
+      const dateTimeStr = `${dateStr}T${m.match_time}`
       const matchTime = new Date(dateTimeStr).getTime()
       if (Date.now() >= matchTime) {
         isLocked = true
       }
     }
+    
+    // Tratamento estético apenas pro RB Bragantino na tela
+    const h = m.home === 'Red Bull Bragantino' ? 'RB Bragantino' : m.home
+    const a = m.away === 'Red Bull Bragantino' ? 'RB Bragantino' : m.away
+
     return {
       id: m.id,
-      home: normalizarNomeParaPalpite(m.home), // Normaliza o nome do mandante
-      away: normalizarNomeParaPalpite(m.away), // Normaliza o nome do visitante
+      home: h,
+      away: a,
       date: m.match_date ?? '',
       time: m.match_time?.slice(0, 5) ?? '',
       isLocked,
@@ -124,7 +104,7 @@ export async function salvarPalpitesReais(
   const matchIds = Object.keys(palpites)
   if (matchIds.length === 0) return
 
-  // Loga a ação com os detalhes antes de salvar
+  // Loga a ação
   try {
     const { data: parts } = await supabase.from('participants').select('name').eq('id', participantId).single()
     const { data: matchesData } = await supabase.from('matches').select('id, home, away').in('id', matchIds)
@@ -151,7 +131,7 @@ export async function salvarPalpitesReais(
     match_id: matchId,
     pred_h: palpites[matchId].h,
     pred_a: palpites[matchId].a,
-    points: null, // zera os pontos pois é um palpite novo/editado
+    points: null,
   }))
 
   const { error } = await supabase.from('predictions').upsert(upserts, { onConflict: 'participant_id, match_id' })
