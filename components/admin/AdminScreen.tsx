@@ -40,8 +40,6 @@ import { supabase } from '@/lib/supabase'
 import { calcProjecaoPct } from '@/lib/domain/projecao'
 import { CardEnvelope } from '@/components/home/CardEnvelope'
 
-const URL_APP = 'https://palpitao-brasileirao-iota.vercel.app'
-
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
 }
@@ -144,7 +142,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── SEÇÃO: Compartilhar no WhatsApp ─────────────────────────────────────────
+// ─── 1. SEÇÃO: Compartilhar no WhatsApp ───────────────────────────────────────
 
 function SecaoWhatsApp() {
   const [carregando, setCarregando] = useState(false)
@@ -204,7 +202,6 @@ function SecaoWhatsApp() {
       .select('home, away, match_date, match_time')
       .eq('round_id', rodada.roundId)
       .order('match_date', { ascending: true })
-      .order('match_time', { ascending: true })
 
     if (mErr) throw mErr
 
@@ -214,7 +211,7 @@ function SecaoWhatsApp() {
 
     function formatarDataHora(date: string | null, time: string | null): string {
       if (!date) return ''
-      const [ano, mes, dia] = date.split('-')
+      const [, mes, dia] = date.split('-')
       const dataStr = `${dia}/${mes}`
       const horaStr = time ? time.substring(0, 5) : ''
       return horaStr ? ` — ${dataStr} ${horaStr}` : ` — ${dataStr}`
@@ -236,7 +233,6 @@ function SecaoWhatsApp() {
       else if (tipo === 'parcial') texto = await montarTextoParcial()
       else texto = await montarTextoRodadaLiberada()
 
-      // Usa API direta do WhatsApp que não é bloqueada como pop-up no celular
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`
       window.location.href = url
       showToast('Abrindo WhatsApp...', 'info', 2000)
@@ -268,15 +264,15 @@ function SecaoWhatsApp() {
   )
 }
 
-// ─── SEÇÃO: Configuração da Rodada ───────────────────────────────────────────
+// ─── 2. SEÇÃO: Configuração da Rodada (COM SELETOR DE RODADAS) ────────────────
 
 type Jogo = { id: string; home: string; away: string; date: string; time: string; locked: boolean }
 
 function SecaoConfiguracaoRodada() {
   const [listaRodadas, setListaRodadas] = useState<Array<{ id: string; number: number; name: string; finalized: boolean; palpites_open: boolean }>>([])
   const [roundId, setRoundId] = useState<string | null>(null)
-  const [nome, setNome] = useState('Rodada 20')
-  const [numero, setNumero] = useState(20)
+  const [nome, setNome] = useState('Rodada 25')
+  const [numero, setNumero] = useState(25)
   const [aberta, setAberta] = useState(true)
   const [valeDobro, setValeDobro] = useState(false)
   const [jogos, setJogos] = useState<Jogo[]>([])
@@ -287,7 +283,6 @@ function SecaoConfiguracaoRodada() {
   const [jogosSemPlacar, setJogosSemPlacar] = useState<Array<{ id: string; home: string; away: string }>>([])
   const [ehExtra, setEhExtra] = useState(false)
 
-  // Carrega lista de todas as rodadas existentes no banco
   async function carregarListaRodadas() {
     const { data } = await supabase
       .from('rounds')
@@ -297,7 +292,6 @@ function SecaoConfiguracaoRodada() {
     return data ?? []
   }
 
-  // Carrega uma rodada específica selecionada no dropdown
   async function carregarRodadaPorId(id: string) {
     setCarregando(true)
     try {
@@ -313,7 +307,6 @@ function SecaoConfiguracaoRodada() {
         .from('matches')
         .select('id, home, away, match_date, match_time, travado_manual')
         .eq('round_id', round.id)
-        .order('match_date', { ascending: true, nullsFirst: false })
 
       setRoundId(round.id)
       setNome(round.name)
@@ -335,7 +328,7 @@ function SecaoConfiguracaoRodada() {
       setIdsOriginais(jogosMapeados.map((j) => j.id))
     } catch (e) {
       showToast(`Erro ao carregar rodada: ${(e as Error).message}`, 'erro')
-    } fontally: {
+    } finally {
       setCarregando(false)
     }
   }
@@ -350,31 +343,11 @@ function SecaoConfiguracaoRodada() {
     setIdsOriginais([])
   }
 
-  async function toggleExtra(v: boolean) {
-    setEhExtra(v)
-    if (v) {
-      try {
-        const { data } = await supabase
-          .from('rounds').select('number').gte('number', 100)
-          .order('number', { ascending: false }).limit(1)
-        const proximo = data && data.length > 0 ? data[0].number + 1 : 100
-        setNumero(proximo)
-        if (!nome.toLowerCase().startsWith('extra')) setNome(`Extra ${proximo - 99}`)
-      } catch { /* silencioso */ }
-    } else {
-      if (numero >= 100) setNumero(20)
-    }
-  }
-
   useEffect(() => {
-    carregarListaRodadas().then((rodadas) => {
+    carregarListaRodadas().then(() => {
       buscarRodadaAtiva()
         .then((r) => {
-          if (r.finalizada) {
-            iniciarNovaRodada(r.numero)
-          } else if (r.roundId) {
-            carregarRodadaPorId(r.roundId)
-          }
+          if (r.roundId) carregarRodadaPorId(r.roundId)
         })
         .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
         .finally(() => setCarregando(false))
@@ -437,32 +410,17 @@ function SecaoConfiguracaoRodada() {
     } finally { setSalvando(false) }
   }
 
-  async function handleLimparPalpites() {
-    if (!roundId || !confirm('Apagar todos os palpites desta rodada? Não dá pra desfazer.')) return
-    setSalvando(true)
-    try {
-      await limparPalpitesRodada(roundId)
-      await gravarLog('PALPITES_LIMPOS', { roundId, nome })
-      vibrar('medio')
-      showToast('Palpites apagados.', 'aviso')
-    } catch (e) {
-      vibrar('erro')
-      showToast(`Erro ao limpar: ${(e as Error).message}`, 'erro')
-    } finally { setSalvando(false) }
-  }
-
   if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
 
   return (
     <div className="space-y-3">
-      {/* SELETOR DE RODADAS NO TOPO */}
       <Card>
         <Row label="Selecionar">
           <select
             value={roundId ?? ''}
             onChange={(e) => {
               if (e.target.value === 'nova') {
-                iniciarNovaRodada(listaRodadas[listaRodadas.length - 1]?.number ?? 20)
+                iniciarNovaRodada(listaRodadas[listaRodadas.length - 1]?.number ?? 24)
               } else if (e.target.value) {
                 carregarRodadaPorId(e.target.value)
               }
@@ -471,7 +429,7 @@ function SecaoConfiguracaoRodada() {
           >
             {listaRodadas.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.name} {r.palpites_open ? '🟢 (Aberta)' : r.finalizada ? '✅ (Finalizada)' : '🔒 (Fechada)'}
+                {r.name} {r.palpites_open ? '🟢 (Aberta)' : r.finalized ? '✅ (Finalizada)' : '🔒 (Fechada)'}
               </option>
             ))}
             <option value="nova">+ Criar Nova Rodada do Zero</option>
@@ -485,7 +443,7 @@ function SecaoConfiguracaoRodada() {
             {roundId ? `✏️ Editando ${nome}` : '✨ Criando Nova Rodada'}
           </p>
         </div>
-        <Row label="Nome"><InputText value={nome} onChange={setNome} placeholder="ex: Rodada 20" className="flex-1" /></Row>
+        <Row label="Nome"><InputText value={nome} onChange={setNome} placeholder="ex: Rodada 25" className="flex-1" /></Row>
         <Row label="Nº Rodada">
           <input type="number" min={1} value={numero} onChange={(e) => setNumero(parseInt(e.target.value) || 1)}
             className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
@@ -498,12 +456,6 @@ function SecaoConfiguracaoRodada() {
         <Row label="Vale x2">
           <Toggle checked={valeDobro} onChange={setValeDobro} />
           <span className="font-sans text-sm text-tinta-200">{valeDobro ? '⚡ Pontuação em dobro' : 'Pontuação normal'}</span>
-        </Row>
-        <Row label="É extra">
-          <Toggle checked={ehExtra} onChange={toggleExtra} />
-          <span className="font-sans text-sm text-tinta-200">
-            {ehExtra ? '🔀 Rodada extra (aparece como "E1", "E2"...)' : 'Rodada normal (R1–R38)'}
-          </span>
         </Row>
       </Card>
 
@@ -529,7 +481,6 @@ function SecaoConfiguracaoRodada() {
               onChange={(e) => patch(j.id, { date: e.target.value })}
               className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
             />
-            {!j.date && <span className="font-mono text-[10px] text-raridade-frango-selo">⚠ A definir</span>}
           </Row>
           <Row label="Horário">
             <InputText value={j.time} onChange={(v) => patch(j.id, { time: v })} placeholder="19:00" className="w-24" />
@@ -549,7 +500,6 @@ function SecaoConfiguracaoRodada() {
       <div className="flex flex-wrap gap-2">
         <Btn variant="gold" onClick={handleSalvar} disabled={salvando}>{salvando ? '...' : '💾 Salvar Rodada'}</Btn>
         <Btn variant="green" onClick={abrirFinalizar} disabled={salvando || !roundId}>✔ Finalizar Rodada</Btn>
-        <Btn variant="danger" onClick={handleLimparPalpites} disabled={salvando || !roundId}>🗑 Limpar Palpites</Btn>
       </div>
 
       <Modal
@@ -557,9 +507,9 @@ function SecaoConfiguracaoRodada() {
         onFechar={() => setModalFinalizar('fechado')}
         borda="border-dourado-300"
       >
-        <p className="mb-2 font-display text-lg font-bold text-tinta-300">Finalizar rodada?</p>
+        <p className="mb-2 font-display text-lg font-bold text-tinta-300">Finalizar {nome}?</p>
         <p className="mb-4 font-sans text-sm text-tinta-200">
-          Isso é <b>definitivo</b> e lança tudo no <b>Ranking</b>. Se precisar corrigir depois, use <i>Reabrir Rodada</i>.
+          Isso é <b>definitivo</b> e lança tudo no <b>Ranking Oficial</b>.
         </p>
         <div className="flex justify-end gap-2">
           <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Cancelar</Btn>
@@ -572,8 +522,8 @@ function SecaoConfiguracaoRodada() {
         onFechar={() => setModalFinalizar('fechado')}
         borda="border-raridade-frango-selo"
       >
-        <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tá doido é?</p>
-        <p className="mb-3 font-sans text-sm text-tinta-200">Faltou lançar o resultado desses jogos Pai:</p>
+        <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Atenção!</p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Faltou lançar o resultado destes jogos:</p>
         <ul className="mb-4 max-h-48 overflow-y-auto rounded border border-papel-borda-200 bg-papel-100 px-3 py-2">
           {jogosSemPlacar.map((j) => (
             <li key={j.id} className="border-b border-papel-borda-200/60 py-1 font-sans text-xs text-tinta-300 last:border-0">
@@ -581,9 +531,6 @@ function SecaoConfiguracaoRodada() {
             </li>
           ))}
         </ul>
-        <p className="mb-4 font-mono text-[10px] text-tinta-100">
-          Se algum jogo foi adiado, dá pra finalizar mesmo assim (esses ficam sem pontuação).
-        </p>
         <div className="flex flex-wrap justify-end gap-2">
           <Btn variant="outline" onClick={() => setModalFinalizar('fechado')}>Voltar</Btn>
           <Btn variant="danger" onClick={confirmarFinalizar}>Finalizar mesmo assim</Btn>
@@ -593,11 +540,12 @@ function SecaoConfiguracaoRodada() {
   )
 }
 
-// ─── SEÇÃO: Resultado & Correção ─────────────────────────────────────────────
+// ─── 3. SEÇÃO: Resultado & Correção (COM SELETOR DE RODADAS) ─────────────────
 
 type Placar = { h: string; a: string }
 
 function SecaoResultadoCorrecao() {
+  const [listaRodadas, setListaRodadas] = useState<Array<{ id: string; number: number; name: string }>>([])
   const [roundId, setRoundId] = useState<string | null>(null)
   const [valeDobro, setValeDobro] = useState(false)
   const [jogos, setJogos] = useState<Array<{ id: string; home: string; away: string }>>([])
@@ -610,15 +558,40 @@ function SecaoResultadoCorrecao() {
   const [carregandoPalpites, setCarregandoPalpites] = useState(false)
   const [correcaoBuf, setCorrecaoBuf] = useState<Record<string, string>>({})
 
+  async function carregarRodadaParaPlacares(rid: string) {
+    setCarregando(true)
+    try {
+      const { data: round } = await supabase.from('rounds').select('id, is_double').eq('id', rid).single()
+      if (!round) return
+      setRoundId(round.id)
+      setValeDobro(round.is_double ?? false)
+
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('id, home, away, home_score, away_score')
+        .eq('round_id', rid)
+
+      const lista = matches ?? []
+      setJogos(lista)
+      setRes(Object.fromEntries(lista.map((j) => [j.id, { h: j.home_score?.toString() ?? '', a: j.away_score?.toString() ?? '' }])))
+    } catch (e) {
+      showToast(`Erro: ${(e as Error).message}`, 'erro')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
   useEffect(() => {
-    Promise.all([buscarRodadaAtiva(), buscarParticipantesNomes()])
-      .then(([rodada, nomes]) => {
-        setRoundId(rodada.roundId); setValeDobro(rodada.valeDobro); setJogos(rodada.jogos)
-        setRes(Object.fromEntries(rodada.jogos.map((j) => [j.id, { h: j.resultadoH?.toString() ?? '', a: j.resultadoA?.toString() ?? '' }])))
-        setParticipantes(nomes)
-      })
-      .catch((e) => showToast(`Erro ao carregar: ${e.message}`, 'erro'))
-      .finally(() => setCarregando(false))
+    Promise.all([
+      supabase.from('rounds').select('id, number, name').order('number', { ascending: false }),
+      buscarParticipantesNomes(),
+      buscarRodadaAtiva(),
+    ]).then(([rRes, nomes, ativa]) => {
+      if (rRes.data) setListaRodadas(rRes.data)
+      setParticipantes(nomes)
+      const inicial = ativa.roundId ?? rRes.data?.[0]?.id
+      if (inicial) carregarRodadaParaPlacares(inicial)
+    }).finally(() => setCarregando(false))
   }, [])
 
   function setField(id: string, field: 'h' | 'a', val: string) {
@@ -630,11 +603,10 @@ function SecaoResultadoCorrecao() {
     setCalculando(true)
     try {
       const resultados: Record<string, { h: number; a: number }> = {}
-      const apagados: string[] = [] // Jogos que o admin deixou em branco
+      const apagados: string[] = []
 
       for (const j of jogos) {
         const h = res[j.id]?.h; const a = res[j.id]?.a
-        // Correção Bug 2: se o admin apagou os campos, anula no banco
         if (h === '' || h === undefined || a === '' || a === undefined) {
           apagados.push(j.id)
           continue
@@ -642,10 +614,8 @@ function SecaoResultadoCorrecao() {
         resultados[j.id] = { h: parseInt(h, 10), a: parseInt(a, 10) }
       }
 
-      // 1. Calcula normal os que têm placar válido
       await calcularPontosRodada(roundId, resultados, valeDobro)
 
-      // 2. Limpa no banco os que ficaram em branco (anula 0x0 fantasma + retira pontos)
       if (apagados.length > 0) {
         await supabase.from('matches').update({ home_score: null, away_score: null }).in('id', apagados)
         await supabase.from('predictions').update({ points: null }).in('match_id', apagados)
@@ -696,37 +666,49 @@ function SecaoResultadoCorrecao() {
     }
   }
 
-  if (carregando) return <Card><p className="font-sans text-sm text-tinta-200">Carregando rodada...</p></Card>
-  if (!roundId) return <Card><p className="font-sans text-sm text-tinta-200">Nenhuma rodada encontrada.</p></Card>
-
   return (
     <div className="space-y-3">
-      {valeDobro && <Card><p className="font-sans text-sm font-semibold text-dourado-600">⚡ Esta rodada vale pontuação em dobro</p></Card>}
       <Card>
-        {jogos.map((j) => (
-          <div key={j.id} className="border-b border-papel-borda-200 py-3 last:border-0">
-            <p className="mb-2 font-sans text-sm font-semibold text-tinta-300">{j.home} × {j.away}</p>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-tinta-100">Placar:</span>
-              <input type="number" inputMode="numeric" min={0} value={res[j.id]?.h ?? ''}
-                onChange={(e) => setField(j.id, 'h', e.target.value)} placeholder="0"
-                className="w-14 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-sm text-tinta-300 outline-none" />
-              <span className="text-tinta-100">×</span>
-              <input type="number" inputMode="numeric" min={0} value={res[j.id]?.a ?? ''}
-                onChange={(e) => setField(j.id, 'a', e.target.value)} placeholder="0"
-                className="w-14 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-sm text-tinta-300 outline-none" />
-            </div>
-          </div>
-        ))}
-        <div className="mt-3 space-y-3">
-          <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>
-            {calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}
-          </Btn>
-          <p className="font-mono text-[10px] text-tinta-100">
-            💡 <b>Dica:</b> Se um jogo calculou errado (ficou como 0x0 sendo que não aconteceu), apague os números e deixe os <b>dois campos vazios</b>. Depois clique no botão acima e o sistema vai limpar o erro.
-          </p>
-        </div>
+        <Row label="Rodada">
+          <select
+            value={roundId ?? ''}
+            onChange={(e) => carregarRodadaParaPlacares(e.target.value)}
+            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
+          >
+            {listaRodadas.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </Row>
       </Card>
+
+      {carregando ? (
+        <Card><p className="font-sans text-sm text-tinta-200">Carregando jogos...</p></Card>
+      ) : (
+        <Card>
+          {valeDobro && <p className="mb-3 font-sans text-xs font-bold text-dourado-600">⚡ Esta rodada vale pontuação em dobro</p>}
+          {jogos.map((j) => (
+            <div key={j.id} className="border-b border-papel-borda-200 py-2.5 last:border-0">
+              <p className="mb-1.5 font-sans text-sm font-semibold text-tinta-300">{j.home} × {j.away}</p>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] text-tinta-100">Placar:</span>
+                <input type="number" inputMode="numeric" min={0} value={res[j.id]?.h ?? ''}
+                  onChange={(e) => setField(j.id, 'h', e.target.value)} placeholder="—"
+                  className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1 py-1 text-center font-mono text-sm text-tinta-300 outline-none" />
+                <span className="text-tinta-100">×</span>
+                <input type="number" inputMode="numeric" min={0} value={res[j.id]?.a ?? ''}
+                  onChange={(e) => setField(j.id, 'a', e.target.value)} placeholder="—"
+                  className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1 py-1 text-center font-mono text-sm text-tinta-300 outline-none" />
+              </div>
+            </div>
+          ))}
+          <div className="mt-3 space-y-2">
+            <Btn variant="gold" onClick={handleCalcular} disabled={calculando}>
+              {calculando ? '...' : '⚡ Calcular Pontos Automaticamente'}
+            </Btn>
+          </div>
+        </Card>
+      )}
 
       <div>
         <SubLabel>Correção Manual por Palpiteiro</SubLabel>
@@ -772,7 +754,7 @@ function SecaoResultadoCorrecao() {
   )
 }
 
-// ─── SEÇÃO: Frango da Rodada ─────────────────────────────────────────────────
+// ─── 4. SEÇÃO: Frango da Rodada ──────────────────────────────────────────────
 
 function SecaoFrango() {
   const [rodadas, setRodadas] = useState<Array<{ id: string; nome: string; finalizada: boolean }>>([])
@@ -935,7 +917,7 @@ function SecaoFrango() {
   )
 }
 
-// ─── SEÇÃO: Reabrir Rodada ────────────────────────────────────────────────────
+// ─── 5. SEÇÃO: Reabrir Rodada ─────────────────────────────────────────────────
 
 function SecaoReabrirRodada() {
   const [rodadas, setRodadas] = useState<Array<{ id: string; number: number; name: string }>>([])
@@ -1004,7 +986,7 @@ function SecaoReabrirRodada() {
           <>
             <p className="mb-2 font-display text-lg font-bold text-tinta-300">Reabrir {rodadaSel.name}?</p>
             <p className="mb-4 font-sans text-sm text-tinta-200">
-              Ela sai do Ranking oficial e volta pro estado "em andamento". Pontos calculados permanecem.
+              Ela sai do Ranking oficial e volta pro estado "em andamento".
             </p>
             <div className="flex justify-end gap-2">
               <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
@@ -1017,7 +999,7 @@ function SecaoReabrirRodada() {
   )
 }
 
-// ─── SEÇÃO: Projeção de Campeão ──────────────────────────────────────────────
+// ─── 6. SEÇÃO: Projeção de Campeão ───────────────────────────────────────────
 
 const OPCOES_JANELA: Array<[number, string]> = [
   [2, 'Últ. 2'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Campeonato inteiro'],
@@ -1076,13 +1058,13 @@ function SecaoProjecao() {
     if (j === janela || calculando) return
     vibrar('leve')
     setJanela(j)
-    try { 
+    try {
       await salvarConfig('projecao_janela', { rodadas: j })
       await gravarLog('PROJECAO_JANELA_ALTERADA', { rodadas: j })
-      showToast(`Janela de projeção alterada!`, 'sucesso')
+      showToast('Janela de projeção alterada!', 'sucesso')
     } catch (e) {
       vibrar('erro')
-      showToast(`Erro ao salvar config no banco: ${(e as Error).message}`, 'erro')
+      showToast(`Erro ao salvar: ${(e as Error).message}`, 'erro')
     }
     await calcular(j)
   }
@@ -1092,7 +1074,7 @@ function SecaoProjecao() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">Define quantas rodadas usar pra calcular a chance de cada um ser campeão.</p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Define quantas rodadas usar pra calcular a chance de cada um ser campeão no Ranking.</p>
         <div className="flex flex-wrap gap-2">
           {OPCOES_JANELA.map(([val, label]) => (
             <button key={val} type="button" onClick={() => mudarJanela(val)} disabled={calculando || carregando}
@@ -1106,14 +1088,12 @@ function SecaoProjecao() {
       <Card>
         <SubLabel>
           Preview — projeção atual
-          {totalFinalizadas > 0 && <span className="ml-1 normal-case">({totalFinalizadas} rodada{totalFinalizadas !== 1 ? 's' : ''} finalizada{totalFinalizadas !== 1 ? 's' : ''})</span>}
+          {totalFinalizadas > 0 && <span className="ml-1 normal-case">({totalFinalizadas} rodadas)</span>}
         </SubLabel>
         {carregando || calculando ? (
           <p className="font-sans text-xs text-tinta-100">Calculando...</p>
         ) : projecoes.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">
-            {totalFinalizadas < 2 ? `Mínimo 2 rodadas finalizadas. Faltam ${2 - totalFinalizadas}.` : 'Sem dados suficientes.'}
-          </p>
+          <p className="font-sans text-xs text-tinta-100">Sem dados suficientes.</p>
         ) : (
           <div className="space-y-2">
             {projecoes.map((p, i) => (
@@ -1134,7 +1114,7 @@ function SecaoProjecao() {
   )
 }
 
-// ─── SEÇÃO: Gráfico de Evolução ──────────────────────────────────────────────
+// ─── 7. SEÇÃO: Gráfico de Evolução ───────────────────────────────────────────
 
 const OPCOES_EVOLUCAO: Array<[number, string]> = [
   [1, 'Última'], [3, 'Últ. 3'], [5, 'Últ. 5'], [10, 'Últ. 10'], [0, 'Desde o início'],
@@ -1181,13 +1161,12 @@ function SecaoEvolucao() {
             ))}
           </div>
         )}
-        <p className="mt-3 font-mono text-[10px] text-tinta-100">O gráfico será implementado na tela de Ranking.</p>
       </Card>
     </div>
   )
 }
 
-// ─── SEÇÃO: Alterar Formação ─────────────────────────────────────────────────
+// ─── 8. SEÇÃO: Alterar Formação ──────────────────────────────────────────────
 
 function MiniCampo({ formacao }: { formacao: Formacao }) {
   return (
@@ -1243,7 +1222,6 @@ function SecaoAlterarFormacao() {
       <Card>
         <p className="font-sans text-sm text-tinta-200">
           A formação escolhida vale pros campinhos da <b>abertura</b> e do <b>login</b>.
-          Toca em qualquer card pra trocar na hora.
         </p>
       </Card>
       <SubLabel>⚽ Clássicas</SubLabel>
@@ -1260,7 +1238,6 @@ function SecaoAlterarFormacao() {
               <MiniCampo formacao={f} />
               <div className="text-center">
                 <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
-                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
               </div>
             </button>
           )
@@ -1280,7 +1257,6 @@ function SecaoAlterarFormacao() {
               <MiniCampo formacao={f} />
               <div className="text-center">
                 <p className="font-display text-sm font-bold text-tinta-300">{f.nome}</p>
-                {f.apelido && <p className="font-sans text-[10px] italic text-tinta-100">{f.apelido}</p>}
               </div>
             </button>
           )
@@ -1290,7 +1266,7 @@ function SecaoAlterarFormacao() {
   )
 }
 
-// ─── SEÇÃO: Esquema de Pontuação (fixo) ──────────────────────────────────────
+// ─── 9. SEÇÃO: Esquema de Pontuação (fixo) ───────────────────────────────────
 
 function SecaoPontuacao() {
   const regras = [
@@ -1300,19 +1276,18 @@ function SecaoPontuacao() {
   ]
   return (
     <Card>
-      <SubLabel>Regras da liga (fixas — critérios exclusivos, não acumulam)</SubLabel>
+      <SubLabel>Regras da liga (fixas — critérios exclusivos)</SubLabel>
       {regras.map((r, i) => (
         <div key={i} className="flex items-center justify-between border-b border-papel-borda-200 py-2 last:border-0">
           <span className="font-sans text-sm text-tinta-300">{r.desc}</span>
           <span className="font-mono text-sm font-bold text-dourado-500">{r.pts} pts</span>
         </div>
       ))}
-      <p className="mt-3 font-mono text-[10px] text-tinta-100">Edição dinâmica ficará pra Fase 5.</p>
     </Card>
   )
 }
 
-// ─── SEÇÃO: Novidades ────────────────────────────────────────────────────────
+// ─── 10. SEÇÃO: Novidades ────────────────────────────────────────────────────
 
 function SecaoNovidades() {
   const [titulo, setTitulo] = useState('')
@@ -1367,7 +1342,7 @@ function SecaoNovidades() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">Publique uma novidade pra aparecer como pop-up quando os participantes entrarem no app.</p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Publique uma novidade pra aparecer como pop-up pros participantes.</p>
         <Row label="Título"><InputText value={titulo} onChange={setTitulo} placeholder="ex: Ranking disponível!" className="flex-1" /></Row>
         <Row label="Resumo">
           <textarea value={resumo} onChange={(e) => setResumo(e.target.value)} placeholder="Breve descrição..." rows={2}
@@ -1396,19 +1371,10 @@ function SecaoNovidades() {
   )
 }
 
-// ─── SEÇÃO: Música Tema ──────────────────────────────────────────────────────
+// ─── 11. SEÇÃO: Música Tema ──────────────────────────────────────────────────
 
 function SecaoMusica() {
-  type MusicaAdm = {
-    id: string
-    titulo: string
-    artista: string
-    arquivo: string
-    ordem: number
-    ativa: boolean
-    is_tema: boolean
-  }
-
+  type MusicaAdm = { id: string; titulo: string; artista: string; arquivo: string; ordem: number; ativa: boolean; is_tema: boolean }
   const [lista, setLista] = useState<MusicaAdm[]>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState<string | null>(null)
@@ -1419,17 +1385,12 @@ function SecaoMusica() {
   async function carregar() {
     setCarregando(true)
     try {
-      const { data, error } = await supabase
-        .from('musicas')
-        .select('*')
-        .order('ordem', { ascending: true })
+      const { data, error } = await supabase.from('musicas').select('*').order('ordem', { ascending: true })
       if (error) throw error
       setLista(data ?? [])
     } catch (e) {
       showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro')
-    } finally {
-      setCarregando(false)
-    }
+    } finally { setCarregando(false) }
   }
 
   useEffect(() => { carregar() }, [])
@@ -1452,7 +1413,7 @@ function SecaoMusica() {
 
   async function toggleAtiva(m: MusicaAdm) {
     if (m.is_tema && m.ativa) {
-      showToast('Não dá pra desativar a música tema. Escolhe outra como tema primeiro.', 'aviso')
+      showToast('Não dá pra desativar a música tema.', 'aviso')
       return
     }
     setSalvando(m.id)
@@ -1470,10 +1431,10 @@ function SecaoMusica() {
 
   async function remover(m: MusicaAdm) {
     if (m.is_tema) {
-      showToast('Não dá pra remover a música tema. Escolhe outra como tema primeiro.', 'aviso')
+      showToast('Não dá pra remover a música tema.', 'aviso')
       return
     }
-    if (!confirm(`Remover "${m.titulo}" da playlist?`)) return
+    if (!confirm(`Remover "${m.titulo}"?`)) return
     setSalvando(m.id)
     try {
       const { error } = await supabase.from('musicas').delete().eq('id', m.id)
@@ -1493,18 +1454,11 @@ function SecaoMusica() {
     const arquivo = novoArquivo.startsWith('/') ? novoArquivo : `/${novoArquivo}`
     setSalvando('novo')
     try {
-      const { data: ult } = await supabase
-        .from('musicas').select('ordem')
-        .order('ordem', { ascending: false }).limit(1).maybeSingle()
+      const { data: ult } = await supabase.from('musicas').select('ordem').order('ordem', { ascending: false }).limit(1).maybeSingle()
       const proximaOrdem = (ult?.ordem ?? -1) + 1
 
       const { error } = await supabase.from('musicas').insert({
-        titulo: novoTitulo.trim(),
-        artista: novoArtista.trim(),
-        arquivo,
-        ordem: proximaOrdem,
-        ativa: true,
-        is_tema: false,
+        titulo: novoTitulo.trim(), artista: novoArtista.trim(), arquivo, ordem: proximaOrdem, ativa: true, is_tema: false,
       })
       if (error) throw error
       await gravarLog('MUSICA_ADICIONADA', { titulo: novoTitulo.trim() })
@@ -1521,66 +1475,28 @@ function SecaoMusica() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Gerencie a playlist do player da Home. A música <b>tema</b> (👑) toca em loop.
-          Outras músicas entram em modo sequencial quando o usuário troca.
-        </p>
-        <p className="mb-3 font-mono text-[10px] text-tinta-100">
-          💡 Coloque o arquivo .mp3 na pasta <b>public/</b> pelo GitHub e cadastre aqui usando o caminho <b>/nome.mp3</b>.
-        </p>
-        {carregando ? (
-          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : lista.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">Nenhuma música cadastrada.</p>
-        ) : (
+        <p className="mb-3 font-sans text-sm text-tinta-200">Gerencie a playlist do player da Home.</p>
+        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
           <div className="space-y-2">
             {lista.map((m) => (
-              <div
-                key={m.id}
-                className={cx(
-                  'rounded-lg border p-3',
-                  m.is_tema ? 'border-dourado-500 bg-dourado-50/40' : 'border-papel-borda-200 bg-papel-100',
-                  !m.ativa && 'opacity-50',
-                )}
-              >
+              <div key={m.id} className={cx('rounded-lg border p-3', m.is_tema ? 'border-dourado-500 bg-dourado-50/40' : 'border-papel-borda-200 bg-papel-100', !m.ativa && 'opacity-50')}>
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl leading-none flex-shrink-0">
-                    {m.is_tema ? '👑' : '🎵'}
-                  </span>
+                  <span className="text-2xl flex-shrink-0">{m.is_tema ? '👑' : '🎵'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-sans text-sm font-bold text-tinta-300 truncate">{m.titulo}</p>
                     <p className="font-mono text-[10px] text-tinta-100 truncate">{m.artista}</p>
-                    <p className="mt-0.5 font-mono text-[9px] text-tinta-100 truncate">📁 {m.arquivo}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {!m.is_tema && (
-                    <button
-                      type="button"
-                      onClick={() => marcarTema(m.id)}
-                      disabled={salvando === m.id || !m.ativa}
-                      className="rounded border border-dourado-400 bg-dourado-100 px-2 py-1 font-mono text-[10px] font-bold text-dourado-700 hover:bg-dourado-200 disabled:opacity-40"
-                    >
-                      👑 Marcar como Tema
-                    </button>
+                    <button type="button" onClick={() => marcarTema(m.id)} disabled={salvando === m.id || !m.ativa}
+                      className="rounded border border-dourado-400 bg-dourado-100 px-2 py-1 font-mono text-[10px] font-bold text-dourado-700 hover:bg-dourado-200 disabled:opacity-40">👑 Marcar como Tema</button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => toggleAtiva(m)}
-                    disabled={salvando === m.id}
-                    className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200 disabled:opacity-40"
-                  >
-                    {m.ativa ? '👁 Ativa' : '🚫 Desativada'}
-                  </button>
+                  <button type="button" onClick={() => toggleAtiva(m)} disabled={salvando === m.id}
+                    className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200 disabled:opacity-40">{m.ativa ? '👁 Ativa' : '🚫 Desativada'}</button>
                   {!m.is_tema && (
-                    <button
-                      type="button"
-                      onClick={() => remover(m)}
-                      disabled={salvando === m.id}
-                      className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40"
-                    >
-                      🗑 Remover
-                    </button>
+                    <button type="button" onClick={() => remover(m)} disabled={salvando === m.id}
+                      className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40">🗑 Remover</button>
                   )}
                 </div>
               </div>
@@ -1591,23 +1507,10 @@ function SecaoMusica() {
 
       <Card>
         <SubLabel>Adicionar nova música</SubLabel>
-        <Row label="Título">
-          <InputText value={novoTitulo} onChange={setNovoTitulo} placeholder="Ex: Waka Waka" className="flex-1" />
-        </Row>
-        <Row label="Artista">
-          <InputText value={novoArtista} onChange={setNovoArtista} placeholder="Ex: Shakira" className="flex-1" />
-        </Row>
-        <Row label="Arquivo">
-          <InputText value={novoArquivo} onChange={setNovoArquivo} placeholder="/nome_arquivo.mp3" className="flex-1" />
-        </Row>
-        <p className="mb-3 font-mono text-[10px] text-tinta-100">
-          📁 Suba o .mp3 primeiro na pasta <b>public/</b> pelo GitHub. Ex: <b>/musica_nova.mp3</b>
-        </p>
-        <Btn
-          variant="gold"
-          onClick={adicionar}
-          disabled={salvando === 'novo' || !novoTitulo.trim() || !novoArtista.trim() || !novoArquivo.trim() || novoArquivo === '/'}
-        >
+        <Row label="Título"><InputText value={novoTitulo} onChange={setNovoTitulo} placeholder="Ex: Waka Waka" className="flex-1" /></Row>
+        <Row label="Artista"><InputText value={novoArtista} onChange={setNovoArtista} placeholder="Ex: Shakira" className="flex-1" /></Row>
+        <Row label="Arquivo"><InputText value={novoArquivo} onChange={setNovoArquivo} placeholder="/nome_arquivo.mp3" className="flex-1" /></Row>
+        <Btn variant="gold" onClick={adicionar} disabled={salvando === 'novo' || !novoTitulo.trim() || !novoArtista.trim() || !novoArquivo.trim() || novoArquivo === '/'}>
           {salvando === 'novo' ? '...' : '+ Adicionar'}
         </Btn>
       </Card>
@@ -1615,25 +1518,12 @@ function SecaoMusica() {
   )
 }
 
-// ─── SEÇÃO: Conheça os Adms ──────────────────────────────────────────────────
+// ─── 12. SEÇÃO: Conheça os Adms (COM EDITORES DO CARD FIFA) ───────────────────
 
 const ADM_VAZIO: Omit<AdminProfile, 'id'> = {
-  nome: '',
-  vulgo: null,
-  foto: null,
-  descricao: null,
-  ordem: 0,
-  rating: null,
-  posicao: null,
-  stat_pal: null,
-  stat_ges: null,
-  stat_jus: null,
-  stat_zoa: null,
-  stat_res: null,
-  stat_cra: null,
-  foto_scale: 1.0,
-  foto_pos_x: 0,
-  foto_pos_y: 0,
+  nome: '', vulgo: null, foto: null, descricao: null, ordem: 0, rating: null, posicao: null,
+  stat_pal: null, stat_ges: null, stat_jus: null, stat_zoa: null, stat_res: null, stat_cra: null,
+  foto_scale: 1.0, foto_pos_x: 0, foto_pos_y: 0,
 }
 
 function SecaoAdms() {
@@ -1696,7 +1586,7 @@ function SecaoAdms() {
   }
 
   async function remover(adm: AdminProfile) {
-    if (!confirm(`Remover ${adm.nome} da lista de adms?`)) return
+    if (!confirm(`Remover ${adm.nome}?`)) return
     setSalvando(true)
     try {
       await removerAdmin(adm.id)
@@ -1713,33 +1603,22 @@ function SecaoAdms() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Gerencie os cards da seção "Conheça os Adms" — aparecem na aba Guia pra todos.
-        </p>
-        {carregando ? (
-          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : lista.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">Nenhum adm cadastrado ainda.</p>
-        ) : (
+        <p className="mb-3 font-sans text-sm text-tinta-200">Gerencie os cards da seção "Conheça os Adms".</p>
+        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
           <div className="space-y-2">
             {lista.map((adm) => (
               <div key={adm.id} className="flex items-center gap-3 rounded-lg border border-papel-borda-200 bg-papel-100 px-3 py-2.5">
                 {adm.foto ? (
                   <img src={adm.foto} alt={adm.nome} className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
                 ) : (
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-dourado-100 font-display text-lg font-bold text-dourado-600">
-                    {adm.nome[0]}
-                  </div>
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-dourado-100 font-display text-lg font-bold text-dourado-600">{adm.nome[0]}</div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-sans text-sm font-semibold text-tinta-300 truncate">{adm.nome}</p>
-                  {adm.vulgo && <p className="font-mono text-[10px] text-tinta-100 truncate">"{adm.vulgo}"</p>}
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
-                  <button type="button" onClick={() => abrirEditar(adm)}
-                    className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200">Editar</button>
-                  <button type="button" onClick={() => remover(adm)} disabled={salvando}
-                    className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40">Remover</button>
+                  <button type="button" onClick={() => abrirEditar(adm)} className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-200">Editar</button>
+                  <button type="button" onClick={() => remover(adm)} disabled={salvando} className="rounded border border-raridade-frango-selo/40 px-2 py-1 font-mono text-[10px] text-raridade-frango-selo hover:bg-red-50 disabled:opacity-40">Remover</button>
                 </div>
               </div>
             ))}
@@ -1750,156 +1629,34 @@ function SecaoAdms() {
         </div>
       </Card>
 
-      <Modal
-        aberto={!!editando}
-        onFechar={() => setEditando(null)}
-        borda="border-dourado-300"
-        className="max-h-[90vh] overflow-y-auto"
-      >
+      <Modal aberto={!!editando} onFechar={() => setEditando(null)} borda="border-dourado-300" className="max-h-[90vh] overflow-y-auto">
         {editando && (
           <>
-            <p className="mb-4 font-display text-lg font-bold text-tinta-300">
-              {editando.isNovo ? 'Novo Adm' : `Editar ${editando.nome}`}
-            </p>
+            <p className="mb-4 font-display text-lg font-bold text-tinta-300">{editando.isNovo ? 'Novo Adm' : `Editar ${editando.nome}`}</p>
             <div className="space-y-2">
-              <Row label="Nome *">
-                <InputText value={editando.nome} onChange={(v) => setEditando((e) => e && ({ ...e, nome: v }))} placeholder="Nome real" className="flex-1" />
-              </Row>
-              <Row label="Vulgo">
-                <InputText value={editando.vulgo ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, vulgo: v || null }))} placeholder="Apelido" className="flex-1" />
-              </Row>
-              <Row label="Foto URL">
-                <InputText value={editando.foto ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, foto: v || null }))} placeholder="https://..." className="flex-1" />
-              </Row>
+              <Row label="Nome *"><InputText value={editando.nome} onChange={(v) => setEditando((e) => e && ({ ...e, nome: v }))} placeholder="Nome real" className="flex-1" /></Row>
+              <Row label="Vulgo"><InputText value={editando.vulgo ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, vulgo: v || null }))} placeholder="Apelido" className="flex-1" /></Row>
+              <Row label="Foto URL"><InputText value={editando.foto ?? ''} onChange={(v) => setEditando((e) => e && ({ ...e, foto: v || null }))} placeholder="https://..." className="flex-1" /></Row>
               <Row label="Descrição">
-                <textarea value={editando.descricao ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, descricao: e.target.value || null }))}
-                  placeholder="Breve descrição..." rows={2}
-                  className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
-              </Row>
-              <Row label="Ordem">
-                <input type="number" min={1} value={editando.ordem}
-                  onChange={(e) => setEditando((ed) => ed && ({ ...ed, ordem: parseInt(e.target.value) || 1 }))}
-                  className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
+                <textarea value={editando.descricao ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, descricao: e.target.value || null }))} placeholder="Breve descrição..." rows={2} className="flex-1 resize-none rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none" />
               </Row>
 
               <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
-                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
-                  🃏 Card FIFA (opcional)
-                </p>
-
+                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">🃏 Card FIFA</p>
                 <Row label="Rating">
-                  <input type="number" min={1} max={99} value={editando.rating ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value === '' ? null : parseInt(e.target.value)
-                      setEditando((ed) => ed && ({ ...ed, rating: v }))
-                    }}
-                    placeholder="99"
-                    className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 text-center font-mono text-sm text-tinta-300 outline-none" />
-                  <span className="font-mono text-[10px] text-tinta-100">1 a 99</span>
+                  <input type="number" min={1} max={99} value={editando.rating ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, rating: e.target.value === '' ? null : parseInt(e.target.value) }))} className="w-16 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-sm text-tinta-300 outline-none" />
                 </Row>
-
-                <Row label="Posição">
-                  <InputText value={editando.posicao ?? ''}
-                    onChange={(v) => setEditando((ed) => ed && ({ ...ed, posicao: v || null }))}
-                    placeholder="ex: ADM, SUB-ADM"
-                    className="flex-1" />
-                </Row>
-
+                <Row label="Posição"><InputText value={editando.posicao ?? ''} onChange={(v) => setEditando((ed) => ed && ({ ...ed, posicao: v || null }))} placeholder="ex: ADM" className="flex-1" /></Row>
                 {[
-                  { key: 'stat_pal', label: 'PAL', desc: 'Palpiteiro' },
-                  { key: 'stat_ges', label: 'GES', desc: 'Gestão' },
-                  { key: 'stat_jus', label: 'JUS', desc: 'Justiça' },
-                  { key: 'stat_zoa', label: 'ZOA', desc: 'Zoação' },
-                  { key: 'stat_res', label: 'RES', desc: 'Resenha' },
-                  { key: 'stat_cra', label: 'CRA', desc: 'Craque' },
+                  { key: 'stat_pal', label: 'PAL' }, { key: 'stat_ges', label: 'GES' }, { key: 'stat_jus', label: 'JUS' },
+                  { key: 'stat_zoa', label: 'ZOA' }, { key: 'stat_res', label: 'RES' }, { key: 'stat_cra', label: 'CRA' },
                 ].map((s) => (
                   <div key={s.key} className="flex items-center gap-2 py-1">
                     <span className="w-12 font-mono text-[10px] font-bold text-dourado-700">{s.label}</span>
-                    <input type="number" min={1} max={99}
-                      value={(editando as any)[s.key] ?? ''}
-                      onChange={(e) => {
-                        const v = e.target.value === '' ? null : parseInt(e.target.value)
-                        setEditando((ed) => ed && ({ ...ed, [s.key]: v }) as any)
-                      }}
-                      placeholder="—"
-                      className="w-14 rounded border border-papel-borda-300 bg-papel-50 px-1 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none" />
-                    <span className="font-sans text-[10px] italic text-tinta-100">{s.desc}</span>
+                    <input type="number" min={1} max={99} value={(editando as any)[s.key] ?? ''} onChange={(e) => setEditando((ed) => ed && ({ ...ed, [s.key]: e.target.value === '' ? null : parseInt(e.target.value) }))} className="w-14 rounded border border-papel-borda-300 bg-papel-50 px-1 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none" />
                   </div>
                 ))}
               </div>
-
-              {editando.foto && (
-                <div className="mt-3 rounded-md border border-dourado-300 bg-dourado-50/40 p-2">
-                  <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-dourado-700">
-                    🖼 Ajuste da Foto no Card
-                  </p>
-
-                  <div
-                    className="mx-auto mb-2 relative overflow-hidden border-2 border-dourado-400 bg-blue-900"
-                    style={{ width: 120, height: 140 }}
-                  >
-                    <img
-                      src={editando.foto}
-                      alt="preview"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        objectPosition: 'center bottom',
-                        transform: `translate(${editando.foto_pos_x ?? 0}%, ${editando.foto_pos_y ?? 0}%) scale(${editando.foto_scale ?? 1})`,
-                        transformOrigin: 'center bottom',
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 py-1">
-                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Escala</span>
-                    <input
-                      type="range" min="0.5" max="1.5" step="0.05"
-                      value={editando.foto_scale ?? 1}
-                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_scale: parseFloat(e.target.value) }))}
-                      className="flex-1"
-                    />
-                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
-                      {(editando.foto_scale ?? 1).toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 py-1">
-                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Pos X</span>
-                    <input
-                      type="range" min="-30" max="30" step="1"
-                      value={editando.foto_pos_x ?? 0}
-                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_pos_x: parseFloat(e.target.value) }))}
-                      className="flex-1"
-                    />
-                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
-                      {(editando.foto_pos_x ?? 0).toFixed(0)}%
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 py-1">
-                    <span className="w-16 font-mono text-[10px] font-bold text-dourado-700">Pos Y</span>
-                    <input
-                      type="range" min="-30" max="30" step="1"
-                      value={editando.foto_pos_y ?? 0}
-                      onChange={(e) => setEditando((ed) => ed && ({ ...ed, foto_pos_y: parseFloat(e.target.value) }))}
-                      className="flex-1"
-                    />
-                    <span className="w-10 text-right font-mono text-[10px] text-tinta-300">
-                      {(editando.foto_pos_y ?? 0).toFixed(0)}%
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setEditando((ed) => ed && ({ ...ed, foto_scale: 1, foto_pos_x: 0, foto_pos_y: 0 }))}
-                    className="mt-1 w-full rounded border border-papel-borda-300 bg-papel-100 py-1 font-mono text-[9px] uppercase tracking-wider text-tinta-200 hover:bg-papel-200"
-                  >
-                    ↺ Resetar
-                  </button>
-                </div>
-              )}
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="outline" onClick={() => setEditando(null)}>Cancelar</Btn>
@@ -1912,7 +1669,7 @@ function SecaoAdms() {
   )
 }
 
-// ─── SEÇÃO: PINs dos Jogadores ───────────────────────────────────────────────
+// ─── 13. SEÇÃO: PINs dos Jogadores ───────────────────────────────────────────
 
 function SecaoPINs() {
   const [participantes, setParticipantes] = useState<ParticipantePin[]>([])
@@ -1954,31 +1711,14 @@ function SecaoPINs() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Altere o PIN de qualquer participante. O PIN atual é exibido — troque só quando necessário.
-        </p>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Altere o PIN de qualquer participante.</p>
         <div className="space-y-1">
           {participantes.map((p) => (
             <div key={p.id} className="flex items-center gap-2 border-b border-papel-borda-200/60 py-2 last:border-0">
               <span className="w-32 truncate font-sans text-sm text-tinta-300">{p.name}</span>
               <span className="font-mono text-xs text-tinta-100">atual: <b className="text-tinta-200">{p.pin}</b></span>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="novo PIN"
-                value={buf[p.id] ?? ''}
-                onChange={(e) => setBuf((b) => ({ ...b, [p.id]: e.target.value }))}
-                className="w-24 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-xs text-tinta-300 outline-none focus-visible:ring-2 focus-visible:ring-dourado-300"
-              />
-              <button
-                type="button"
-                disabled={!buf[p.id]?.trim() || salvando === p.id}
-                onClick={() => handleSalvarPin(p)}
-                className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40"
-              >
-                {salvando === p.id ? '...' : '✓'}
-              </button>
+              <input type="text" inputMode="numeric" maxLength={8} placeholder="novo PIN" value={buf[p.id] ?? ''} onChange={(e) => setBuf((b) => ({ ...b, [p.id]: e.target.value }))} className="w-24 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1 text-center font-mono text-xs text-tinta-300 outline-none" />
+              <button type="button" disabled={!buf[p.id]?.trim() || salvando === p.id} onClick={() => handleSalvarPin(p)} className="rounded border border-papel-borda-300 px-2 py-1 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40">{salvando === p.id ? '...' : '✓'}</button>
             </div>
           ))}
         </div>
@@ -1987,7 +1727,7 @@ function SecaoPINs() {
   )
 }
 
-// ─── SEÇÃO: Log de Ações ─────────────────────────────────────────────────────
+// ─── 14. SEÇÃO: Log de Ações ─────────────────────────────────────────────────
 
 function SecaoLog() {
   const [entradas, setEntradas] = useState<EntradaLog[]>([])
@@ -1998,185 +1738,45 @@ function SecaoLog() {
 
   async function carregar() {
     setCarregando(true)
-    try {
-      const pid = filtroParticipanteId || undefined
-      setEntradas(await buscarLog(200, pid))
-    } catch (e) {
-      showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro')
-    } finally {
-      setCarregando(false)
-    }
+    try { setEntradas(await buscarLog(200, filtroParticipanteId || undefined)) }
+    catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
+    finally { setCarregando(false) }
   }
 
   useEffect(() => { carregar() /* eslint-disable-next-line */ }, [filtroParticipanteId])
-
-  useEffect(() => {
-    buscarParticipantesNomes().then(setParticipantes).catch(() => { /* ignora */ })
-  }, [])
+  useEffect(() => { buscarParticipantesNomes().then(setParticipantes).catch(() => {}) }, [])
 
   function formatarData(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const ICONES: Record<string, string> = {
-    RODADA_SALVA: '💾',
-    RODADA_FINALIZADA: '✅',
-    RODADA_REABERTA: '🔓',
-    PALPITES_LIMPOS: '🗑',
-    PONTOS_CALCULADOS: '⚡',
-    PONTOS_CORRIGIDOS_MANUAL: '✏️',
-    FRANGO_ATRIBUIDO: '🐔',
-    NOVIDADE_PUBLICADA: '🆕',
-    PIN_ATUALIZADO: '🔐',
-    ADM_ADICIONADO: '👑',
-    ADM_EDITADO: '✏️',
-    ADM_REMOVIDO: '🗑',
-    FORMACAO_ALTERADA: '⚽',
-    CAMPEONATO_FINALIZADO: '🏆',
-    MUSICA_TEMA_ALTERADA: '👑',
-    MUSICA_ADICIONADA: '🎵',
-    MUSICA_REMOVIDA: '🗑',
-    PALPITE_SALVO: '📝',
-    PALPITE_EDITADO: '✏️',
-  }
-
   const ACOES_USUARIO = new Set(['PALPITE_SALVO', 'PALPITE_EDITADO'])
-
-  const entradasFiltradas = entradas.filter((e) => {
-    if (filtroTipo === 'todos') return true
-    if (filtroTipo === 'usuario') return ACOES_USUARIO.has(e.action)
-    return !ACOES_USUARIO.has(e.action)
-  })
-
-  function renderPayload(entrada: EntradaLog): React.ReactNode {
-    if (!entrada.payload || Object.keys(entrada.payload).length === 0) return null
-
-    if (entrada.action === 'PALPITE_SALVO' && Array.isArray(entrada.payload.jogos)) {
-      return (
-        <div className="mt-1 space-y-0.5">
-          {entrada.payload.jogos.slice(0, 5).map((j: any, i: number) => (
-            <p key={i} className="font-mono text-[10px] text-tinta-200">
-              <span className="text-tinta-100">{j.jogo}</span>
-              {' → '}
-              <b className="text-verde-badge">{j.palpite}</b>
-            </p>
-          ))}
-          {entrada.payload.jogos.length > 5 && (
-            <p className="font-mono text-[9px] italic text-tinta-100">
-              ... e mais {entrada.payload.jogos.length - 5} jogo(s)
-            </p>
-          )}
-        </div>
-      )
-    }
-
-    if (entrada.action === 'PALPITE_EDITADO' && Array.isArray(entrada.payload.jogos)) {
-      return (
-        <div className="mt-1 space-y-0.5">
-          {entrada.payload.jogos.slice(0, 5).map((j: any, i: number) => (
-            <p key={i} className="font-mono text-[10px] text-tinta-200">
-              <span className="text-tinta-100">{j.jogo}</span>
-              {': '}
-              <s className="text-raridade-frango-selo/70">{j.de}</s>
-              {' → '}
-              <b className="text-verde-badge">{j.para}</b>
-            </p>
-          ))}
-          {entrada.payload.jogos.length > 5 && (
-            <p className="font-mono text-[9px] italic text-tinta-100">
-              ... e mais {entrada.payload.jogos.length - 5} jogo(s)
-            </p>
-          )}
-        </div>
-      )
-    }
-
-    return (
-      <p className="mt-0.5 font-mono text-[10px] text-tinta-100 truncate">
-        {Object.entries(entrada.payload)
-          .filter(([k]) => k !== 'jogos')
-          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-          .join(' · ')}
-      </p>
-    )
-  }
+  const entradasFiltradas = entradas.filter((e) => filtroTipo === 'todos' ? true : filtroTipo === 'usuario' ? ACOES_USUARIO.has(e.action) : !ACOES_USUARIO.has(e.action))
 
   return (
     <div className="space-y-3">
       <Card>
         <SubLabel>Filtros</SubLabel>
         <Row label="Participante">
-          <select
-            value={filtroParticipanteId}
-            onChange={(e) => setFiltroParticipanteId(e.target.value)}
-            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none"
-          >
+          <select value={filtroParticipanteId} onChange={(e) => setFiltroParticipanteId(e.target.value)} className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none">
             <option value="">Todos os participantes</option>
-            {participantes.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {participantes.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
           </select>
         </Row>
-        <Row label="Tipo">
-          <div className="flex gap-1.5">
-            {(['todos', 'admin', 'usuario'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setFiltroTipo(t)}
-                className={cx(
-                  'rounded-md border px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
-                  filtroTipo === t
-                    ? 'border-dourado-400 bg-dourado-100 text-dourado-700'
-                    : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
-                )}
-              >
-                {t === 'todos' ? 'Todos' : t === 'admin' ? '👑 Admin' : '👤 Usuário'}
-              </button>
-            ))}
-          </div>
-        </Row>
-        <div className="mt-2 flex justify-end">
-          <Btn variant="outline" onClick={carregar} disabled={carregando}>
-            {carregando ? '...' : '↻ Atualizar'}
-          </Btn>
-        </div>
       </Card>
 
       <Card>
-        <SubLabel>
-          {filtroTipo === 'todos' ? 'Últimas ações' : filtroTipo === 'admin' ? 'Ações do admin' : 'Ações dos usuários'}
-          {filtroParticipanteId && (
-            <span className="ml-1 normal-case text-tinta-200">
-              — {participantes.find((p) => p.id === filtroParticipanteId)?.name}
-            </span>
-          )}
-        </SubLabel>
-        {carregando ? (
-          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-        ) : entradasFiltradas.length === 0 ? (
-          <p className="font-sans text-xs text-tinta-100">Nenhuma ação registrada.</p>
-        ) : (
+        <SubLabel>Ações registradas</SubLabel>
+        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
           <div className="max-h-[500px] overflow-y-auto space-y-0 scrollbar-tema">
             {entradasFiltradas.map((e) => (
-              <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
-                <div className="flex items-start gap-2">
-                  <span className="text-base leading-none mt-0.5 flex-shrink-0">{ICONES[e.action] ?? '•'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
-                    {e.performed_by && (
-                      <p className="font-sans text-[10px] text-tinta-100">
-                        por <b>{e.performed_by}</b>
-                        {ACOES_USUARIO.has(e.action) && ' 👤'}
-                      </p>
-                    )}
-                    {renderPayload(e)}
-                  </div>
-                  <span className="flex-shrink-0 font-mono text-[10px] text-tinta-100 whitespace-nowrap">
-                    {formatarData(e.created_at)}
-                  </span>
+              <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0 flex justify-between">
+                <div>
+                  <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
+                  {e.performed_by && <p className="font-sans text-[10px] text-tinta-100">por {e.performed_by}</p>}
                 </div>
+                <span className="font-mono text-[10px] text-tinta-100">{formatarData(e.created_at)}</span>
               </div>
             ))}
           </div>
@@ -2186,29 +1786,13 @@ function SecaoLog() {
   )
 }
 
-// ─── SEÇÃO: Finalizar Campeonato ─────────────────────────────────────────────
+// ─── 15. SEÇÃO: Finalizar Campeonato ─────────────────────────────────────────
 
 function SecaoFinalizarCampeonato() {
   const [nomecamp, setNomecamp] = useState('Brasileirão Série A 2026')
   const [adminNome, setAdminNome] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [confirmar, setConfirmar] = useState(false)
-  const [snapshots, setSnapshots] = useState<Array<{ id: string; nome: string; campeao: string; data_encerramento: string }>>([])
-  const [carregando, setCarregando] = useState(true)
-
-  async function carregarSnapshots() {
-    setCarregando(true)
-    try {
-      const { data } = await supabase
-        .from('campeonatos_finalizados')
-        .select('id, nome, campeao, data_encerramento')
-        .order('data_encerramento', { ascending: false })
-      setSnapshots(data ?? [])
-    } catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
-    finally { setCarregando(false) }
-  }
-
-  useEffect(() => { carregarSnapshots() }, [])
 
   async function handleFinalizar() {
     setConfirmar(false); setSalvando(true)
@@ -2216,7 +1800,6 @@ function SecaoFinalizarCampeonato() {
       await finalizarCampeonato(nomecamp, adminNome || 'admin')
       vibrar('sucesso')
       showToast('Campeonato finalizado e snapshot salvo! 🏆', 'sucesso', 4000)
-      await carregarSnapshots()
     } catch (e) {
       vibrar('erro')
       showToast(`Erro: ${(e as Error).message}`, 'erro')
@@ -2226,67 +1809,17 @@ function SecaoFinalizarCampeonato() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="mb-3 font-sans text-sm text-tinta-200">
-          Encerra o campeonato atual — salva um snapshot permanente do ranking final
-          em <b>campeonatos_finalizados</b>. O banco <b>não</b> é resetado automaticamente:
-          após finalizar, rode o SQL de reset manualmente no Supabase.
-        </p>
-        <Row label="Nome">
-          <InputText value={nomecamp} onChange={setNomecamp} placeholder="ex: Brasileirão 2026" className="flex-1" />
-        </Row>
-        <Row label="Seu nome">
-          <InputText value={adminNome} onChange={setAdminNome} placeholder="Quem está finalizando?" className="flex-1" />
-        </Row>
+        <p className="mb-3 font-sans text-sm text-tinta-200">Encerra o campeonato atual e salva o ranking final.</p>
+        <Row label="Nome"><InputText value={nomecamp} onChange={setNomecamp} placeholder="ex: Brasileirão 2026" className="flex-1" /></Row>
+        <Row label="Seu nome"><InputText value={adminNome} onChange={setAdminNome} placeholder="Quem está finalizando?" className="flex-1" /></Row>
         <div className="mt-4">
-          <Btn variant="danger" onClick={() => setConfirmar(true)} disabled={salvando || !nomecamp.trim()}>
-            🏆 Finalizar Campeonato
-          </Btn>
+          <Btn variant="danger" onClick={() => setConfirmar(true)} disabled={salvando || !nomecamp.trim()}>🏆 Finalizar Campeonato</Btn>
         </div>
       </Card>
 
-      <Card>
-        <SubLabel>SQL de reset (rode no Supabase após finalizar)</SubLabel>
-        <pre className="overflow-x-auto rounded bg-tinta-300 p-3 font-mono text-[10px] text-papel-100 leading-relaxed">
-{`-- IRREVERSIVEL — rode so apos salvar o snapshot
-truncate table predictions restart identity cascade;
-truncate table rounds restart identity cascade;
-truncate table matches restart identity cascade;
-truncate table shame restart identity cascade;
-truncate table admin_log restart identity cascade;
--- participants e admins_profile: NAO truncar (mantem jogadores/adms)`}
-        </pre>
-      </Card>
-
-      {snapshots.length > 0 && (
-        <Card>
-          <SubLabel>Campeonatos encerrados</SubLabel>
-          {carregando ? (
-            <p className="font-sans text-xs text-tinta-100">Carregando...</p>
-          ) : (
-            snapshots.map((s) => (
-              <div key={s.id} className="flex items-center justify-between border-b border-papel-borda-200 py-2 last:border-0">
-                <div>
-                  <p className="font-sans text-sm font-semibold text-tinta-300">{s.nome}</p>
-                  <p className="font-mono text-[10px] text-tinta-100">
-                    🏆 {s.campeao} · {new Date(s.data_encerramento).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </Card>
-      )}
-
-      <Modal
-        aberto={confirmar}
-        onFechar={() => setConfirmar(false)}
-        borda="border-raridade-frango-selo"
-      >
+      <Modal aberto={confirmar} onFechar={() => setConfirmar(false)} borda="border-raridade-frango-selo">
         <p className="mb-2 font-display text-lg font-bold text-raridade-frango-selo">Tem certeza?</p>
-        <p className="mb-4 font-sans text-sm text-tinta-200">
-          Isso vai salvar o snapshot do ranking atual como <b>{nomecamp}</b>. O banco
-          <b> não</b> será resetado automaticamente — você vai precisar rodar o SQL manualmente.
-        </p>
+        <p className="mb-4 font-sans text-sm text-tinta-200">Isso vai salvar o snapshot do ranking atual como <b>{nomecamp}</b>.</p>
         <div className="flex justify-end gap-2">
           <Btn variant="outline" onClick={() => setConfirmar(false)}>Cancelar</Btn>
           <Btn variant="danger" onClick={handleFinalizar}>🏆 Finalizar</Btn>
@@ -2320,22 +1853,14 @@ export function AdminScreen({ isAdmin = true }: { isAdmin?: boolean }) {
   if (!isAdmin) {
     return (
       <CardEnvelope variante="alerta" titulo="🔒 Acesso Restrito">
-        <div className="p-6 text-center">
-          <div className="mb-4 text-5xl">🔒</div>
-          <p className="font-sans text-sm text-tinta-200">Esta área é exclusiva para administradores.</p>
-        </div>
+        <div className="p-6 text-center"><p className="font-sans text-sm text-tinta-200">Esta área é exclusiva para administradores.</p></div>
       </CardEnvelope>
     )
   }
 
   return (
     <>
-      <CardEnvelope
-        titulo="⚙ Admin"
-        subtitulo="⚠ Área restrita — alterações afetam todos em tempo real"
-      >
-        {null}
-      </CardEnvelope>
+      <CardEnvelope titulo="⚙ Admin" subtitulo="⚠ Área restrita — alterações afetam todos em tempo real">{null}</CardEnvelope>
       <div className="flex flex-col gap-3">
         {SECOES.map((s) => (
           <Accordion key={s.key} titulo={s.titulo} storageKey={`admin-${s.key}`} defaultOpen={false}>
