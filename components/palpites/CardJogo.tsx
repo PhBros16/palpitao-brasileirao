@@ -1,150 +1,232 @@
 'use client'
 
-// CardJogo — card de um jogo palpitável.
+// CardJogo — card individual de um jogo na tela de palpites.
 //
-// Escudo casa × inputs de placar × escudo fora, com countdown até o jogo
-// fechar e estado "Travado" (após o início OU trava manual do admin). Sem os
-// extras de mata-mata do Copa (Quem Avança / Pênaltis) — isso é liga.
-//
-// Presentacional: o estado (palpite, now, lock) vem por prop; quem orquestra é
-// PalpitesRodada. Estilo 100% via Tailwind/tokens.
+// Suporta:
+//   - Duas entradas de placar (Home e Away)
+//   - Bloqueio se o jogo ja passou do horario ou foi travado pelo admin
+//   - Escudo do time com fallback para sigla de 3 letras se imagem falhar
+//   - Formatacao de data/hora imune a bugs do Safari/iOS (iPhone)
+//   - Exibicao encurtada de "Red Bull Bragantino" para "RB Bragantino"
 
-import { EscudoTime } from './EscudoTime'
+import { useEffect, useState } from 'react'
+import { getEscudo } from '@/lib/escudos'
 
-export interface JogoPalpite {
+export interface Palpite {
+  h: number | null
+  a: number | null
+}
+
+export interface Jogo {
   id: string
   home: string
   away: string
-  homeLogo?: string
-  awayLogo?: string
-  /** Início do jogo em ISO com timezone. Trava quando agora ≥ kickoff. */
-  kickoff: string
-  /** Trava manual do admin — independe do horário. */
-  travadoManual?: boolean
+  date: string
+  time: string
+  isLocked: boolean
 }
 
-export interface Palpite {
-  h: string
-  a: string
+function getSigla(nome: string): string {
+  const n = nome.trim()
+  if (n === 'Red Bull Bragantino' || n === 'RB Bragantino') return 'RBB'
+  if (n === 'Athletico-PR' || n === 'Athletico PR') return 'CAP'
+  if (n === 'Atlético-MG' || n === 'Atlético MG') return 'CAM'
+  if (n === 'São Paulo') return 'SAO'
+  const palavras = n.split(' ').filter(Boolean)
+  if (palavras.length >= 2) {
+    return (palavras[0][0] + palavras[1][0] + (palavras[2]?.[0] ?? '')).toUpperCase().slice(0, 3)
+  }
+  return n.slice(0, 3).toUpperCase()
 }
 
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(' ')
+function normalizarNomeExibicao(nome: string): string {
+  if (!nome) return ''
+  if (nome === 'Red Bull Bragantino') return 'RB Bragantino'
+  return nome.trim()
 }
 
-/** Formata um intervalo (ms) em "Xd Yh", "Xh Ymin", "Ymin Zs" ou "Zs". */
-export function formatCountdown(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  const d = Math.floor(s / 86400)
-  const h = Math.floor((s % 86400) / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  if (d > 0) return `${d}d ${h}h`
-  if (h > 0) return `${h}h ${m}min`
-  if (m > 0) return `${m}min ${String(sec).padStart(2, '0')}s`
-  return `${sec}s`
+function parseDataHoraSafe(dateStr: string, timeStr: string): Date | null {
+  if (!dateStr) return null
+  const cleanDate = dateStr.trim()
+  let y = 0, m = 0, d = 0
+
+  if (cleanDate.includes('-')) {
+    const parts = cleanDate.split('-')
+    if (parts.length === 3) {
+      y = parseInt(parts[0], 10)
+      m = parseInt(parts[1], 10) - 1
+      d = parseInt(parts[2], 10)
+    }
+  } else if (cleanDate.includes('/')) {
+    const parts = cleanDate.split('/')
+    if (parts.length === 3) {
+      d = parseInt(parts[0], 10)
+      m = parseInt(parts[1], 10) - 1
+      y = parseInt(parts[2], 10)
+    }
+  }
+
+  if (!y || isNaN(y) || isNaN(m) || isNaN(d)) return null
+
+  let hr = 0, min = 0
+  if (timeStr) {
+    const timeParts = timeStr.trim().split(':')
+    if (timeParts.length >= 2) {
+      hr = parseInt(timeParts[0], 10) || 0
+      min = parseInt(timeParts[1], 10) || 0
+    }
+  }
+
+  const dt = new Date(y, m, d, hr, min, 0)
+  if (isNaN(dt.getTime())) return null
+  return dt
 }
 
-/** Limita o gol a 0–20, só dígitos, máx 2 caracteres. */
-export function sanitizeGol(v: string): string {
-  const d = v.replace(/\D/g, '').slice(0, 2)
-  if (d === '') return ''
-  return String(Math.min(20, parseInt(d, 10)))
+function formatarDataFormatada(dateStr: string, timeStr: string): string {
+  const dt = parseDataHoraSafe(dateStr, timeStr)
+  if (!dt) return 'A definir'
+  const dia = String(dt.getDate()).padStart(2, '0')
+  const mes = String(dt.getMonth() + 1).padStart(2, '0')
+  const hora = String(dt.getHours()).padStart(2, '0')
+  const min = String(dt.getMinutes()).padStart(2, '0')
+  return `${dia}/${mes}, ${hora}:${min}`
 }
 
-const URGENTE_MS = 60 * 60 * 1000 // < 1h → contagem urgente
+function formatarCountdown(dateStr: string, timeStr: string): string {
+  const dt = parseDataHoraSafe(dateStr, timeStr)
+  if (!dt) return 'A definir'
+  const ms = dt.getTime() - Date.now()
+  if (ms <= 0) return 'fechado'
+  const totalMin = Math.floor(ms / 60000)
+  if (totalMin < 60) return `fecha em ${totalMin}min`
+  const horas = Math.floor(totalMin / 60)
+  const mins = totalMin % 60
+  if (horas < 24) return `fecha em ${horas}h${mins > 0 ? ` ${mins}min` : ''}`
+  const dias = Math.floor(horas / 24)
+  const hRest = horas % 24
+  return `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`
+}
 
 export function CardJogo({
   jogo,
   palpite,
-  now,
-  onChange,
+  onChangePalpite,
 }: {
-  jogo: JogoPalpite
+  jogo: Jogo
   palpite: Palpite
-  now: number
-  onChange: (p: Palpite) => void
+  onChangePalpite: (p: Palpite) => void
 }) {
-  const kickoffMs = Date.parse(jogo.kickoff)
-  const diffMs = kickoffMs - now
-  const locked = jogo.travadoManual || diffMs <= 0
-  const urgente = !locked && diffMs < URGENTE_MS
+  const [erroImgHome, setErroImgHome] = useState(false)
+  const [erroImgAway, setErroImgAway] = useState(false)
 
-  const horario = new Date(kickoffMs).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const homeNomeExibicao = normalizarNomeExibicao(jogo.home)
+  const awayNomeExibicao = normalizarNomeExibicao(jogo.away)
+
+  const escudoHome = getEscudo(jogo.home)
+  const escudoAway = getEscudo(jogo.away)
+
+  const [tempoTexto, setTempoTexto] = useState(() => formatarCountdown(jogo.date, jogo.time))
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTempoTexto(formatarCountdown(jogo.date, jogo.time))
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [jogo.date, jogo.time])
+
+  const travado = jogo.isLocked
 
   return (
-    <article
-      className={cx(
-        'rounded-lg border bg-papel-50 p-3 shadow-sm transition-opacity',
-        locked ? 'border-papel-borda-200 opacity-75' : 'border-papel-borda-300',
-      )}
-    >
+    <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3.5 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        {/* Casa */}
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          <EscudoTime nome={jogo.home} logo={jogo.homeLogo} />
-          <span className="max-w-full truncate text-center font-sans text-xs font-semibold text-tinta-300">
-            {jogo.home}
+        {/* Mandante */}
+        <div className="flex flex-1 flex-col items-center gap-1.5 text-center min-w-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-papel-borda-300 bg-papel-100 p-1">
+            {escudoHome && !erroImgHome ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={escudoHome}
+                alt={homeNomeExibicao}
+                className="h-full w-full object-contain"
+                onError={() => setErroImgHome(true)}
+              />
+            ) : (
+              <span className="font-display text-xs font-bold text-tinta-200">
+                {getSigla(jogo.home)}
+              </span>
+            )}
+          </div>
+          <span className="max-w-full truncate font-sans text-xs font-semibold text-tinta-300">
+            {homeNomeExibicao}
           </span>
         </div>
 
-        {/* Placar */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        {/* Inputs de Placar */}
+        <div className="flex items-center gap-1.5">
           <input
-            type="text"
+            type="number"
             inputMode="numeric"
-            aria-label={`Gols ${jogo.home}`}
-            value={palpite.h}
-            disabled={locked}
-            onChange={(e) => onChange({ ...palpite, h: sanitizeGol(e.target.value) })}
-            className="h-12 w-11 rounded-md border border-papel-borda-300 bg-papel-100 text-center font-mono text-xl font-bold text-tinta-300 outline-none focus:border-couro-300 disabled:cursor-not-allowed disabled:bg-papel-300 disabled:text-tinta-100"
+            min={0}
+            max={99}
+            disabled={travado}
+            value={palpite.h ?? ''}
+            onChange={(e) => {
+              const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
+              onChangePalpite({ ...palpite, h: isNaN(val!) ? null : val })
+            }}
+            placeholder=""
+            className="h-10 w-10 rounded-md border border-papel-borda-300 bg-papel-100 text-center font-mono text-base font-bold text-tinta-300 outline-none focus:border-dourado-500 focus:ring-1 focus:ring-dourado-500 disabled:opacity-50"
           />
-          <span className="font-mono text-sm text-tinta-100">×</span>
+          <span className="font-mono text-xs text-tinta-100">×</span>
           <input
-            type="text"
+            type="number"
             inputMode="numeric"
-            aria-label={`Gols ${jogo.away}`}
-            value={palpite.a}
-            disabled={locked}
-            onChange={(e) => onChange({ ...palpite, a: sanitizeGol(e.target.value) })}
-            className="h-12 w-11 rounded-md border border-papel-borda-300 bg-papel-100 text-center font-mono text-xl font-bold text-tinta-300 outline-none focus:border-couro-300 disabled:cursor-not-allowed disabled:bg-papel-300 disabled:text-tinta-100"
+            min={0}
+            max={99}
+            disabled={travado}
+            value={palpite.a ?? ''}
+            onChange={(e) => {
+              const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
+              onChangePalpite({ ...palpite, a: isNaN(val!) ? null : val })
+            }}
+            placeholder=""
+            className="h-10 w-10 rounded-md border border-papel-borda-300 bg-papel-100 text-center font-mono text-base font-bold text-tinta-300 outline-none focus:border-dourado-500 focus:ring-1 focus:ring-dourado-500 disabled:opacity-50"
           />
         </div>
 
-        {/* Fora */}
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          <EscudoTime nome={jogo.away} logo={jogo.awayLogo} />
-          <span className="max-w-full truncate text-center font-sans text-xs font-semibold text-tinta-300">
-            {jogo.away}
+        {/* Visitante */}
+        <div className="flex flex-1 flex-col items-center gap-1.5 text-center min-w-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-papel-borda-300 bg-papel-100 p-1">
+            {escudoAway && !erroImgAway ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={escudoAway}
+                alt={awayNomeExibicao}
+                className="h-full w-full object-contain"
+                onError={() => setErroImgAway(true)}
+              />
+            ) : (
+              <span className="font-display text-xs font-bold text-tinta-200">
+                {getSigla(jogo.away)}
+              </span>
+            )}
+          </div>
+          <span className="max-w-full truncate font-sans text-xs font-semibold text-tinta-300">
+            {awayNomeExibicao}
           </span>
         </div>
       </div>
 
-      {/* Rodapé: horário + countdown ou badge de travado */}
-      <div className="mt-3 flex items-center justify-center border-t border-papel-borda-200 pt-2">
-        {locked ? (
-          <span className="flex items-center gap-1.5 rounded-full bg-tinta-300 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-papel-50">
-            🔒 {jogo.travadoManual ? 'Travado pelo admin' : 'Jogo começou'}
-          </span>
+      {/* Footer com Data/Hora e Status de Bloqueio */}
+      <div className="mt-2.5 flex items-center justify-center gap-2 border-t border-papel-borda-200/60 pt-2 font-mono text-[10px] text-tinta-100">
+        <span>⏱ {formatarDataFormatada(jogo.date, jogo.time)}</span>
+        <span>·</span>
+        {travado ? (
+          <span className="font-semibold text-raridade-frango-selo">🔒 palpite encerrado</span>
         ) : (
-          <span className="flex flex-wrap items-center justify-center gap-x-2 font-mono text-[11px] text-tinta-100">
-            <span>⏱ {horario}</span>
-            <span
-              className={cx(
-                'font-bold',
-                urgente ? 'text-raridade-frango-selo' : 'text-verde-badge',
-              )}
-            >
-              · fecha em {formatCountdown(diffMs)}
-            </span>
-          </span>
+          <span className="text-dourado-700">{tempoTexto}</span>
         )}
       </div>
-    </article>
+    </div>
   )
 }
