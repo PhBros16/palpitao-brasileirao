@@ -24,14 +24,21 @@ export interface PalpiteHistorico {
   name: string
   avatar: string | null
   emoji: string | null
+  posicao: number
+  pos: number
+  position: number
   pontos: number
   round_pts: number
   pts: number
   total_pts: number
   cravadas: number
+  cravada: number
   exact_scores: number
+  vencedor: number
   vencedores: number
   correct_winner: number
+  venc: number
+  saldo: number
   saldos: number
   correct_saldo: number
 }
@@ -156,7 +163,6 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
   if (rErr) throw rErr
   if (!rounds || rounds.length === 0) return []
 
-  // ORDENAÇÃO: Normais (R24, R23...) primeiro em ordem decrescente; Extras por último
   const roundsOrdenados = [...rounds].sort((a, b) => {
     const isExtraA = a.number >= 100
     const isExtraB = b.number >= 100
@@ -219,6 +225,9 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
         const p = partMap.get(rr.participant_id)
         if (!p) return null
         const pts = rr.round_pts ?? 0
+        const crav = rr.exact_scores ?? 0
+        const venc = rr.correct_winner ?? 0
+        const sald = rr.correct_saldo ?? 0
         return {
           id: p.id,
           participantId: p.id,
@@ -227,20 +236,34 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
           name: p.name,
           avatar: p.avatar ?? null,
           emoji: p.emoji ?? null,
+          posicao: 0,
+          pos: 0,
+          position: 0,
           pontos: pts,
           round_pts: pts,
           pts: pts,
           total_pts: pts,
-          cravadas: rr.exact_scores ?? 0,
-          exact_scores: rr.exact_scores ?? 0,
-          vencedores: rr.correct_winner ?? 0,
-          correct_winner: rr.correct_winner ?? 0,
-          saldos: rr.correct_saldo ?? 0,
-          correct_saldo: rr.correct_saldo ?? 0,
+          cravadas: crav,
+          cravada: crav,
+          exact_scores: crav,
+          vencedor: venc,
+          vencedores: venc,
+          venc: venc,
+          correct_winner: venc,
+          saldo: sald,
+          saldos: sald,
+          correct_saldo: sald,
         }
       })
       .filter((x): x is PalpiteHistorico => x !== null)
       .sort((a, b) => b.pontos - a.pontos || b.cravadas - a.cravadas || b.saldos - a.saldos)
+
+    // Preenche as colocações pós-ordenação
+    ranking.forEach((item, idx) => {
+      item.posicao = idx + 1
+      item.pos = idx + 1
+      item.position = idx + 1
+    })
 
     const campeao: CampeaoHistorico | null = ranking[0]
       ? {
@@ -365,6 +388,9 @@ export async function buscarDetalheRodada(
       const p = partMap.get(rr.participant_id)
       if (!p) return null
       const pts = rr.round_pts ?? 0
+      const crav = rr.exact_scores ?? 0
+      const venc = rr.correct_winner ?? 0
+      const sald = rr.correct_saldo ?? 0
       return {
         id: p.id,
         participantId: p.id,
@@ -373,20 +399,33 @@ export async function buscarDetalheRodada(
         name: p.name,
         avatar: p.avatar ?? null,
         emoji: p.emoji ?? null,
+        posicao: 0,
+        pos: 0,
+        position: 0,
         pontos: pts,
         round_pts: pts,
         pts: pts,
         total_pts: pts,
-        cravadas: rr.exact_scores ?? 0,
-        exact_scores: rr.exact_scores ?? 0,
-        vencedores: rr.correct_winner ?? 0,
-        correct_winner: rr.correct_winner ?? 0,
-        saldos: rr.correct_saldo ?? 0,
-        correct_saldo: rr.correct_saldo ?? 0,
+        cravadas: crav,
+        cravada: crav,
+        exact_scores: crav,
+        vencedor: venc,
+        vencedores: venc,
+        venc: venc,
+        correct_winner: venc,
+        saldo: sald,
+        saldos: sald,
+        correct_saldo: sald,
       }
     })
     .filter((x): x is PalpiteHistorico => x !== null)
     .sort((a, b) => b.pontos - a.pontos || b.cravadas - a.cravadas || b.saldos - a.saldos)
+
+  ranking.forEach((item, idx) => {
+    item.posicao = idx + 1
+    item.pos = idx + 1
+    item.position = idx + 1
+  })
 
   const frango: FrangoHistorico | null = shame
     ? {
