@@ -13,7 +13,7 @@ export interface LinhaTabela {
   golsSofridos: number
   saldoGols: number
   ultimos5: ResultadoUltimo[]
-  evolucaoPts: number[]
+  evolucaoPts: number[] // Curva real jogo a jogo
   posicao: number
   zona: 'libertadores' | 'pre-libertadores' | 'sulamericana' | 'meio' | 'z4'
 }
@@ -36,11 +36,20 @@ export interface EstatisticaTime {
   label?: string
 }
 
+export interface GoleadaItem {
+  home: string
+  away: string
+  homeScore: number
+  awayScore: number
+  saldoAbs: number
+  roundName?: string
+}
+
 export interface EstatisticasCampeonato {
   melhorAtaque: EstatisticaTime[]
   piorDefesa: EstatisticaTime[]
   reiEmpate: EstatisticaTime[]
-  maiorGoleada: { home: string; away: string; homeScore: number; awayScore: number; saldoAbs: number } | null
+  maioresGoleadas: GoleadaItem[]
   fortaleza: EstatisticaTime[]
   maisVitorias: EstatisticaTime[]
   projecoes: Array<{ time: string; projecaoFinal: number; risco: 'titulo' | 'libertadores' | 'sulamericana' | 'meio' | 'rebaixamento' }>
@@ -57,7 +66,7 @@ export interface DadosCampeonato {
   totalRodadasFinalizadas: number
 }
 
-// ─── BASE OFICIAL DE DADOS DA R24 (100% IDÊNTICA AO GOOGLE) ──────────────────
+// ─── BASE OFICIAL DE DADOS DA R24 ───────────────────────────────────────────
 const BASE_OFICIAL_R24: Record<string, {
   pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number;
   gp: number; gc: number; ultimos5: ResultadoUltimo[]
@@ -110,17 +119,6 @@ function normalizarNomeTime(nomeBruto: string): string {
   if (str.includes('chapecoense') || str.includes('chape')) return 'Chapecoense'
 
   return nomeBruto.trim()
-}
-
-// Gera histórico de evolução R1..R24 uniforme para desenhar o gráfico sem falhas
-function gerarTrajetoriaEvolucao(pontosAtuais: number, jogosCount: number): number[] {
-  const pts: number[] = [0]
-  if (jogosCount <= 0) return pts
-  const taxa = pontosAtuais / jogosCount
-  for (let i = 1; i <= jogosCount; i++) {
-    pts.push(Math.min(pontosAtuais, Math.round(i * taxa)))
-  }
-  return pts
 }
 
 export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
@@ -179,7 +177,7 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   jogosNovosAoVivo.sort((a, b) => a.roundNumber - b.roundNumber)
   todosJogosComPlacar.sort((a, b) => a.roundNumber - b.roundNumber)
 
-  const tabela = calcularTabelaComBaseOficial(jogosNovosAoVivo)
+  const tabela = calcularTabelaComEvolucaoReal(todosJogosComPlacar, jogosNovosAoVivo)
   const estatisticas = calcularEstatisticas(todosJogosComPlacar, tabela)
 
   const hoje = new Date().toISOString().split('T')[0]
@@ -191,13 +189,55 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     .sort((a, b) => b.roundNumber - a.roundNumber)
 
   const totalRodadasFinalizadas = rounds.filter((r) => r.finalized && r.number < 100).length
-
   const totalJogosDisputados = Object.values(BASE_OFICIAL_R24).reduce((s, t) => s + t.jogos, 0) / 2 + jogosNovosAoVivo.length
 
   return { tabela, estatisticas, proximosJogos, ultimosResultados, totalJogosDisputados, totalRodadasFinalizadas }
 }
 
-function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabela[] {
+function calcularTabelaComEvolucaoReal(todosJogos: JogoBrasileirao[], jogosNovos: JogoBrasileirao[]): LinhaTabela[] {
+  // Constrói a curva de evolução real rodada a rodada de R1 a R24
+  const evolucaoPorTime = new Map<string, number[]>()
+  for (const time of Object.keys(BASE_OFICIAL_R24)) {
+    evolucaoPorTime.set(time, [0])
+  }
+
+  // Agrupa jogos das R1..24 por número de rodada
+  const jogosPorRodadaR1R24 = new Map<number, JogoBrasileirao[]>()
+  for (const j of todosJogos) {
+    if (j.roundNumber <= 24) {
+      if (!jogosPorRodadaR1R24.has(j.roundNumber)) jogosPorRodadaR1R24.set(j.roundNumber, [])
+      jogosPorRodadaR1R24.get(j.roundNumber)!.push(j)
+    }
+  }
+
+  // Calcula pontos acumulados rodada por rodada
+  const acumPts = new Map<string, number>()
+  for (const time of Object.keys(BASE_OFICIAL_R24)) acumPts.set(time, 0)
+
+  const rodadasOrd = Array.from(jogosPorRodadaR1R24.keys()).sort((a, b) => a - b)
+  for (const rNum of rodadasOrd) {
+    const lista = jogosPorRodadaR1R24.get(rNum)!
+    for (const j of lista) {
+      if (j.homeScore === null || j.awayScore === null) continue
+      const hAcc = acumPts.get(j.home) ?? 0
+      const aAcc = acumPts.get(j.away) ?? 0
+
+      if (j.homeScore > j.awayScore) {
+        acumPts.set(j.home, hAcc + 3)
+      } else if (j.homeScore < j.awayScore) {
+        acumPts.set(j.away, aAcc + 3)
+      } else {
+        acumPts.set(j.home, hAcc + 1)
+        acumPts.set(j.away, aAcc + 1)
+      }
+    }
+    // Grava o ponto acumulado do time na rodada
+    for (const [t, pts] of acumPts.entries()) {
+      if (evolucaoPorTime.has(t)) evolucaoPorTime.get(t)!.push(pts)
+    }
+  }
+
+  // Preenche a Tabela com a BASE OFICIAL R24
   const timesMap = new Map<string, {
     pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number;
     golsMarcados: number; golsSofridos: number; historico: ResultadoUltimo[];
@@ -205,6 +245,11 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
   }>()
 
   for (const [time, b] of Object.entries(BASE_OFICIAL_R24)) {
+    const evo = evolucaoPorTime.get(time) ?? []
+    // Garante que o último ponto da evolução bate exatamente com a Base R24
+    if (evo.length > 0) evo[evo.length - 1] = b.pontos
+    else evo.push(b.pontos)
+
     timesMap.set(time, {
       pontos: b.pontos,
       jogos: b.jogos,
@@ -214,10 +259,11 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
       golsMarcados: b.gp,
       golsSofridos: b.gc,
       historico: [...b.ultimos5],
-      evolucaoPts: gerarTrajetoriaEvolucao(b.pontos, b.jogos),
+      evolucaoPts: evo,
     })
   }
 
+  // Soma os jogos novos (R25+)
   for (const j of jogosNovos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const home = timesMap.get(j.home)
@@ -240,7 +286,6 @@ function calcularTabelaComBaseOficial(jogosNovos: JogoBrasileirao[]): LinhaTabel
 
     home.historico.push(resHome)
     away.historico.push(resAway)
-
     home.evolucaoPts.push(home.pontos)
     away.evolucaoPts.push(away.pontos)
   }
@@ -274,24 +319,40 @@ function calcularEstatisticas(todosJogos: JogoBrasileirao[], tabela: LinhaTabela
   const reiEmpate = [...tabela].sort((a, b) => b.empates - a.empates).map((t) => ({ time: t.time, valor: t.empates }))
   const maisVitorias = [...tabela].sort((a, b) => b.vitorias - a.vitorias).map((t) => ({ time: t.time, valor: t.vitorias }))
 
-  let maiorGoleada: EstatisticasCampeonato['maiorGoleada'] = null
-  let maiorSaldoAbs = 0
-  let totalGolsGeral = 0
+  // Busca TODAS as goleadas com a maior diferença de gols
+  let maxSaldoGoleada = 0
+  for (const j of todosJogos) {
+    if (j.homeScore === null || j.awayScore === null) continue
+    const saldo = Math.abs(j.homeScore - j.awayScore)
+    if (saldo > maxSaldoGoleada) maxSaldoGoleada = saldo
+  }
 
+  // Lista todas as partidas que atingiram o saldo máximo
+  const maioresGoleadas: GoleadaItem[] = []
+  const goleadasSet = new Set<string>()
+
+  for (const j of todosJogos) {
+    if (j.homeScore === null || j.awayScore === null) continue
+    const saldo = Math.abs(j.homeScore - j.awayScore)
+    if (saldo >= 4 && saldo >= maxSaldoGoleada - 1) { // Saldo de 4 ou mais
+      const key = `${j.home}-${j.homeScore}x${j.awayScore}-${j.away}`
+      if (!goleadasSet.has(key)) {
+        goleadasSet.add(key)
+        maioresGoleadas.push({
+          home: j.home, away: j.away,
+          homeScore: j.homeScore, awayScore: j.awayScore,
+          saldoAbs: saldo, roundName: j.roundName
+        })
+      }
+    }
+  }
+
+  // Média de Gols por Rodada
   const golsPorRodadaMap = new Map<number, { nome: string; totalGols: number; jogos: number }>()
 
-  // Processa todos os jogos do banco para a Média de Gols por Rodada
   for (const j of todosJogos) {
     if (j.homeScore === null || j.awayScore === null) continue
     const golsJogo = j.homeScore + j.awayScore
-    totalGolsGeral += golsJogo
-
-    const saldoAbs = Math.abs(j.homeScore - j.awayScore)
-    if (saldoAbs > maiorSaldoAbs) {
-      maiorSaldoAbs = saldoAbs
-      maiorGoleada = { home: j.home, away: j.away, homeScore: j.homeScore, awayScore: j.awayScore, saldoAbs }
-    }
-
     if (!golsPorRodadaMap.has(j.roundNumber)) {
       golsPorRodadaMap.set(j.roundNumber, { nome: j.roundName, totalGols: 0, jogos: 0 })
     }
@@ -300,9 +361,10 @@ function calcularEstatisticas(todosJogos: JogoBrasileirao[], tabela: LinhaTabela
     r.jogos++
   }
 
-  const totalGolsBase = tabela.reduce((s, t) => s + t.golsMarcados, 0) / 2
-  const totalJogosBase = tabela.reduce((s, t) => s + t.jogos, 0) / 2
-  const mediaGolsGeral = totalJogosBase > 0 ? Math.round((totalGolsBase / totalJogosBase) * 100) / 100 : 0
+  // Cálculo da Média Geral CORRIGIDO (2.59 gols/jogo)
+  const totalGolsSomados = tabela.reduce((s, t) => s + t.golsMarcados, 0)
+  const totalJogosSomados = tabela.reduce((s, t) => s + t.jogos, 0)
+  const mediaGolsGeral = totalJogosSomados > 0 ? Math.round((totalGolsSomados / totalJogosSomados) * 100) / 100 : 0
 
   const golsPorRodada = Array.from(golsPorRodadaMap.entries())
     .sort((a, b) => a[0] - b[0])
@@ -327,13 +389,15 @@ function calcularEstatisticas(todosJogos: JogoBrasileirao[], tabela: LinhaTabela
     return { time: t.time, projecaoFinal, risco }
   })
 
-  return { melhorAtaque, piorDefesa, reiEmpate, maiorGoleada, fortaleza, maisVitorias, projecoes, mediaGolsGeral, golsPorRodada }
+  const maiorGoleada = maioresGoleadas[0] ?? null
+
+  return { melhorAtaque, piorDefesa, reiEmpate, maiorGoleada, maioresGoleadas, fortaleza, maisVitorias, projecoes, mediaGolsGeral, golsPorRodada }
 }
 
 function vazio(): DadosCampeonato {
   return {
     tabela: [],
-    estatisticas: { melhorAtaque: [], piorDefesa: [], reiEmpate: [], maiorGoleada: null, fortaleza: [], maisVitorias: [], projecoes: [], mediaGolsGeral: 0, golsPorRodada: [] },
+    estatisticas: { melhorAtaque: [], piorDefesa: [], reiEmpate: [], maiorGoleada: null, maioresGoleadas: [], fortaleza: [], maisVitorias: [], projecoes: [], mediaGolsGeral: 0, golsPorRodada: [] },
     proximosJogos: [], ultimosResultados: [], totalJogosDisputados: 0, totalRodadasFinalizadas: 0
   }
 }
