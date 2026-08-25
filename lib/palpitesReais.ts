@@ -35,30 +35,30 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     .eq('round_id', round.id)
     .order('match_date', { ascending: true })
 
+  const agora = Date.now()
+
   const jogos: JogoParaPalpite[] = (matches ?? []).map((m) => {
-    // Calcula se já passou da hora (travamento automático)
     let isLocked = m.travado_manual ?? false
+
+    // Trava automática por horário (Compatível 100% com Safari iOS/iPhone)
     if (!isLocked && m.match_date && m.match_time) {
-      // Formata data caso tenha vindo como AAAA-MM-DD do banco
-      const dateStr = m.match_date.includes('/') 
-        ? m.match_date.split('/').reverse().join('-') 
+      const dataFormatada = m.match_date.includes('/')
+        ? m.match_date.split('/').reverse().join('-')
         : m.match_date
-      
-      const dateTimeStr = `${dateStr}T${m.match_time}`
-      const matchTime = new Date(dateTimeStr).getTime()
-      if (Date.now() >= matchTime) {
+
+      // Adiciona o 'T' obrigatório do Safari para ISO Date
+      const isoString = `${dataFormatada}T${m.match_time.substring(0, 5)}:00`
+      const matchTime = new Date(isoString).getTime()
+
+      if (!isNaN(matchTime) && agora >= matchTime) {
         isLocked = true
       }
     }
-    
-    // Tratamento estético apenas pro RB Bragantino na tela
-    const h = m.home === 'Red Bull Bragantino' ? 'RB Bragantino' : m.home
-    const a = m.away === 'Red Bull Bragantino' ? 'RB Bragantino' : m.away
 
     return {
       id: m.id,
-      home: h,
-      away: a,
+      home: m.home,
+      away: m.away,
       date: m.match_date ?? '',
       time: m.match_time?.slice(0, 5) ?? '',
       isLocked,
@@ -104,18 +104,19 @@ export async function salvarPalpitesReais(
   const matchIds = Object.keys(palpites)
   if (matchIds.length === 0) return
 
-  // Loga a ação
   try {
     const { data: parts } = await supabase.from('participants').select('name').eq('id', participantId).single()
     const { data: matchesData } = await supabase.from('matches').select('id, home, away').in('id', matchIds)
 
     if (parts && matchesData) {
-      const matchMap = new Map(matchesData.map(m => [m.id, m]))
-      const logJogos = matchIds.map(id => {
-        const m = matchMap.get(id)
-        const p = palpites[id]
-        return m ? { jogo: `${m.home}×${m.away}`, palpite: `${p.h}×${p.a}` } : null
-      }).filter(Boolean)
+      const matchMap = new Map(matchesData.map((m) => [m.id, m]))
+      const logJogos = matchIds
+        .map((id) => {
+          const m = matchMap.get(id)
+          const p = palpites[id]
+          return m ? { jogo: `${m.home}×${m.away}`, palpite: `${p.h}×${p.a}` } : null
+        })
+        .filter(Boolean)
 
       await supabase.from('admin_log').insert({
         action: 'PALPITE_SALVO',
