@@ -152,22 +152,18 @@ export async function buscarJogosSemPlacar(
  *   2. Popula round_results com pts/cravadas/saldos/vencedores calculados
  *   3. Recalcula total_pts e position em cascata pra TODAS as rodadas
  *      finalizadas (ordem: number crescente)
- *
- * Se der erro em qualquer passo, lança — não fica em estado parcial nos 2
- * primeiros (mas passo 3 pode falhar mesmo com passos 1 e 2 ok).
  */
 export async function finalizarRodada(roundId: string): Promise<void> {
-  // Passo 1: marca como finalizada
   const { error: e1 } = await supabase
     .from('rounds')
     .update({ finalized: true, palpites_open: false })
     .eq('id', roundId)
   if (e1) throw e1
 
-  // Passo 2: popula round_results dessa rodada
   const { data: parts, error: ePart } = await supabase
     .from('participants')
     .select('id')
+    .eq('is_admin', false)
   if (ePart) throw ePart
 
   const { data: matches } = await supabase
@@ -187,7 +183,6 @@ export async function finalizarRodada(roundId: string): Promise<void> {
     predsPorPart.get(p.participant_id)!.push({ points: p.points })
   }
 
-  // Limpa round_results existente dessa rodada (caso reabrir/refinalizar)
   await supabase.from('round_results').delete().eq('round_id', roundId)
 
   const rows = (parts ?? []).map((part) => {
@@ -218,7 +213,6 @@ export async function finalizarRodada(roundId: string): Promise<void> {
     if (eIns) throw eIns
   }
 
-  // Passo 3: recalcula total_pts e position em cascata pra TODAS finalizadas
   const { data: rodadasFinalizadas } = await supabase
     .from('rounds')
     .select('id, number')
@@ -414,7 +408,7 @@ export async function corrigirPontoManual(
   if (error) throw error
 }
 
-// ─── Histórico de rodadas pra Projeção de Campeão ────────────────────────────
+// ─── Histórico de rodadas pra Projeção de Campeão (Sincronizado com round_results) ────
 
 export interface RodadaHistoricoAdmin {
   roundId: string
@@ -434,43 +428,29 @@ export async function buscarHistoricoRodadas(): Promise<RodadaHistoricoAdmin[]> 
 
   const roundIds = rounds.map((r) => r.id)
 
-  const { data: matches, error: mErr } = await supabase
-    .from('matches')
-    .select('id, round_id')
-    .in('round_id', roundIds)
-  if (mErr) throw mErr
-
-  const matchIds = (matches ?? []).map((m) => m.id)
-  if (matchIds.length === 0) {
-    return rounds.map((r) => ({ roundId: r.id, numero: r.number, nome: r.name, scores: {} }))
-  }
-
-  const matchParaRound = new Map((matches ?? []).map((m) => [m.id, m.round_id]))
-
-  const { data: predictions, error: pErr } = await supabase
-    .from('predictions')
-    .select('match_id, participant_id, points')
-    .in('match_id', matchIds)
-    .not('points', 'is', null)
-  if (pErr) throw pErr
-
   const { data: participants, error: partErr } = await supabase
     .from('participants')
     .select('id, name')
+    .eq('is_admin', false)
   if (partErr) throw partErr
 
   const idParaNome = new Map((participants ?? []).map((p) => [p.id, p.name]))
 
+  // Lê DIRETO da fonte oficial (round_results) pra bater 100% com o Ranking
+  const { data: rrRows, error: rrErr } = await supabase
+    .from('round_results')
+    .select('round_id, participant_id, round_pts')
+    .in('round_id', roundIds)
+  if (rrErr) throw rrErr
+
   const scoresMap = new Map<string, Record<string, number>>()
   for (const roundId of roundIds) scoresMap.set(roundId, {})
 
-  for (const pred of predictions ?? []) {
-    const roundId = matchParaRound.get(pred.match_id)
-    if (!roundId) continue
-    const nome = idParaNome.get(pred.participant_id)
+  for (const row of rrRows ?? []) {
+    const nome = idParaNome.get(row.participant_id)
     if (!nome) continue
-    const bucket = scoresMap.get(roundId)!
-    bucket[nome] = (bucket[nome] ?? 0) + (pred.points ?? 0)
+    const bucket = scoresMap.get(row.round_id)
+    if (bucket) bucket[nome] = row.round_pts ?? 0
   }
 
   return rounds.map((r) => ({
@@ -492,14 +472,6 @@ export interface EntradaLog {
   created_at: string
 }
 
-/**
- * Grava uma linha em admin_log.
- *
- * - `performedBy`: nome legível de quem executou (admin ou usuário).
- * - `participantId`: UUID do participante quando a ação é de um usuário
- *   comum. Pra ações de admin, deixa `undefined` — mas se quiser filtrar
- *   por qualquer pessoa no admin, pode passar sempre.
- */
 export async function gravarLog(
   action: string,
   payload?: Record<string, any>,
