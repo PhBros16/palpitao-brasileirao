@@ -184,7 +184,6 @@ function EstatisticasCampeonato({
   const e = dados.estatisticas
   const [filtroEvo, setFiltroEvo] = useState<number | 'z4'>(5)
 
-  // Filtro inteligente para o gráfico de evolução
   const timesEvo = useMemo(() => {
     if (filtroEvo === 'z4') return dados.tabela.slice(-4)
     return dados.tabela.slice(0, filtroEvo)
@@ -198,15 +197,13 @@ function EstatisticasCampeonato({
     '#0284C7', '#0369A1', '#1D4ED8', '#4338CA', '#5B21B6', '#7E22CE', '#A21CAF', '#BE185D'
   ]
 
-  // Probabilidades proporcionais entre os postulantes
   const chancesTitulo = useMemo(() => {
     const liderProj = Math.max(...e.projecoes.map(p => p.projecaoFinal), 1)
-    const timesProximos = e.projecoes.filter(p => p.projecaoFinal >= liderProj - 15)
+    const timesProximos = e.projecoes.filter(p => p.projecaoFinal >= liderProj - 10 && p.projecaoFinal >= 65)
     
-    // Calcula pesos exponenciais baseados nos pontos projetados
     const pesos = timesProximos.map(p => ({
       time: p.time,
-      peso: Math.pow(Math.max(1, p.projecaoFinal - 50), 2.5),
+      peso: Math.pow(Math.max(1, p.projecaoFinal - 60), 1.8),
       proj: p.projecaoFinal
     }))
     
@@ -224,10 +221,10 @@ function EstatisticasCampeonato({
       .map(p => {
         let risco = 0
         if (p.projecaoFinal <= 35) risco = 99
-        else if (p.projecaoFinal <= 39) risco = 85
-        else if (p.projecaoFinal <= 42) risco = 60
-        else if (p.projecaoFinal <= 44) risco = 35
-        else if (p.projecaoFinal === 45) risco = 12
+        else if (p.projecaoFinal <= 38) risco = 85
+        else if (p.projecaoFinal <= 41) risco = 55
+        else if (p.projecaoFinal <= 43) risco = 25
+        else if (p.projecaoFinal === 44) risco = 8
         return { time: p.time, risco, proj: p.projecaoFinal }
       })
       .filter(t => t.risco > 0)
@@ -267,7 +264,7 @@ function EstatisticasCampeonato({
   return (
     <div className="flex flex-col gap-3">
 
-      {/* PROJEÇÃO DO CAMPEONATO (NO TOPO COM EXPLICAÇÃO COMPLETA) */}
+      {/* PROJEÇÃO DO CAMPEONATO */}
       <CardEnvelope titulo="🔮 Projeção do Campeonato">
         <div className="border-b border-papel-borda-200 bg-papel-100 px-3 py-2">
           <p className="font-mono text-[9px] uppercase tracking-widest text-tinta-200">Fórmula da Projeção Matemática</p>
@@ -303,7 +300,7 @@ function EstatisticasCampeonato({
         </div>
       </CardEnvelope>
 
-      {/* PROBABILIDADES MATEMÁTICAS (TÍTULO E Z4) */}
+      {/* PROBABILIDADES MATEMÁTICAS */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-dourado-300 bg-dourado-50 p-3">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-dourado-800">🏆 Chance de Título</p>
@@ -350,7 +347,7 @@ function EstatisticasCampeonato({
         </div>
       </div>
 
-      {/* GRÁFICO DE EVOLUÇÃO DOS TIMES */}
+      {/* GRÁFICO DE EVOLUÇÃO */}
       {timesEvo.length > 0 && (
         <CardEnvelope titulo="📈 Evolução do Campeonato">
           <div className="p-3">
@@ -420,7 +417,7 @@ function EstatisticasCampeonato({
         </CardEnvelope>
       )}
 
-      {/* CARDS DE RESUMO DO CAMPEONATO */}
+      {/* CARDS DE RESUMO TOTAIS */}
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2.5 text-center">
           <span className="font-mono text-xl font-bold text-tinta-300">{dados.totalJogosDisputados}</span>
@@ -431,6 +428,7 @@ function EstatisticasCampeonato({
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Rodadas Realizadas</span>
         </div>
       </div>
+      
       <div className="grid grid-cols-4 gap-2 mb-3">
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
           <span className="font-mono text-base font-bold text-green-600">{dados.tabela.reduce((s,t) => s + t.vitorias, 0) / 2}</span>
@@ -450,7 +448,7 @@ function EstatisticasCampeonato({
         </div>
       </div>
 
-      {/* MÉDIA DE GOLS POR RODADA (COM R1 A R24 TOTALMENTE PREENCHIDAS) */}
+      {/* MÉDIA DE GOLS POR RODADA */}
       <CardEnvelope titulo="⚽ Média de Gols por Rodada">
         <div className="max-h-56 space-y-1.5 overflow-y-auto p-3 scrollbar-tema">
           {e.golsPorRodada.length === 0 ? (
@@ -467,7 +465,7 @@ function EstatisticasCampeonato({
         </div>
       </CardEnvelope>
 
-      {/* MAIORES GOLEADAS (LISTA COMPLETA) */}
+      {/* MAIORES GOLEADAS */}
       {(e.maioresGoleadas?.length ?? 0) > 0 && (
         <CardEnvelope titulo="🔥 Maiores Goleadas do Campeonato">
           <div className="space-y-2 p-3">
@@ -726,7 +724,7 @@ function ModalTime({
             {projecao.risco === 'titulo' && <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-xs font-bold text-dourado-700">🏆 Título</span>}
             {projecao.risco === 'libertadores' && <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-700">🔵 G4</span>}
             {projecao.risco === 'sulamericana' && <span className="rounded bg-green-100 px-2 py-0.5 font-mono text-xs font-bold text-green-700">🟢 Sula</span>}
-            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Z4</span>}
+            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Risco Z4</span>}
             <span className="mt-0.5 font-mono text-[10px] text-tinta-200">Proj: {projecao.projecaoFinal} pts</span>
           </div>
         )}
