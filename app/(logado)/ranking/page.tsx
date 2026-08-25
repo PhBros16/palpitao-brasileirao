@@ -46,7 +46,6 @@ export default function RankingPage() {
       return
     }
 
-    // Busca ranking fresquinho (inclui projecao_janela atual do Admin)
     carregarRanking()
 
     if (sessao?.id) {
@@ -57,8 +56,6 @@ export default function RankingPage() {
         .catch(() => { /* silencioso */ })
     }
 
-    // Revalida quando o usuário volta pra aba do navegador
-    // (ex: mudou a projeção no Admin em outra aba e voltou pro Ranking)
     function onFocus() {
       carregarRanking()
     }
@@ -138,7 +135,7 @@ export default function RankingPage() {
   )
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers (Detecção de Troféus Corrigida) ──────────────────────────────────
 
 function detectarNovosTrofeus(
   participantId: string,
@@ -155,13 +152,13 @@ function detectarNovosTrofeus(
   const desbloqueados = trofeus.filter((t) => t.unlocked)
   const novos = desbloqueados.filter((t) => !vistosIds.includes(t.id))
 
-  const novosIds = desbloqueados.map((t) => t.id)
-  try {
-    localStorage.setItem(chave, JSON.stringify(novosIds))
-  } catch { /* ignora */ }
-
-  if (vistosIds.length > 0 && novos.length > 0) {
+  // Se houver qualquer troféu novo não visto (mesmo que seja a primeira vez no dispositivo)
+  if (novos.length > 0) {
     onNovos(novos)
+    const todosIdsDesbloqueados = desbloqueados.map((t) => t.id)
+    try {
+      localStorage.setItem(chave, JSON.stringify(todosIdsDesbloqueados))
+    } catch { /* ignora */ }
   }
 }
 
