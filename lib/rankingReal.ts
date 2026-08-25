@@ -4,11 +4,13 @@ import { calcProjecaoPct } from './domain/projecao'
 
 // Camada de dados do Ranking real.
 //
-// Regras Oficiais do Bolão:
-//   - Cravada: 5 pts (10 na R19 x2)
-//   - Saldo: 3 pts (6 na R19 x2)
-//   - Vencedor: 1 pt (2 na R19 x2)
-//   - Errou: 0 pts
+// Lê da tabela round_results (336 linhas total - imune ao limite de 1000 linhas do Supabase).
+//
+// Regras do Ranking Oficial:
+//   - PONTOS: soma de round_pts de todas as rodadas finalizadas
+//   - CRAV.: soma de exact_scores (cravadas = 5/10 pts)
+//   - SALDO: soma de correct_saldo (saldos = 3/6 pts)
+//   - VENC.: soma de todos os palpites onde pontuou (>0 pts)
 //
 // Filtros:
 //   - Só participantes com is_admin = false
@@ -67,7 +69,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
       .order('name'),
     supabase
       .from('rounds')
-      .select('id, number, is_double')
+      .select('id, number')
       .eq('finalized', true),
   ])
 
@@ -75,8 +77,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
   if (!participants) return []
   if (rErr) throw rErr
 
-  const roundMap = new Map((rounds ?? []).map((r) => [r.id, r.is_double ?? false]))
-  const roundIds = Array.from(roundMap.keys())
+  const roundIds = (rounds ?? []).map((r) => r.id)
 
   if (roundIds.length === 0) {
     return participants.map((p, i) => ({
@@ -93,50 +94,33 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }))
   }
 
-  // 1. Busca partidas das rodadas finalizadas
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id, round_id, home_score, away_score')
+  // Busca agregados da tabela round_results (336 linhas -> 100% completo, sem corte)
+  const { data: rr, error: rrErr } = await supabase
+    .from('round_results')
+    .select('participant_id, round_pts, exact_scores, correct_saldo, correct_winner')
     .in('round_id', roundIds)
 
-  const matchMap = new Map((matches ?? []).map((m) => [m.id, m]))
-  const matchIds = (matches ?? []).map((m) => m.id)
-
-  // 2. Busca palpites gravados
-  const { data: preds } = matchIds.length > 0
-    ? await supabase
-        .from('predictions')
-        .select('participant_id, match_id, pred_h, pred_a, points')
-        .in('match_id', matchIds)
-        .not('points', 'is', null)
-    : { data: [] }
+  if (rrErr) throw rrErr
 
   const agregado = new Map<string, { total: number; cravadas: number; vencedor: number; saldo: number }>()
   for (const p of participants) {
     agregado.set(p.id, { total: 0, cravadas: 0, vencedor: 0, saldo: 0 })
   }
 
-  // 3. Processa cada palpite verificando as regras
-  for (const p of preds ?? []) {
-    const bucket = agregado.get(p.participant_id)
+  for (const row of rr ?? []) {
+    const bucket = agregado.get(row.participant_id)
     if (!bucket) continue
 
-    const m = matchMap.get(p.match_id)
-    if (!m || m.home_score === null || m.away_score === null) continue
+    const pts = row.round_pts ?? 0
+    const crav = row.exact_scores ?? 0
+    const sald = row.correct_saldo ?? 0
+    const vencPuro = row.correct_winner ?? 0
 
-    if (p.pred_h === m.home_score && p.pred_a === m.away_score) {
-      bucket.cravadas++
-    } else if ((p.pred_h - p.pred_a) === (m.home_score - m.away_score)) {
-      bucket.saldo++
-    } else if (
-      (p.pred_h > p.pred_a && m.home_score > m.away_score) ||
-      (p.pred_h < p.pred_a && m.home_score < m.away_score) ||
-      (p.pred_h === p.pred_a && m.home_score === m.away_score)
-    ) {
-      bucket.vencedor++
-    }
-
-    bucket.total += (p.points ?? 0)
+    bucket.total += pts
+    bucket.cravadas += crav
+    bucket.saldo += sald
+    // VENC. no Ranking oficial = Total de jogos onde fez qualquer ponto (>0)
+    bucket.vencedor += (crav + sald + vencPuro)
   }
 
   const projMap = roundIds.length >= 2
@@ -159,6 +143,7 @@ export async function buscarRankingReal(): Promise<LinhaRanking[]> {
     }
   })
 
+  // Ordenação oficial do Ranking
   linhas.sort((a, b) => b.total - a.total || b.cravadas - a.cravadas || b.vencedor - a.vencedor || b.saldo - a.saldo)
   linhas.forEach((l, i) => { l.posicao = i + 1 })
 
