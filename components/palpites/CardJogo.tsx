@@ -2,12 +2,10 @@
 
 // CardJogo — card individual de um jogo na tela de palpites.
 //
-// Suporta:
-//   - Duas entradas de placar (Home e Away)
-//   - Bloqueio se o jogo ja passou do horario ou foi travado pelo admin
-//   - Escudo do time com fallback para sigla de 3 letras se imagem falhar
-//   - Formatacao de data/hora imune a bugs do Safari/iOS (iPhone)
-//   - Exibicao encurtada de "Red Bull Bragantino" para "RB Bragantino"
+// Exports fornecidos para compatibilidade total:
+//   - CardJogo (componente React)
+//   - formatCountdown (função de formatação de tempo restante)
+//   - Jogo, JogoPalpite, Palpite (interfaces de tipos)
 
 import { useEffect, useState } from 'react'
 import { getEscudo } from '@/lib/escudos'
@@ -25,6 +23,8 @@ export interface Jogo {
   time: string
   isLocked: boolean
 }
+
+export type JogoPalpite = Jogo
 
 function getSigla(nome: string): string {
   const n = nome.trim()
@@ -45,31 +45,43 @@ function normalizarNomeExibicao(nome: string): string {
   return nome.trim()
 }
 
-function parseDataHoraSafe(dateStr: string, timeStr: string): Date | null {
-  if (!dateStr) return null
+export function parseDataHoraSafe(dateStr: string | null | undefined, timeStr: string | null | undefined): Date | null {
+  if (!dateStr || !dateStr.trim()) return null
   const cleanDate = dateStr.trim()
   let y = 0, m = 0, d = 0
 
   if (cleanDate.includes('-')) {
     const parts = cleanDate.split('-')
     if (parts.length === 3) {
-      y = parseInt(parts[0], 10)
-      m = parseInt(parts[1], 10) - 1
-      d = parseInt(parts[2], 10)
+      if (parts[0].length === 4) {
+        y = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10) - 1
+        d = parseInt(parts[2], 10)
+      } else {
+        d = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10) - 1
+        y = parseInt(parts[2], 10)
+      }
     }
   } else if (cleanDate.includes('/')) {
     const parts = cleanDate.split('/')
     if (parts.length === 3) {
-      d = parseInt(parts[0], 10)
-      m = parseInt(parts[1], 10) - 1
-      y = parseInt(parts[2], 10)
+      if (parts[2].length === 4) {
+        d = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10) - 1
+        y = parseInt(parts[2], 10)
+      } else {
+        y = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10) - 1
+        d = parseInt(parts[2], 10)
+      }
     }
   }
 
   if (!y || isNaN(y) || isNaN(m) || isNaN(d)) return null
 
   let hr = 0, min = 0
-  if (timeStr) {
+  if (timeStr && timeStr.trim()) {
     const timeParts = timeStr.trim().split(':')
     if (timeParts.length >= 2) {
       hr = parseInt(timeParts[0], 10) || 0
@@ -82,7 +94,7 @@ function parseDataHoraSafe(dateStr: string, timeStr: string): Date | null {
   return dt
 }
 
-function formatarDataFormatada(dateStr: string, timeStr: string): string {
+export function formatarDataFormatada(dateStr: string, timeStr: string): string {
   const dt = parseDataHoraSafe(dateStr, timeStr)
   if (!dt) return 'A definir'
   const dia = String(dt.getDate()).padStart(2, '0')
@@ -92,7 +104,7 @@ function formatarDataFormatada(dateStr: string, timeStr: string): string {
   return `${dia}/${mes}, ${hora}:${min}`
 }
 
-function formatarCountdown(dateStr: string, timeStr: string): string {
+export function formatCountdown(dateStr: string, timeStr: string): string {
   const dt = parseDataHoraSafe(dateStr, timeStr)
   if (!dt) return 'A definir'
   const ms = dt.getTime() - Date.now()
@@ -106,6 +118,8 @@ function formatarCountdown(dateStr: string, timeStr: string): string {
   const hRest = horas % 24
   return `fecha em ${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`
 }
+
+export const formatarCountdown = formatCountdown
 
 export function CardJogo({
   jogo,
@@ -125,11 +139,11 @@ export function CardJogo({
   const escudoHome = getEscudo(jogo.home)
   const escudoAway = getEscudo(jogo.away)
 
-  const [tempoTexto, setTempoTexto] = useState(() => formatarCountdown(jogo.date, jogo.time))
+  const [tempoTexto, setTempoTexto] = useState(() => formatCountdown(jogo.date, jogo.time))
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTempoTexto(formatarCountdown(jogo.date, jogo.time))
+      setTempoTexto(formatCountdown(jogo.date, jogo.time))
     }, 30000)
     return () => clearInterval(timer)
   }, [jogo.date, jogo.time])
