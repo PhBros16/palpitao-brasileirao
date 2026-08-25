@@ -1,126 +1,400 @@
-import { supabase } from './supabase'
+'use client'
 
-export const URL_WHATSAPP_DUVIDA = 'https://api.whatsapp.com/send?text=Tenho%20uma%20d%C3%BAvida%20sobre%20o%20Palpit%C3%A3o'
+// GuiaScreen — 12 seções em accordion com stagger de entrada.
+// Envolvido pelo AppLayout: sem <main>, sem bg próprio.
 
-export const CONTEUDO_COMO_FUNCIONA = `O Palpitão Brasileirão é a liga oficial de palpites entre amigos. Faça seus palpites rodada a rodada, acumule pontos, acompanhe a Tabela da Série A ao vivo e dispute o topo do ranking!`
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import {
+  buscarAdmsGuia,
+  CONTEUDO_COMO_FUNCIONA,
+  REGRAS_PONTUACAO,
+  CRITERIOS_DESEMPATE,
+  TIERS_TROFEUS,
+  FAQ,
+  URL_WHATSAPP_DUVIDA,
+  SECOES_GUIA,
+} from '@/lib/guiaData'
+import type { AdminProfile } from '@/lib/rodadaAdmin'
+import { CardEnvelope } from '@/components/home/CardEnvelope'
+import { SecaoAccordion } from './SecaoAccordion'
+import { CardFifa } from './CardFifa'
 
-export const REGRAS_PONTUACAO = [
-  { criterio: 'Placar Exato (Cravada)', pontos: '5 pts', desc: 'Acertou em cheio o resultado exato do jogo.' },
-  { criterio: 'Saldo de Gols', pontos: '3 pts', desc: 'Acertou o vencedor e a diferença exata de gols.' },
-  { criterio: 'Vencedor / Empate', pontos: '1 pt', desc: 'Acertou apenas quem venceu ou que a partida terminaria empatada.' },
-  { criterio: 'Errou o Resultado', pontos: '0 pts', desc: 'Não pontuou na partida.' },
-]
-
-export const CRITERIOS_DESEMPATE = [
-  '1º Total de Pontos Acumulados',
-  '2º Número de Cravadas (Placar Exato)',
-  '3º Número de Acertos de Vencedor',
-  '4º Número de Acertos de Saldo de Gols',
-]
-
-export const TIERS_TROFEUS = [
-  { tier: 1, nome: 'Bronze', desc: 'Conquistas iniciais e de participação.' },
-  { tier: 2, nome: 'Prata', desc: 'Conquistas de desempenho intermediário e consistência.' },
-  { tier: 3, nome: 'Ouro', desc: 'Feitos raros e de altíssimo desempenho.' },
-  { tier: 4, nome: 'Diamante / Campeão', desc: 'A glória máxima. O campeão oficial da temporada.' },
-]
-
-export interface FaqItem {
-  pergunta: string
-  resposta: string
+const containerSecoes = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+      delayChildren: 0.08,
+    },
+  },
 }
 
-export const FAQ: FaqItem[] = [
-  {
-    pergunta: 'Como o Ranking calcula a coluna VENC.?',
-    resposta: 'A coluna VENC. no ranking não mostra apenas os palpites de 1 ponto. Ela indica o Total de Jogos Pontuados (a soma de todas as Cravadas + Saldos + Vencedores puros). Ou seja, se o seu VENC é 110, significa que em 110 jogos do campeonato você somou pontos para o ranking.',
+const itemSecao = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.35,
+      ease: [0.32, 0.72, 0, 1] as const,
+    },
   },
-  {
-    pergunta: 'Como a Tabela da Série A é calculada?',
-    resposta: 'O aplicativo constrói a tabela 100% ao vivo baseada nos placares salvos. A matemática segue a regra da CBF: Vitória (+3), Empate (+1) e Derrota (0). Saldo e gols pró/contra são atualizados instantaneamente.',
-  },
-  {
-    pergunta: 'Como funciona a Projeção de Título e Rebaixamento?',
-    resposta: 'A Projeção (🔮) é uma Regra de Três matemática pura: (Pontos Atuais ÷ Jogos Disputados) × 38 rodadas. Se a projeção for ≥ 70 pontos, indica chance de Título 🏆. Se for ≤ 45 pontos, indica Risco Z4 🚨.',
-  },
-  {
-    pergunta: 'Por que o Gráfico de Evolução não tem as Rodadas Extras?',
-    resposta: 'Os gráficos de evolução ignoram Rodadas Extras (ex: E1, E2) porque elas possuem poucos jogos (1 ou 2), o que distorceria as médias de desempenho. Elas somam pontos brutos no ranking, mas ficam fora da curva de evolução.',
-  },
-  {
-    pergunta: 'Como é calculada a Taxa de Coragem (🎲)?',
-    resposta: 'O algoritmo compara seu palpite com a maioria do grupo. Se a maioria apostou na Vitória do Mandante e você apostou Empate ou Visitante, conta como palpite corajoso!',
-  },
-  {
-    pergunta: 'Como funciona o Caçador de Zebras (🦓)?',
-    resposta: 'Zebra é quando 70% ou mais dos participantes do bolão tiraram nota zero (0 pontos) nele. O Caçador de Zebras é quem mais pontuou nessas partidas onde quase todo mundo se deu mal.',
-  },
-  {
-    pergunta: 'Quem são os Emocionados e Retranqueiros (🎭)?',
-    resposta: 'É a média de gols por jogo nos seus palpites. Acima de 2.5 gols/jogo = Emocionado. Abaixo de 2.0 = Retranqueiro.',
-  },
-  {
-    pergunta: 'Qual a regra de pagamento da mensalidade?',
-    resposta: 'A mensalidade de R$ 30,00 deve ser paga até o dia 10 de cada mês. Atrasos podem acarretar perda de 5 pontos no ranking.',
-  },
-]
-
-export interface GuiaSecao {
-  id: string
-  titulo: string
-  itens: FaqItem[]
 }
 
-export const SECOES_GUIA: GuiaSecao[] = [
-  {
-    id: 'regras-basicas',
-    titulo: '📜 Regras Básicas e Premiação',
-    itens: [
-      {
-        pergunta: 'Como funciona a pontuação?',
-        resposta: 'O sistema de pontuação é baseado no nível de precisão do seu palpite:\n\n- **Placar Exato (Cravada):** 5 pontos.\n- **Acertou o Saldo de Gols:** 3 pontos.\n- **Acertou o Vencedor:** 1 ponto.\n- **Errou tudo:** 0 pontos.\n\n*Nota: Os pontos não acumulam. Se você cravar, ganha 5 pontos, e não 5+3+1.*',
-      },
-      {
-        pergunta: 'Como funciona a premiação?',
-        resposta: 'Temos dois tipos de premiação principais:\n\n1. **Campeão da Rodada:** O jogador que fizer mais pontos na rodada leva R$ 25,00. Em caso de empate na pontuação, o prêmio é dividido igualmente.\n2. **Campeão Geral:** O grande vencedor do campeonato leva 50% de tudo que foi arrecadado. O vice-campeão leva 20% e o 3º colocado leva 10%.',
-      },
-      {
-        pergunta: 'O que acontece em Rodadas Duplas (x2)?',
-        resposta: 'De forma surpresa, a Administração pode definir que uma rodada valerá **pontos em dobro**. Nesses casos, uma cravada vale 10 pontos, o saldo vale 6, e o vencedor vale 2. O prêmio da rodada dupla também pode sofrer alteração.',
-      },
-    ],
+const containerAdms = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.15,
+    },
   },
-  {
-    id: 'matematica-app',
-    titulo: '🧮 A Matemática do App (Transparência)',
-    itens: FAQ,
+}
+
+const itemAdm = {
+  hidden: { opacity: 0, y: 20, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: [0.32, 0.72, 0, 1] as const,
+    },
   },
-  {
-    id: 'pagamentos',
-    titulo: '💸 Pagamentos e Inadimplência',
-    itens: [
-      {
-        pergunta: 'Qual o valor e a data de pagamento?',
-        resposta: 'A mensalidade do bolão é de R$ 30,00 e deve ser paga até o **dia 10 de cada mês**.\nChave PIX: `(inserir chave pix aqui)`',
-      },
-      {
-        pergunta: 'O que acontece se eu atrasar?',
-        resposta: 'Se o pagamento não for realizado até o dia 10, o participante recebe uma punição automática de **-5 pontos no Ranking Geral**. Caso o atraso permaneça até o mês seguinte, o jogador poderá ser banido e ter seus palpites bloqueados.',
-      },
-      {
-        pergunta: 'Como envio o comprovante?',
-        resposta: 'Os comprovantes de PIX devem ser enviados no grupo oficial do WhatsApp do bolão, marcando um dos administradores responsáveis pelo financeiro.',
-      },
-    ],
-  }
-]
+}
 
-export async function buscarAdmsGuia() {
-  const { data, error } = await supabase
-    .from('admins_profile')
-    .select('id, nome, vulgo, foto, descricao, ordem, rating, posicao, stat_pal, stat_ges, stat_jus, stat_zoa, stat_res, stat_cra, foto_scale, foto_pos_x, foto_pos_y')
-    .order('ordem', { ascending: true })
+// "Pagamentos" segue de fora — conteúdo confirmado como alucinação de outra IA.
+// "Regras Básicas e Premiação" e "Matemática do App" são reais e entram no accordion.
+const SECAO_PREMIACAO = SECOES_GUIA.find((s) => s.id === 'regras-basicas')
+const SECAO_MATEMATICA = SECOES_GUIA.find((s) => s.id === 'matematica-app')
 
-  if (error) throw error
-  return data ?? []
+export function GuiaScreen() {
+  const [adms, setAdms] = useState<AdminProfile[]>([])
+  const [carregandoAdms, setCarregandoAdms] = useState(true)
+  const [erroAdms, setErroAdms] = useState<string | null>(null)
+
+  useEffect(() => {
+    buscarAdmsGuia()
+      .then(setAdms)
+      .catch((e) => setErroAdms((e as Error).message))
+      .finally(() => setCarregandoAdms(false))
+  }, [])
+
+  return (
+    <>
+      <CardEnvelope
+        titulo="📖 Guia do Palpitão"
+        subtitulo="Regras, pontuação e os chefes por trás disso tudo"
+      >
+        {null}
+      </CardEnvelope>
+
+      <motion.div
+        variants={containerSecoes}
+        initial="hidden"
+        animate="visible"
+        className="space-y-3"
+      >
+        {/* 1. Conheça os Adms */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Conheça os Adms" icone="👑">
+            {carregandoAdms ? (
+              <p className="font-sans text-sm text-tinta-100">Carregando cards...</p>
+            ) : erroAdms ? (
+              <p className="font-sans text-sm text-raridade-frango-selo">Erro: {erroAdms}</p>
+            ) : adms.length === 0 ? (
+              <p className="font-sans text-sm text-tinta-100">Nenhum adm cadastrado ainda. Peça pra alguém montar o card na aba Admin.</p>
+            ) : (
+              <>
+                <div
+                  className="-mx-4 -mt-4 px-4 py-6"
+                  style={{
+                    background: `
+                      linear-gradient(180deg,
+                        #1a2f5c 0%,
+                        #2c4a80 40%,
+                        #3a5ea0 100%
+                      )
+                    `,
+                  }}
+                >
+                  <motion.div
+                    variants={containerAdms}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-8"
+                  >
+                    {adms.map((adm) => (
+                      <motion.div key={adm.id} variants={itemAdm}>
+                        <CardFifa adm={adm} />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-dourado-300 bg-gradient-to-br from-dourado-50 to-couro-50 p-3">
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dourado-700 text-center">
+                    📖 Legenda dos Atributos
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    {[
+                      { sigla: 'PAL', desc: 'Palpiteiro' },
+                      { sigla: 'ZOA', desc: 'Zoação' },
+                      { sigla: 'GES', desc: 'Gestão' },
+                      { sigla: 'RES', desc: 'Resenha' },
+                      { sigla: 'JUS', desc: 'Justiça' },
+                      { sigla: 'CRA', desc: 'Craque' },
+                    ].map((item) => (
+                      <div key={item.sigla} className="flex items-center gap-2">
+                        <span
+                          className="font-mono text-xs font-bold text-couro-900"
+                          style={{ minWidth: '32px' }}
+                        >
+                          {item.sigla}
+                        </span>
+                        <span className="font-sans text-xs text-tinta-300">
+                          = {item.desc}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 2. Como Funciona */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Como Funciona" icone="📖">
+            <p className="font-sans text-sm text-tinta-200 leading-relaxed">
+              {CONTEUDO_COMO_FUNCIONA}
+            </p>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 3. Pontuação */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Pontuação" icone="🎯">
+            <div className="space-y-2">
+              {REGRAS_PONTUACAO.map((r, i) => (
+                <div key={i} className="rounded border border-papel-borda-200 bg-papel-100 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans text-sm font-semibold text-tinta-300">{r.criterio}</span>
+                    <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-sm font-bold text-dourado-700">
+                      {r.pontos}
+                    </span>
+                  </div>
+                  <p className="mt-1 font-sans text-xs italic text-tinta-100">{r.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded border border-dourado-300 bg-dourado-50 p-2.5">
+              <p className="font-sans text-xs text-tinta-200">
+                <span className="font-bold text-dourado-700">⚡ Vale x2:</span> Rodadas especiais (última do turno, decisões) dobram toda a pontuação. Cravou uma? 10 pts em vez de 5.
+              </p>
+            </div>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 4. Premiação (regras-basicas do SECOES_GUIA, exceto o item de pontuação que já está acima) */}
+        {SECAO_PREMIACAO && (
+          <motion.div variants={itemSecao}>
+            <SecaoAccordion titulo="Premiação" icone="💰">
+              <div className="space-y-2">
+                {SECAO_PREMIACAO.itens
+                  .filter((f) => f.pergunta !== 'Como funciona a pontuação?')
+                  .map((f, i) => (
+                    <details
+                      key={i}
+                      className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
+                    >
+                      <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
+                        <span>{f.pergunta}</span>
+                        <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
+                    </details>
+                  ))}
+              </div>
+            </SecaoAccordion>
+          </motion.div>
+        )}
+
+        {/* 5. Desempate */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Desempate" icone="🏆">
+            <p className="mb-3 font-sans text-sm text-tinta-200">
+              Empatou no total de pontos? A ordem dos critérios é:
+            </p>
+            <ol className="space-y-1.5">
+              {CRITERIOS_DESEMPATE.map((c, i) => (
+                <li key={i} className="rounded border border-papel-borda-200 bg-papel-100 px-2.5 py-1.5 font-sans text-sm text-tinta-300">
+                  {c}
+                </li>
+              ))}
+            </ol>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 6. Projeção */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Projeção %" icone="📊">
+            <p className="font-sans text-sm text-tinta-200">
+              A <b>Projeção %</b> estima a chance de cada participante ser campeão, baseada nas últimas rodadas finalizadas.
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span>Precisa de <b>no mínimo 2 rodadas</b> finalizadas pra começar a calcular.</span>
+              </li>
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span>O admin escolhe quantas rodadas entram no cálculo (últ. 3, 5, 10, ou o campeonato inteiro).</span>
+              </li>
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span>Aparece na aba <b>Ranking</b>, na coluna "Proj.%".</span>
+              </li>
+            </ul>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 7. Troféus */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Troféus" icone="🏅">
+            <p className="mb-3 font-sans text-sm text-tinta-200">
+              Ao longo do campeonato, você desbloqueia troféus por conquistas — desde as básicas até feitos históricos.
+            </p>
+            <div className="space-y-2">
+              {TIERS_TROFEUS.map((t) => (
+                <div key={t.tier} className="flex items-start gap-3 rounded border border-papel-borda-200 bg-papel-100 p-2.5">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-dourado-400 font-mono text-xs font-bold text-papel-50">
+                    {t.tier}
+                  </span>
+                  <div className="flex-1">
+                    <span className="font-display text-sm font-bold text-tinta-300">{t.nome}</span>
+                    <p className="mt-0.5 font-sans text-xs text-tinta-100">{t.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-center font-mono text-[10px] italic text-tinta-100">
+              🔗 Lista completa em <b>Ranking → Troféus</b>
+            </p>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 8. Frango */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Frango da Rodada" icone="🐔">
+            <p className="font-sans text-sm text-tinta-200">
+              A cada rodada, o admin escolhe alguém que fez uma <b>frangada épica</b> — um palpite absurdo, um vacilo cômico, ou só por diversão mesmo.
+            </p>
+            <p className="mt-2 font-sans text-sm text-tinta-200">
+              O frango da rodada aparece na <b>Home</b> e no <b>Histórico</b> daquela rodada, com foto e mensagem carinhosamente constrangedora.
+            </p>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 9. Formação */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Formação do Time" icone="⚙️">
+            <p className="font-sans text-sm text-tinta-200">
+              O elenco de 14 participantes aparece disposto num campinho na <b>abertura</b> e na <b>tela de login</b>.
+            </p>
+            <p className="mt-2 font-sans text-sm text-tinta-200">
+              O admin pode escolher entre <b>14 formações diferentes</b> — 6 clássicas (4-3-3, 3-5-2, etc.) e 8 doidas (Coração, Círculo, W do Zico, e mais). Isso muda ao vivo pra todo mundo.
+            </p>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 10. Música */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Música Tema" icone="🎵">
+            <p className="font-sans text-sm text-tinta-200">
+              Na Home tem um <b>player de música</b> com playlist de 8 faixas — clássicos da Copa + o tema oficial do Palpitão.
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span><b>Modo tema:</b> a música-tema toca em loop infinito (padrão).</span>
+              </li>
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span><b>Modo playlist:</b> se você trocar de faixa, entra em sequencial.</span>
+              </li>
+              <li className="flex items-start gap-2 font-sans text-sm text-tinta-200">
+                <span className="text-dourado-500">•</span>
+                <span>O áudio continua tocando quando você troca de aba.</span>
+              </li>
+            </ul>
+          </SecaoAccordion>
+        </motion.div>
+
+        {/* 11. Matemática do App (NOVO) */}
+        {SECAO_MATEMATICA && (
+          <motion.div variants={itemSecao}>
+            <SecaoAccordion titulo={SECAO_MATEMATICA.titulo.replace(/^\S+\s/, '')} icone="🧮">
+              <div className="space-y-2">
+                {SECAO_MATEMATICA.itens.map((f, i) => (
+                  <details
+                    key={i}
+                    className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
+                      <span>{f.pergunta}</span>
+                      <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
+                  </details>
+                ))}
+              </div>
+            </SecaoAccordion>
+          </motion.div>
+        )}
+
+        {/* 12. FAQ */}
+        <motion.div variants={itemSecao}>
+          <SecaoAccordion titulo="Perguntas Frequentes" icone="❓">
+            <div className="space-y-2">
+              {FAQ.map((f, i) => (
+                <details
+                  key={i}
+                  className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
+                    <span>{f.pergunta}</span>
+                    <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
+                </details>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-lg border-2 border-dourado-400 bg-gradient-to-br from-dourado-100 to-dourado-50 p-3">
+              <p className="mb-2 font-display text-sm font-bold text-couro-900">
+                ⚠ Não seja burro!
+              </p>
+              <p className="mb-3 font-sans text-xs italic text-tinta-300">
+                A sua burrice pode ser a de outra pessoa também! Pergunte no grupo antes de perguntar aqui.
+              </p>
+              <a
+                href={URL_WHATSAPP_DUVIDA}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-[#25D366] px-3 py-2 font-mono text-xs font-bold uppercase tracking-wider text-papel-50 transition-colors hover:bg-[#1ebe5d]"
+              >
+                💬 Perguntar no Grupo
+              </a>
+            </div>
+          </SecaoAccordion>
+        </motion.div>
+      </motion.div>
+    </>
+  )
 }
