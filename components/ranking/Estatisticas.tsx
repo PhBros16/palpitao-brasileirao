@@ -71,6 +71,7 @@ function BlocoMinhas() {
     pts: number | null
     jogos: DetalheJogoRodada[] | null
   } | null>(null)
+  const [verTodosPlacares, setVerTodosPlacares] = useState(false)
 
   useEffect(() => {
     let pid: string | null = null
@@ -129,7 +130,6 @@ function BlocoMinhas() {
         </div>
       </div>
 
-      {/* BLOCOS NOVOS: Extremos, Placar Favorito e Coragem */}
       <div className="grid grid-cols-2 gap-2">
         {stats.melhorRodada && (
           <div className="rounded-lg border border-dourado-200 bg-dourado-50 p-3 text-center">
@@ -150,14 +150,33 @@ function BlocoMinhas() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-tinta-100">🎯 Placar Favorito</p>
-          <span className="font-mono text-xl font-bold text-dourado-600">{stats.placarFavorito ?? '—'}</span>
+        <div className="flex flex-col rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
+          <div className="flex flex-col items-center text-center">
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-tinta-100">🎯 Placar Favorito</p>
+            <span className="font-mono text-xl font-bold text-dourado-600">{stats.placarFavorito ?? '—'}</span>
+            <span className="font-sans text-[9px] text-tinta-200">Apostado {stats.placaresFrequentes?.[0]?.qtd ?? 0}x</span>
+          </div>
+          
+          <button onClick={() => setVerTodosPlacares(!verTodosPlacares)} className="mt-2 w-full font-mono text-[9px] text-tinta-200 hover:underline">
+            {verTodosPlacares ? '▲ Ocultar' : '▼ Ver todos'}
+          </button>
+          
+          {verTodosPlacares && stats.placaresFrequentes && (
+            <div className="mt-2 max-h-24 overflow-y-auto space-y-1 scrollbar-tema border-t border-papel-borda-200 pt-2">
+              {stats.placaresFrequentes.map((p) => (
+                <div key={p.placar} className="flex justify-between font-mono text-[10px]">
+                  <span className="font-bold text-tinta-300">{p.placar}</span>
+                  <span className="text-tinta-100">{p.qtd}x</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
         <div className="flex flex-col items-center justify-center rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-tinta-100">🎲 Taxa de Coragem</p>
           <span className="font-mono text-xl font-bold text-dourado-600">{stats.taxaCoragemPct}%</span>
-          <span className="font-sans text-[9px] text-tinta-200">({stats.jogosCorajosos} apostas zebras)</span>
+          <span className="font-sans text-[9px] text-tinta-200 text-center leading-tight">({stats.jogosCorajosos} apostas contra<br/>a maioria do grupo)</span>
         </div>
       </div>
 
@@ -357,7 +376,7 @@ function BlocoCravadasZeros({ dados }: { dados: JogadorCravadasZeros[] }) {
 function BlocoAcertoVencedor({ dados }: { dados: JogadorAcertoVencedor[] }) {
   const rank = [...dados].sort((a, b) => b.pct - a.pct || b.acertos - a.acertos)
   return (
-    <BlocoAccordion titulo="Qualquer Pontuação" emoji="✅" cor="bg-blue-50">
+    <BlocoAccordion titulo="Taxa de Pontuação" emoji="✅" cor="bg-blue-50">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">Taxa de vezes que o jogador não zerou o palpite</p>
       <Top3Barra items={rank} getValor={(x) => x.pct} getSublinha={(x) => `${x.acertos}/${x.totalPalpites}`} formatValor={(v) => `${v}%`} corBarra="bg-blue-500" />
       <VerTodos>
