@@ -33,31 +33,31 @@ export interface FaqItem {
 export const FAQ: FaqItem[] = [
   {
     pergunta: 'Como o Ranking calcula a coluna VENC.?',
-    resposta: 'A coluna VENC. no ranking não mostra apenas os palpites de 1 ponto. Ela indica o Total de Jogos Pontuados (a soma de todas as Cravadas + Saldos + Vencedores puros). Ou seja, se o seu VENC é 110, significa que em 110 jogos do campeonato você somou pontos para o ranking.',
+    resposta: 'A coluna VENC. no ranking mostra o Total de Jogos Pontuados (a soma de todas as Cravadas + Saldos + Vencedores puros). Ou seja, se o seu VENC é 110, significa que em 110 jogos do campeonato você somou pontos para o ranking.',
   },
   {
     pergunta: 'Como a Tabela da Série A é calculada?',
-    resposta: 'O aplicativo constrói a tabela 100% ao vivo baseada nos placares salvos. A matemática segue a regra da CBF: Vitória (+3), Empate (+1) e Derrota (0). Saldo e gols pró/contra são atualizados instantaneamente.',
+    resposta: 'O aplicativo constrói a tabela 100% ao vivo baseada exclusivamente nos placares que a Administração digita no painel.\n\nA matemática é a regra oficial da CBF:\n- Vitória: +3 pontos\n- Empate: +1 ponto\n- Derrota: 0 pontos\nO Saldo de Gols, Gols Pró e as zonas de classificação atualizam instantaneamente a cada placar salvo.',
   },
   {
     pergunta: 'Como funciona a Projeção de Título e Rebaixamento?',
-    resposta: 'A Projeção (🔮) é uma Regra de Três matemática pura: (Pontos Atuais ÷ Jogos Disputados) × 38 rodadas. Se a projeção for ≥ 70 pontos, indica chance de Título 🏆. Se for ≤ 45 pontos, indica Risco Z4 🚨.',
+    resposta: 'A Projeção (🔮) é uma Regra de Três matemática pura, baseada no desempenho atual dos times.\n\nFórmula Exata:\nProjeção = (Pontos Atuais ÷ Jogos Disputados) × 38 rodadas.\n\nSe a projeção de um time for ≥ 70 pontos, o algoritmo indica chance matemática de Título 🏆. Se for ≤ 45 pontos (corte do Brasileirão), o time entra em Risco Z4 🚨.',
   },
   {
     pergunta: 'Por que o Gráfico de Evolução não tem as Rodadas Extras?',
-    resposta: 'Os gráficos de evolução ignoram Rodadas Extras (ex: E1, E2) porque elas possuem poucos jogos (1 ou 2), o que distorceria as médias de desempenho. Elas somam pontos brutos no ranking, mas ficam fora da curva de evolução.',
+    resposta: 'Os gráficos de evolução ignoram Rodadas Extras (ex: E1, E2) porque elas possuem poucos jogos (1 ou 2), o que quebraria a linha do tempo do gráfico injustamente. Rodadas extras somam pontos brutos no ranking, mas ficam de fora da curva de evolução.',
   },
   {
     pergunta: 'Como é calculada a Taxa de Coragem (🎲)?',
-    resposta: 'O algoritmo compara seu palpite com a maioria do grupo. Se a maioria foi de Vitória do Mandante e você apostou Empate ou Visitante, conta como palpite corajoso!',
+    resposta: 'O algoritmo varre todos os seus palpites e compara com o resto do grupo jogo a jogo. Se a maioria apostou na Vitória do Mandante e você apostou no Empate ou no Visitante, isso é contado como um "Palpite Corajoso" contra a maré. A porcentagem mostra o quanto você foge do senso comum!',
   },
   {
-    pergunta: 'Como funciona o Caçador de Zebras (🦓)?',
-    resposta: 'Zebra é quando 70% ou mais dos participantes zeram no jogo. O Caçador de Zebras é quem mais pontuou nessas partidas onde quase todo mundo se deu mal.',
+    pergunta: 'Como funciona o Caçador de Zebras (区域)?',
+    resposta: 'Um jogo é classificado como "Zebra" se 70% ou mais dos participantes do bolão tiraram nota zero (0 pontos) nele. O Caçador de Zebras é quem mais pontuou nessas partidas onde quase todo mundo se deu mal.',
   },
   {
     pergunta: 'Quem são os Emocionados e Retranqueiros (🎭)?',
-    resposta: 'É a média de gols por jogo nos seus palpites. Acima de 2.5 gols/jogo = Emocionado. Abaixo de 2.0 = Retranqueiro.',
+    resposta: 'O app soma os gols (Mandante + Visitante) dos seus palpites e divide pelos jogos que você palpitou. Jogadores com alta média de gols são os "Emocionados" (acreditam em partidas agitadas), e os de média baixa são os "Retranqueiros" (apostam no placar magro).',
   },
   {
     pergunta: 'Qual a regra de pagamento da mensalidade?',
