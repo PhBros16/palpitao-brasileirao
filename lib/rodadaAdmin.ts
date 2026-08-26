@@ -31,6 +31,7 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
     .from('rounds')
     .select('id, number, name, palpites_open, finalized, is_double')
     .eq('palpites_open', true)
+    .eq('finalized', false)
     .order('number', { ascending: false })
     .limit(1)
     .maybeSingle()
