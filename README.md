@@ -135,6 +135,6 @@ Acesse `http://localhost:3000`.
 
 <div align="center">
 
-*Feito pra um grupo de 14 amigos que leva o bolão mais a sério do que deveria.*
+*Feito pra um grupo de 20 amigos que leva o bolão mais a sério do que deveria.*
 
 </div>
