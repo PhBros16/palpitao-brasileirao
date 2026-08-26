@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { CardJogo, formatCountdown, type JogoPalpite, type Palpite } from './CardJogo'
+import { CardJogo, formatCountdown, parseDataHoraSafe, type JogoPalpite, type Palpite } from './CardJogo'
 import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { showToast } from '@/components/home/Toast'
 import { vibrar } from '@/lib/haptic'
@@ -66,7 +66,7 @@ export function PalpitesRodada({
       const merged: Record<string, Palpite> = { ...palpitesIniciais }
       // Preserva palpites que o usuário JÁ digitou (não sobrescreve com o do banco)
       for (const [id, p] of Object.entries(atual)) {
-        if (p.h !== '' || p.a !== '') {
+        if (p.h !== null || p.a !== null) {
           merged[id] = p
         }
       }
@@ -80,7 +80,7 @@ export function PalpitesRodada({
   }, [])
 
   function getPalpite(id: string): Palpite {
-    return palpites[id] ?? { h: '', a: '' }
+    return palpites[id] ?? { h: null, a: null }
   }
 
   function setPalpite(id: string, p: Palpite) {
@@ -92,14 +92,15 @@ export function PalpitesRodada({
     let palpitadosN = 0
     let proximo = Infinity
     for (const j of jogos) {
-      const diff = Date.parse(j.kickoff) - now
-      const locked = j.travadoManual || diff <= 0
+      const dt = parseDataHoraSafe(j.date, j.time)
+      const diff = dt ? dt.getTime() - now : NaN
+      const locked = j.isLocked || isNaN(diff) || diff <= 0
       if (!locked) {
         abertosN++
         if (diff < proximo) proximo = diff
       }
       const p = palpites[j.id]
-      if (p && p.h !== '' && p.a !== '') palpitadosN++
+      if (p && p.h !== null && p.a !== null) palpitadosN++
     }
     return {
       totais: jogos.length,
@@ -110,10 +111,11 @@ export function PalpitesRodada({
   }, [jogos, palpites, now])
 
   const esqueceu = jogos.some((j) => {
-    const diff = Date.parse(j.kickoff) - now
-    const locked = j.travadoManual || diff <= 0
+    const dt = parseDataHoraSafe(j.date, j.time)
+    const diff = dt ? dt.getTime() - now : NaN
+    const locked = j.isLocked || isNaN(diff) || diff <= 0
     const p = palpites[j.id]
-    return !locked && (!p || p.h === '' || p.a === '')
+    return !locked && (!p || p.h === null || p.a === null)
   })
 
   const [salvando, setSalvando] = useState(false)
@@ -177,7 +179,7 @@ export function PalpitesRodada({
                   proximoMs < URGENTE_MS ? 'text-raridade-frango-selo' : 'text-verde-badge',
                 )}
               >
-                {formatCountdown(proximoMs)}
+                {formatarContagemMs(proximoMs)}
               </motion.span>
             </p>
           )}
@@ -207,8 +209,7 @@ export function PalpitesRodada({
             <CardJogo
               jogo={j}
               palpite={getPalpite(j.id)}
-              now={now}
-              onChange={(p) => setPalpite(j.id, p)}
+              onChangePalpite={(p) => setPalpite(j.id, p)}
             />
           </motion.div>
         ))}
@@ -253,6 +254,32 @@ export function PalpitesRodada({
       </motion.div>
     </>
   )
+}
+
+// formatCountdown (de CardJogo.tsx) espera (dateStr, timeStr), não ms.
+// proximoMs aqui já é uma diferença em milissegundos — formata direto.
+function formatarContagemMs(ms: number): string {
+  if (ms <= 0) return 'fechado'
+  const totalSeg = Math.floor(ms / 1000)
+  const totalMin = Math.floor(totalSeg / 60)
+
+  if (totalMin < 60) {
+    const min = Math.floor(totalSeg / 60)
+    const sec = totalSeg % 60
+    return `${min}m ${String(sec).padStart(2, '0')}s`
+  }
+
+  const horas = Math.floor(totalMin / 60)
+  const mins = totalMin % 60
+
+  if (horas < 24) {
+    const sec = totalSeg % 60
+    return `${horas}h ${String(mins).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`
+  }
+
+  const dias = Math.floor(horas / 24)
+  const hRest = horas % 24
+  return `${dias}d${hRest > 0 ? ` ${hRest}h` : ''}`
 }
 
 function Resumo({
