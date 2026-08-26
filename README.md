@@ -1,89 +1,117 @@
-# 🏆 Brasileirão EM CONSTRUÇÃO
+<div align="center">
 
-> O bolão de Copa do Mundo mais completo que você já viu.
+# 📖 Palpitão Brasileirão
 
-**[▶ Acessar o app](https://palpitao-copa-mundo.vercel.app)**
+### *O álbum de figurinhas do seu bolão do Brasileirão.*
 
----
+**[▶ Acessar o app](https://palpitao-brasileirao-iota.vercel.app)**
 
-## O que é
-
-O Palpitão Copa 2026 é um app web de bolão para a Copa do Mundo 2026, feito para grupos de amigos que querem dar um "tchan" a mais no entretenimento. Cada participante palpita no placar de cada jogo, acumula pontos, sobe no ranking e desbloqueia conquistas ao longo do campeonato, etc.
-
-Tudo roda em tempo real, sem precisar criar conta — basta entrar com seu nome e começar a palpitar.
+</div>
 
 ---
 
-## Funcionalidades
+## Sobre a capa
 
-- **Palpites por jogo** — placar exato, com prazo automático baseado no horário do jogo
-- **Sistema de pontuação por fase** — grupos, oitavas, quartas, semi e final com multiplicadores configuráveis
-- **Ranking em tempo real** — com desempate por cravadas → vencedor → saldo
-- **Pódio animado** — top 3 da rodada atual e ranking geral
-- **Estatísticas pessoais** — % de placar exato, resultado e saldo por rodada e geral
-- **Heatmap de performance** — visualização por rodada com detalhamento ao clicar
-- **38 conquistas** em 4 tiers de raridade, desbloqueadas automaticamente
-- **Comparativo frente a frente** — seus palpites vs qualquer outro participante
-- **Avatar personalizado** — cada participante escolhe seu emoji que o represente
-- **Painel admin** — cria rodadas, lança resultados, gerencia jogadores e configurações do sistema
-- **Notificações push** — avisa quando uma nova rodada abre, um participante esquece de palpitar e afins
-- **Escudos oficiais** — logos de todas as seleções participantes da Copa do Mundo 2026
-- **Dark mode** nativo
+Todo mundo já teve (ou quis ter) aquele álbum de figurinhas de campeonato — capa de couro, cheiro de página nova, a ansiedade de completar a coleção. O **Palpitão Brasileirão** é isso, só que vivo: um bolão de palpites entre um grupo fechado de amigos, rodando as 38 rodadas da Série A inteira, com estatística de verdade, rivalidade de verdade, e a implicância de sempre saber quem é o frango da rodada.
+
+Você não cria conta. Você entra no álbum, escolhe sua figurinha no gramado, e começa a jogar.
 
 ---
 
-## Sistema de pontuação
+## De onde isso veio
 
-| Acerto | Pontos base |
-|--------|-------------|
-| Placar exato (cravada) | 5 pts |
-| Vencedor correto | 1 pt |
-| Saldo de gols correto | 3 pt |
-
-Multiplicadores aumentam os pontos nas fases eliminatórias (configurável pelo admin).
+Este projeto é a segunda geração de um produto que já existia e já funcionou: o **Palpitão Copa**, feito para a Copa do Mundo 2026. O Copa provou o conceito — as pessoas realmente competem, checam o ranking todo dia, e brigam pelo primeiro lugar. O Brasileirão herdou a lógica que já era boa (cálculo de pontos, ranking, desempate, estatística) e trocou o formato: de mata-mata de três semanas para uma temporada inteira de pontos corridos.
 
 ---
 
-## Conquistas
+## O que dá pra fazer
 
-38 troféus organizados em 4 tiers:
+### 🎬 Abertura
+Antes de qualquer tela, tem uma sequência: a capa de couro do álbum abre, o campo é revelado sob os refletores do estádio, e a escalação do grupo aparece disposta taticamente no gramado — cada participante é a própria figurinha. Toca em si mesmo, digita o PIN, entra.
 
-| Tier | Nome | Exemplos |
-|------|------|---------|
-| 🟢 | Qualquer um tem, até você | Veterano, Galinha, Dormiu no Ponto |
-| 🔵 | Rapaz, esse aqui é bom | Hat-trick, Sangue Frio, Fênix |
-| 🌟 | Levanta que essa é só sua! | Perfeição, Relâmpago, O Predador |
-| 👑 | Parabéns, você é campeão do Palpitão Copa 2026 | CAMPEÃO! |
+### ⚽ Palpites
+Um card por jogo, escudo contra escudo, com contagem regressiva até o fechamento. Cada jogo trava sozinho no horário da bola rolar — e o admin também pode travar um jogo manualmente a qualquer momento, pra emergências (jogo remarcado, WO, o que for).
+
+### 📊 Tabela do Brasileirão, ao vivo
+Nada de tabela estática — ela é recalculada em tempo real a partir dos placares lançados, seguindo a regra oficial da CBF (vitória, empate, derrota, saldo de gols). O grupo acompanha o G6 e o Z4 exatamente como acompanharia no jornal.
+
+### 🏆 Ranking, Projeção e Troféus
+Pontuação, desempate por critério (cravadas → vencedor → saldo), e uma **projeção de título/rebaixamento** calculada a partir do seu aproveitamento atual projetado pras 38 rodadas. Fora isso, uma coleção de troféus em 4 níveis — do Bronze ao Diamante — desbloqueados conforme os feitos da temporada.
+
+### 🐔 Frango da Rodada
+Toda rodada tem um escolhido. O admin decide quem fez a palpitada mais vexatória, e o grupo já tem a tradição de fazer a montagem — o app só dá o palco.
+
+### 🎵 Trilha própria
+Um mini-player na Home, com playlist de faixas + o tema oficial do Palpitão, tocando em loop ou em sequência, sem parar quando você troca de aba.
+
+### 📖 Guia embutido
+Um acordeão que explica cada mecânica do app — pontuação, desempate, premiação, a matemática por trás de cada número que aparece na tela — e um atalho direto pro WhatsApp do grupo pra quem ficar com dúvida.
+
+### 🛠 Painel Admin
+Cadastro e edição de rodadas (inclusive as extras/remarcadas), lançamento e correção de resultados, rodadas em dobro, log de tudo que foi feito, gestão dos participantes e dos adms do grupo.
 
 ---
 
 ## Stack
 
-- **Next.js 15** (App Router)
-- **TypeScript**
-- **Supabase** — banco de dados PostgreSQL em tempo real
-- **Vercel** — deploy contínuo
+| Camada | Tecnologia |
+|---|---|
+| Framework | Next.js 16 (App Router) + React 19 |
+| Linguagem | TypeScript |
+| Estilo | Tailwind CSS |
+| Animação | Framer Motion |
+| Banco de dados | Supabase (PostgreSQL) |
+| Deploy | Vercel |
 
-## Banco de dados (Supabase)
+Sem dependência de CDN de terceiro pra nada visual — escudos dos clubes vivem em `/public/escudos`, servidos junto com o resto do app.
 
-4 tabelas principais:
+---
 
-| Tabela | Descrição |
-|--------|-----------|
-| `app_state` | Estado global da aplicação (rodada atual, configurações, histórico) |
-| `competidores` | Participantes do bolão |
-| `jogos` | Jogos cadastrados com times, horários e resultados |
-| `palpites` | Palpites de cada competidor por jogo, com pontuação calculada |
+## Estrutura do projeto
+
+```
+palpitao-brasileirao/
+├── app/
+│   └── (logado)/          # rotas por trás do login: início, palpites, ranking,
+│                           # campeonato, rodada, histórico, guia, admin
+├── components/
+│   ├── abertura/           # capa, flip, cena do estádio, login no gramado
+│   ├── home/                # seções da tela Início
+│   ├── palpites/            # cards de jogo e formulário de palpite
+│   ├── guia/                 # acordeão de regras e FAQ
+│   └── admin/                # painel administrativo
+├── lib/
+│   ├── supabase.ts           # cliente do banco
+│   ├── palpitesReais.ts     # busca de rodada ativa e palpites
+│   ├── rodadaAdmin.ts        # CRUD de rodadas e resultados
+│   ├── campeonatoReal.ts    # cálculo da tabela ao vivo
+│   ├── rankingReal.ts        # ranking, desempate e projeção
+│   ├── escudos.ts            # mapa nome do clube → escudo local
+│   └── guiaData.ts           # conteúdo do Guia
+└── public/
+    └── escudos/               # escudos dos 20 clubes da Série A
+```
 
 ---
 
 ## Rodando localmente
 
 ```bash
-git clone https://github.com/PhBros16/palpitao-copa-2026.git
-cd palpitao-copa-2026
+git clone https://github.com/PhBros16/palpitao-brasileirao.git
+cd palpitao-brasileirao
 npm install
-cp .env.example .env.local  # configure suas credenciais Supabase
+```
+
+Cria um `.env.local` na raiz com as credenciais do seu projeto Supabase:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+E sobe:
+
+```bash
 npm run dev
 ```
 
@@ -91,47 +119,22 @@ Acesse `http://localhost:3000`.
 
 ---
 
-## Variáveis de ambiente
+## Banco de dados (Supabase)
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
-
----
-
-## Estrutura do projeto
-
-```
-app/
-  api/
-    chat/        # API de mensagens em tempo real
-    cron/        # Jobs agendados (fechamento de palpites, etc.)
-    import-games/# Importação de jogos
-    notify/      # Notificações push
-    state/       # Leitura/escrita do estado global
-  layout.tsx
-  page.tsx       # App principal
-lib/
-  supabase.ts    # Cliente Supabase
-public/
-  logos/         # Escudos de todas as seleções da Copa 2026
-```
+| Tabela | O que guarda |
+|---|---|
+| `rounds` | Cada rodada — número, nome, se está aberta pra palpites, se já foi finalizada, se vale x2 |
+| `matches` | Os jogos de cada rodada — mandante, visitante, data/hora, resultado, trava manual |
+| `participants` | Quem joga o bolão |
+| `predictions` | O palpite de cada participante em cada jogo, e a pontuação já calculada |
+| `admins_profile` | Perfil dos administradores exibido no Guia |
+| `admin_log` | Histórico de ações administrativas |
+| `shame` | Registro do Frango de cada rodada |
 
 ---
 
-## Deploy
+<div align="center">
 
-O projeto está configurado para deploy automático na Vercel a cada push na branch `main`.
+*Feito pra um grupo de 14 amigos que leva o bolão mais a sério do que deveria.*
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/PhBros16/palpitao-copa-2026)
-
----
-
-## Licença
-
-MIT — use, modifique e distribua à vontade.
-
----
-
-Feito com ⚽ por **Pedro Henrique** para a Copa do Mundo 2026.
+</div>
