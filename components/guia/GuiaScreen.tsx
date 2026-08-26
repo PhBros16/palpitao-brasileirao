@@ -1,11 +1,20 @@
 'use client'
 
-// GuiaScreen — 10 seções em accordion com stagger de entrada.
+// GuiaScreen — 12 seções em accordion com stagger de entrada.
 // Envolvido pelo AppLayout: sem <main>, sem bg próprio.
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { buscarAdmsGuia, CONTEUDO_COMO_FUNCIONA, REGRAS_PONTUACAO, CRITERIOS_DESEMPATE, TIERS_TROFEUS, FAQ, URL_WHATSAPP_DUVIDA } from '@/lib/guiaData'
+import {
+  buscarAdmsGuia,
+  CONTEUDO_COMO_FUNCIONA,
+  REGRAS_PONTUACAO,
+  CRITERIOS_DESEMPATE,
+  TIERS_TROFEUS,
+  FAQ,
+  URL_WHATSAPP_DUVIDA,
+  SECOES_GUIA,
+} from '@/lib/guiaData'
 import type { AdminProfile } from '@/lib/rodadaAdmin'
 import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { SecaoAccordion } from './SecaoAccordion'
@@ -58,6 +67,11 @@ const itemAdm = {
   },
 }
 
+// "Pagamentos" segue de fora — conteúdo confirmado como alucinação de outra IA.
+// "Regras Básicas e Premiação" e "Matemática do App" são reais e entram no accordion.
+const SECAO_PREMIACAO = SECOES_GUIA.find((s) => s.id === 'regras-basicas')
+const SECAO_MATEMATICA = SECOES_GUIA.find((s) => s.id === 'matematica-app')
+
 export function GuiaScreen() {
   const [adms, setAdms] = useState<AdminProfile[]>([])
   const [carregandoAdms, setCarregandoAdms] = useState(true)
@@ -87,7 +101,7 @@ export function GuiaScreen() {
       >
         {/* 1. Conheça os Adms */}
         <motion.div variants={itemSecao}>
-          <SecaoAccordion titulo="Conheça os Adms" icone="👑" defaultOpen>
+          <SecaoAccordion titulo="Conheça os Adms" icone="👑">
             {carregandoAdms ? (
               <p className="font-sans text-sm text-tinta-100">Carregando cards...</p>
             ) : erroAdms ? (
@@ -157,14 +171,9 @@ export function GuiaScreen() {
         {/* 2. Como Funciona */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Como Funciona" icone="📖">
-            <ul className="space-y-2">
-              {CONTEUDO_COMO_FUNCIONA.map((linha, i) => (
-                <li key={i} className="flex items-start gap-2 font-sans text-sm text-tinta-200">
-                  <span className="mt-0.5 flex-shrink-0 text-dourado-500">•</span>
-                  <span>{linha}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="font-sans text-sm text-tinta-200 leading-relaxed">
+              {CONTEUDO_COMO_FUNCIONA}
+            </p>
           </SecaoAccordion>
         </motion.div>
 
@@ -175,12 +184,12 @@ export function GuiaScreen() {
               {REGRAS_PONTUACAO.map((r, i) => (
                 <div key={i} className="rounded border border-papel-borda-200 bg-papel-100 p-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-sans text-sm font-semibold text-tinta-300">{r.desc}</span>
+                    <span className="font-sans text-sm font-semibold text-tinta-300">{r.criterio}</span>
                     <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-sm font-bold text-dourado-700">
-                      {r.pts} pts
+                      {r.pontos}
                     </span>
                   </div>
-                  <p className="mt-1 font-sans text-xs italic text-tinta-100">{r.exemplo}</p>
+                  <p className="mt-1 font-sans text-xs italic text-tinta-100">{r.desc}</p>
                 </div>
               ))}
             </div>
@@ -192,7 +201,31 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 4. Desempate */}
+        {/* 4. Premiação (regras-basicas do SECOES_GUIA, exceto o item de pontuação que já está acima) */}
+        {SECAO_PREMIACAO && (
+          <motion.div variants={itemSecao}>
+            <SecaoAccordion titulo="Premiação" icone="💰">
+              <div className="space-y-2">
+                {SECAO_PREMIACAO.itens
+                  .filter((f) => f.pergunta !== 'Como funciona a pontuação?')
+                  .map((f, i) => (
+                    <details
+                      key={i}
+                      className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
+                    >
+                      <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
+                        <span>{f.pergunta}</span>
+                        <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
+                    </details>
+                  ))}
+              </div>
+            </SecaoAccordion>
+          </motion.div>
+        )}
+
+        {/* 5. Desempate */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Desempate" icone="🏆">
             <p className="mb-3 font-sans text-sm text-tinta-200">
@@ -200,18 +233,15 @@ export function GuiaScreen() {
             </p>
             <ol className="space-y-1.5">
               {CRITERIOS_DESEMPATE.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 rounded border border-papel-borda-200 bg-papel-100 px-2.5 py-1.5">
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-dourado-400 font-mono text-[11px] font-bold text-papel-50">
-                    {i + 1}
-                  </span>
-                  <span className="font-sans text-sm text-tinta-300">{c}</span>
+                <li key={i} className="rounded border border-papel-borda-200 bg-papel-100 px-2.5 py-1.5 font-sans text-sm text-tinta-300">
+                  {c}
                 </li>
               ))}
             </ol>
           </SecaoAccordion>
         </motion.div>
 
-        {/* 5. Projeção */}
+        {/* 6. Projeção */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Projeção %" icone="📊">
             <p className="font-sans text-sm text-tinta-200">
@@ -234,7 +264,7 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 6. Troféus */}
+        {/* 7. Troféus */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Troféus" icone="🏅">
             <p className="mb-3 font-sans text-sm text-tinta-200">
@@ -243,14 +273,11 @@ export function GuiaScreen() {
             <div className="space-y-2">
               {TIERS_TROFEUS.map((t) => (
                 <div key={t.tier} className="flex items-start gap-3 rounded border border-papel-borda-200 bg-papel-100 p-2.5">
-                  <span className="text-2xl leading-none">{t.emoji}</span>
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-dourado-400 font-mono text-xs font-bold text-papel-50">
+                    {t.tier}
+                  </span>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-display text-sm font-bold text-tinta-300">{t.tier}</span>
-                      <span className="rounded bg-couro-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-couro-900">
-                        {t.qtd} troféus
-                      </span>
-                    </div>
+                    <span className="font-display text-sm font-bold text-tinta-300">{t.nome}</span>
                     <p className="mt-0.5 font-sans text-xs text-tinta-100">{t.desc}</p>
                   </div>
                 </div>
@@ -262,7 +289,7 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 7. Frango */}
+        {/* 8. Frango */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Frango da Rodada" icone="🐔">
             <p className="font-sans text-sm text-tinta-200">
@@ -274,7 +301,7 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 8. Formação */}
+        {/* 9. Formação */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Formação do Time" icone="⚙️">
             <p className="font-sans text-sm text-tinta-200">
@@ -286,7 +313,7 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 9. Música */}
+        {/* 10. Música */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Música Tema" icone="🎵">
             <p className="font-sans text-sm text-tinta-200">
@@ -309,7 +336,29 @@ export function GuiaScreen() {
           </SecaoAccordion>
         </motion.div>
 
-        {/* 10. FAQ */}
+        {/* 11. Matemática do App (NOVO) */}
+        {SECAO_MATEMATICA && (
+          <motion.div variants={itemSecao}>
+            <SecaoAccordion titulo={SECAO_MATEMATICA.titulo.replace(/^\S+\s/, '')} icone="🧮">
+              <div className="space-y-2">
+                {SECAO_MATEMATICA.itens.map((f, i) => (
+                  <details
+                    key={i}
+                    className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
+                      <span>{f.pergunta}</span>
+                      <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
+                  </details>
+                ))}
+              </div>
+            </SecaoAccordion>
+          </motion.div>
+        )}
+
+        {/* 12. FAQ */}
         <motion.div variants={itemSecao}>
           <SecaoAccordion titulo="Perguntas Frequentes" icone="❓">
             <div className="space-y-2">
@@ -319,10 +368,10 @@ export function GuiaScreen() {
                   className="group rounded border border-papel-borda-200 bg-papel-100 p-2.5 open:bg-papel-50"
                 >
                   <summary className="flex cursor-pointer items-center justify-between gap-2 font-sans text-sm font-semibold text-tinta-300 marker:content-none">
-                    <span>{f.p}</span>
+                    <span>{f.pergunta}</span>
                     <span className="font-mono text-xs text-dourado-500 group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed">{f.r}</p>
+                  <p className="mt-2 font-sans text-sm text-tinta-200 leading-relaxed whitespace-pre-line">{f.resposta}</p>
                 </details>
               ))}
             </div>
