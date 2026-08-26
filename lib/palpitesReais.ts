@@ -21,6 +21,7 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     .from('rounds')
     .select('id, number, name')
     .eq('palpites_open', true)
+    .eq('finalized', false)
     .order('number', { ascending: false })
     .limit(1)
     .maybeSingle()
