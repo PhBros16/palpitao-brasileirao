@@ -431,7 +431,7 @@ function EstatisticasCampeonato({
       
       <div className="grid grid-cols-4 gap-2 mb-3">
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
-          <span className="font-mono text-base font-bold text-green-600">{dados.tabela.reduce((s,t) => s + t.vitorias, 0) / 2}</span>
+          <span className="font-mono text-base font-bold text-green-600">{dados.tabela.reduce((s,t) => s + t.vitorias, 0)}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Vitórias</span>
         </div>
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
@@ -439,7 +439,7 @@ function EstatisticasCampeonato({
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Empates</span>
         </div>
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
-          <span className="font-mono text-base font-bold text-tinta-300">{dados.tabela.reduce((s,t) => s + t.golsMarcados, 0) / 2}</span>
+          <span className="font-mono text-base font-bold text-tinta-300">{dados.tabela.reduce((s,t) => s + t.golsMarcados, 0)}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Gols</span>
         </div>
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
@@ -819,7 +819,7 @@ function ModalTime({
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className="sticky -bottom-5 -mx-5 -mb-5 mt-4 flex justify-end border-t border-papel-borda-200 bg-papel-50 px-5 py-3">
         <button
           type="button"
           onClick={onFechar}
