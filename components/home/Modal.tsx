@@ -2,6 +2,11 @@
 
 // Modal — wrapper animado padrão do app.
 // Backdrop fade + card scale-in + slide up. Fecha no ESC ou clique no backdrop.
+//
+// paddingBottom com safe-area: sem isso, o card podia encostar direto na
+// borda inferior em iPhones com indicador de gestos (home indicator),
+// deixando o último elemento do conteúdo (ex.: botão "Fechar") espremido
+// contra a área de gesto do sistema — difícil de tocar com precisão.
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect } from 'react'
@@ -44,6 +49,7 @@ export function Modal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
           className="fixed inset-0 z-[150] flex items-center justify-center bg-tinta-300/70 p-4 backdrop-blur-sm"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
           onClick={fecharNoBackdrop ? onFechar : undefined}
         >
           <motion.div
