@@ -9,14 +9,20 @@ import { FrenteFrenteModal } from '@/components/ranking/FrenteFrenteModal'
 import { buscarRankingReal, type LinhaRanking } from '@/lib/rankingReal'
 import { buscarTrofeusJogador, type TrofeuReal } from '@/lib/trofeusReal'
 import { Confete } from '@/components/home/Confete'
+import { lerCache, salvarCache, CACHE_TTL } from '@/lib/dataCache'
 import type { DadosRanking } from '@/components/ranking/tipos'
 
 const CHAVE_TROFEUS_VISTOS = 'palpitao_trofeus_vistos'
 
 export default function RankingPage() {
   const router = useRouter()
-  const [dados, setDados] = useState<DadosRanking | null>(null)
-  const [linhasReais, setLinhasReais] = useState<LinhaRanking[]>([])
+  const [linhasReais, setLinhasReais] = useState<LinhaRanking[]>(
+    () => lerCache<LinhaRanking[]>('ranking_linhas', CACHE_TTL.MEDIO) ?? [],
+  )
+  const [dados, setDados] = useState<DadosRanking | null>(() => {
+    const cache = lerCache<LinhaRanking[]>('ranking_linhas', CACHE_TTL.MEDIO)
+    return cache ? montarDadosRanking(cache) : null
+  })
   const [erro, setErro] = useState<string | null>(null)
   const [frenteFrente, setFrenteFrente] = useState<{ a: LinhaRanking; b: LinhaRanking } | null>(null)
   const [novosTrofeus, setNovosTrofeus] = useState<TrofeuReal[]>([])
@@ -26,9 +32,15 @@ export default function RankingPage() {
       const linhas = await buscarRankingReal()
       setLinhasReais(linhas)
       setDados(montarDadosRanking(linhas))
+      salvarCache('ranking_linhas', linhas)
       setErro(null)
     } catch (e) {
-      setErro((e as Error).message)
+      // Se já tem dado em tela (veio do cache), não troca por uma tela de
+      // erro — só registra no console; a experiência em tela continua boa.
+      setDados((atual) => {
+        if (!atual) setErro((e as Error).message)
+        return atual
+      })
     }
   }, [])
 
@@ -56,6 +68,9 @@ export default function RankingPage() {
         .catch(() => { /* silencioso */ })
     }
 
+    // Revalida em background quando o usuário volta pra aba — mas como já
+    // existe cache/estado em tela, isso não gera "Carregando..." de novo,
+    // só atualiza os números por baixo dos panos quando a resposta chega.
     function onFocus() {
       carregarRanking()
     }
@@ -68,7 +83,8 @@ export default function RankingPage() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [router, carregarRanking])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router])
 
   function abrirFrenteFrenteReal(nome: string) {
     const clicada = linhasReais.find((l) => l.nome === nome)
