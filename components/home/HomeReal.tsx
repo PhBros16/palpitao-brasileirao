@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { buscarHomeCompleta, type HomeCompleta, type ParcialLinha, type PlacaresJogo, type DistribuicaoJogo } from '@/lib/homeReal'
+import { lerCache, salvarCache, CACHE_TTL } from '@/lib/dataCache'
 import { supabase } from '@/lib/supabase' // ADICIONADO PARA LER AS NOVIDADES
 import { AvatarCirculo } from './HeaderUsuario'
 import { useRegistrarAtualizar } from './AtualizarContext'
@@ -36,7 +37,7 @@ function formatarCountdown(ms: number): string {
 }
 
 export function HomeReal() {
-  const [dados, setDados] = useState<HomeCompleta | null>(null)
+  const [dados, setDados] = useState<HomeCompleta | null>(() => lerCache<HomeCompleta>('home', CACHE_TTL.CURTO))
   const [participantId, setParticipantId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [atualizando, setAtualizando] = useState(false)
@@ -91,8 +92,11 @@ export function HomeReal() {
     try {
       const d = await buscarHomeCompleta(pid)
       setDados(d)
+      salvarCache('home', d)
     } catch (e) {
-      setErro((e as Error).message)
+      // Já tem dado em tela (do cache)? Não troca a tela por um erro —
+      // só loga; o usuário continua vendo o último estado bom conhecido.
+      if (!dados) setErro((e as Error).message)
     }
   }
 
@@ -102,6 +106,7 @@ export function HomeReal() {
     try {
       const d = await buscarHomeCompleta(participantId)
       setDados(d)
+      salvarCache('home', d)
     } catch (e) {
       setErro((e as Error).message)
     } finally {
