@@ -198,9 +198,12 @@ function EstatisticasCampeonato({
   ]
 
   const chancesTitulo = useMemo(() => {
-    const liderProj = Math.max(...e.projecoes.map(p => p.projecaoFinal), 1)
-    const timesProximos = e.projecoes.filter(p => p.projecaoFinal >= liderProj - 10 && p.projecaoFinal >= 65)
-    
+    // Antes este filtro exigia DUAS condições que a legenda não menciona
+    // (>= 65 pts, não 70, E estar a no máximo 10 pts do líder) — o que
+    // excluía times como o Athletico-PR mesmo projetando exatamente 70.
+    // Agora o filtro é literalmente o que o texto abaixo promete: >= 70 pts.
+    const timesProximos = e.projecoes.filter(p => p.projecaoFinal >= 70)
+
     const pesos = timesProximos.map(p => ({
       time: p.time,
       peso: Math.pow(Math.max(1, p.projecaoFinal - 60), 1.8),
@@ -270,9 +273,6 @@ function EstatisticasCampeonato({
           <p className="font-mono text-[9px] uppercase tracking-widest text-tinta-200">Fórmula da Projeção Matemática</p>
           <p className="mt-0.5 font-sans text-[11px] font-semibold text-tinta-300">
             <code>Projeção = (Pontos Atuais ÷ Jogos Disputados) × 38 rodadas</code>
-          </p>
-          <p className="mt-1 font-sans text-[10px] text-tinta-200 leading-tight">
-            <i>Exemplo (Flamengo):</i> (45 pts ÷ 23 jogos) = 1.95 pts/jogo × 38 = <b>74 pts projetados</b> no final.
           </p>
         </div>
         <div className="max-h-72 space-y-1 overflow-y-auto p-2 scrollbar-tema">
