@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#8B5A2B',
+  themeColor: '#1f1206',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -30,6 +30,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <head>
+        {/* Fundo crítico inline — pinta escuro ANTES do globals.css terminar
+            de carregar. Sem isso, o navegador mostra branco padrão por um
+            instante em toda abertura fria do app (some assim que o CSS
+            externo carrega, mas nesse meio tempo aparece o flash branco). */}
+        <style dangerouslySetInnerHTML={{ __html: 'html,body{background-color:#1f1206}' }} />
+
         {/* PRECONNECTS (Fontes e Banco) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
