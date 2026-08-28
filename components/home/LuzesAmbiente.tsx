@@ -1,19 +1,20 @@
 'use client'
 
-// LuzesAmbiente — v10.
+// LuzesAmbiente — v11.
 //
-//   Modo DIA: voltou a ser só o flash dourado (v8) — o sweep de holofotes
-//   testado na v9 não convenceu visualmente (ficou geométrico, sem jeito
-//   de holofote de verdade) e foi removido. Melhor simples do que
-//   "turbinado" mas errado.
+//   Modo DIA: só o flash dourado (v8/v10) — sem sweep de holofotes.
 //
-//   Modo NOITE: virou a arquibancada de um jogo grande com as luzes
-//   apagadas — muitas estrelas no céu, um mar de flashes de celular da
-//   torcida (pontos quentes cintilando em quantidade, não mais os 15
-//   discretos da v9) e sinalizadores vermelhos pulsando com fumaça subindo
-//   bem devagar. Ainda tudo atrás do conteúdo (z-index 1) e sem interferir
-//   na leitura da tela — "quantidade" aqui significa MUITOS elementos bem
-//   pequenos e sutis, não elementos grandes e chamativos.
+//   Modo NOITE: arquibancada de jogo grande com as luzes apagadas —
+//   estrelas + mar de flashes de celular da torcida + sinalizadores
+//   vermelhos com fumaça (v10).
+//
+//   Entrada vinda do login (v11): antes, essa revelação era dividida entre
+//   este arquivo e um CortinaSubindo separado, os dois brigando pela mesma
+//   flag do sessionStorage — resultado era tela preta + pisca, duas
+//   animações desencontradas. Agora é UMA coisa só, daqui: um véu preto
+//   cobre a tela inteira instantaneamente ao montar (sem flash de conteúdo
+//   errado por baixo), e some junto com o flash dourado acendendo — um
+//   movimento contínuo, não duas transições empilhadas.
 
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
@@ -47,9 +48,6 @@ function aplicarTema(ligado: boolean) {
   }, DURACAO_TRANSICAO_MS)
 }
 
-// Gerador determinístico (sem Math.random) — mesma "semente" sempre produz
-// a mesma cena. Evita hidratação diferente entre servidor e cliente, e
-// evita a cena "pipocar" de lugar a cada re-render.
 function pseudoAleatorio(semente: number): number {
   const x = Math.sin(semente * 12.9898) * 43758.5453
   return x - Math.floor(x)
@@ -87,6 +85,7 @@ export function LuzesAmbiente() {
   const [pronto, setPronto] = useState(false)
   const [flash, setFlash] = useState<{ cor: string; opacidade: number }>({ cor: 'quente', opacidade: 0 })
   const [duracao, setDuracao] = useState(DUR_NORMAL)
+  const [veuAtivo, setVeuAtivo] = useState(false)
 
   const estrelas = useMemo(() => gerarEstrelas(60), [])
   const flashesCelular = useMemo(() => gerarFlashesCelular(40), [])
@@ -108,6 +107,11 @@ export function LuzesAmbiente() {
         sessionStorage.getItem(CHAVE_CORTINA) === '1' ||
         sessionStorage.getItem(CHAVE_ENTRADA) === '1'
       if (entradaTeatral) {
+        // Antes o CortinaSubindo apagava CHAVE_CORTINA por conta própria.
+        // Agora essa responsabilidade é só daqui — se não apagar, a próxima
+        // navegação pra Início nesta mesma aba re-acionaria a entrada
+        // teatral por engano.
+        sessionStorage.removeItem(CHAVE_CORTINA)
         sessionStorage.setItem(CHAVE_ENTRADA, '1')
       }
     } catch { /* ignora */ }
@@ -118,19 +122,25 @@ export function LuzesAmbiente() {
     } catch { /* ignora */ }
 
     if (entradaTeatral) {
+      // Nasce coberta pelo véu preto (instantâneo, sem transição própria)
+      // + tema noite por baixo. O véu some junto com o flash dourado
+      // acendendo, ~200ms depois — tempo pra Home terminar de montar por
+      // baixo antes de revelar, sem um segundo sistema de fade brigando.
       setDuracao(DUR_TEATRAL)
       setLigado(false)
       aplicarTema(false)
+      setVeuAtivo(true)
       setPronto(true)
       const t = setTimeout(() => {
         setLigado(true)
         aplicarTema(true)
         piscarFlashQuente()
+        setVeuAtivo(false)
         try {
           sessionStorage.setItem(CHAVE_LUZES, '1')
           sessionStorage.removeItem(CHAVE_ENTRADA)
         } catch { /* ignora */ }
-      }, 50)
+      }, 200)
       return () => clearTimeout(t)
     }
 
@@ -181,112 +191,114 @@ export function LuzesAmbiente() {
   if (!pronto) return null
 
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
-      {/* ─── Estádio de noite, luzes apagadas ─────────────────────────── */}
-      {!ligado && (
-        <>
-          {/* Luar — glow bem sutil vindo de cima */}
-          <div
-            className="absolute rounded-full"
-            style={{
-              left: '50%',
-              top: '-10%',
-              width: 700,
-              height: 700,
-              transform: 'translateX(-50%)',
-              background: 'radial-gradient(circle, rgba(210, 225, 245, 0.14) 0%, rgba(180, 200, 230, 0.05) 45%, transparent 70%)',
-              filter: 'blur(20px)',
-            }}
-          />
-
-          {/* Céu estrelado — concentrado no terço superior */}
-          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-            {estrelas.map((e, i) => (
-              <motion.circle
-                key={`estrela-${i}`}
-                cx={e.x}
-                cy={e.y}
-                r={e.tam * 0.14}
-                fill="#e8eefa"
-                initial={{ opacity: 0.12 }}
-                animate={{ opacity: [0.12, 0.65, 0.12] }}
-                transition={{ duration: e.duracao, repeat: Infinity, ease: 'easeInOut', delay: e.atraso }}
-              />
-            ))}
-          </svg>
-
-          {/* Mar de flashes de celular da torcida — muitos pontos pequenos
-              cintilando em ritmos diferentes, espalhados pela tela toda */}
-          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-            {flashesCelular.map((f, i) => (
-              <motion.circle
-                key={`flash-${i}`}
-                cx={f.x}
-                cy={f.y}
-                r={f.tam * 0.16}
-                fill="#fff6d8"
-                initial={{ opacity: 0.06 }}
-                animate={{ opacity: [0.06, f.picoOpacidade, 0.06] }}
-                transition={{ duration: f.duracao, repeat: Infinity, ease: 'easeInOut', delay: f.atraso }}
-                style={{ filter: 'blur(0.15px)' }}
-              />
-            ))}
-          </svg>
-
-          {/* Sinalizadores vermelhos — glow pulsando + fumaça subindo devagar */}
-          {SINALIZADORES.map((s, i) => (
-            <div key={`sinalizador-${i}`} className="absolute" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
-              <motion.div
-                className="absolute rounded-full"
-                style={{
-                  left: '50%',
-                  top: '50%',
-                  width: 180 * s.escala,
-                  height: 180 * s.escala,
-                  transform: 'translate(-50%, -50%)',
-                  background: 'radial-gradient(circle, rgba(220, 40, 30, 0.55) 0%, rgba(200, 30, 20, 0.22) 40%, transparent 70%)',
-                  filter: 'blur(6px)',
-                }}
-                animate={{ opacity: [0.5, 1, 0.6, 0.9, 0.5] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: s.atraso }}
-              />
-              <motion.div
-                className="absolute rounded-full"
-                style={{
-                  left: '50%',
-                  bottom: '50%',
-                  width: 60 * s.escala,
-                  height: 140 * s.escala,
-                  transform: 'translateX(-50%)',
-                  background: 'linear-gradient(to top, rgba(120, 60, 50, 0.28), transparent 80%)',
-                  filter: 'blur(8px)',
-                }}
-                animate={{ y: [0, -40, -80], opacity: [0.35, 0.18, 0] }}
-                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeOut', delay: s.atraso }}
-              />
-            </div>
-          ))}
-        </>
+    <>
+      {veuAtivo && (
+        <div
+          className="pointer-events-none fixed inset-0"
+          style={{ zIndex: 200, background: '#0a0503' }}
+          aria-hidden="true"
+        />
       )}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
+        {!ligado && (
+          <>
+            <div
+              className="absolute rounded-full"
+              style={{
+                left: '50%',
+                top: '-10%',
+                width: 700,
+                height: 700,
+                transform: 'translateX(-50%)',
+                background: 'radial-gradient(circle, rgba(210, 225, 245, 0.14) 0%, rgba(180, 200, 230, 0.05) 45%, transparent 70%)',
+                filter: 'blur(20px)',
+              }}
+            />
 
-      {/* Flash de transição — dourado ao acender, azulado ao apagar */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          left: '50%',
-          top: '15%',
-          width: 900,
-          height: 900,
-          transform: 'translate(-50%, -50%)',
-          background:
-            flash.cor === 'quente'
-              ? 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.35) 35%, transparent 65%)'
-              : 'radial-gradient(circle, rgba(180, 210, 255, 0.9) 0%, rgba(140, 175, 230, 0.3) 35%, transparent 65%)',
-          filter: 'blur(40px)',
-        }}
-        animate={{ opacity: flash.opacidade }}
-        transition={{ duration: flash.opacidade > 0 ? 0.5 : duracao, ease: 'easeInOut' }}
-      />
-    </div>
+            <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+              {estrelas.map((e, i) => (
+                <motion.circle
+                  key={`estrela-${i}`}
+                  cx={e.x}
+                  cy={e.y}
+                  r={e.tam * 0.14}
+                  fill="#e8eefa"
+                  initial={{ opacity: 0.12 }}
+                  animate={{ opacity: [0.12, 0.65, 0.12] }}
+                  transition={{ duration: e.duracao, repeat: Infinity, ease: 'easeInOut', delay: e.atraso }}
+                />
+              ))}
+            </svg>
+
+            <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+              {flashesCelular.map((f, i) => (
+                <motion.circle
+                  key={`flash-${i}`}
+                  cx={f.x}
+                  cy={f.y}
+                  r={f.tam * 0.16}
+                  fill="#fff6d8"
+                  initial={{ opacity: 0.06 }}
+                  animate={{ opacity: [0.06, f.picoOpacidade, 0.06] }}
+                  transition={{ duration: f.duracao, repeat: Infinity, ease: 'easeInOut', delay: f.atraso }}
+                  style={{ filter: 'blur(0.15px)' }}
+                />
+              ))}
+            </svg>
+
+            {SINALIZADORES.map((s, i) => (
+              <div key={`sinalizador-${i}`} className="absolute" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    width: 180 * s.escala,
+                    height: 180 * s.escala,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'radial-gradient(circle, rgba(220, 40, 30, 0.55) 0%, rgba(200, 30, 20, 0.22) 40%, transparent 70%)',
+                    filter: 'blur(6px)',
+                  }}
+                  animate={{ opacity: [0.5, 1, 0.6, 0.9, 0.5] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: s.atraso }}
+                />
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{
+                    left: '50%',
+                    bottom: '50%',
+                    width: 60 * s.escala,
+                    height: 140 * s.escala,
+                    transform: 'translateX(-50%)',
+                    background: 'linear-gradient(to top, rgba(120, 60, 50, 0.28), transparent 80%)',
+                    filter: 'blur(8px)',
+                  }}
+                  animate={{ y: [0, -40, -80], opacity: [0.35, 0.18, 0] }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: 'easeOut', delay: s.atraso }}
+                />
+              </div>
+            ))}
+          </>
+        )}
+
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            left: '50%',
+            top: '15%',
+            width: 900,
+            height: 900,
+            transform: 'translate(-50%, -50%)',
+            background:
+              flash.cor === 'quente'
+                ? 'radial-gradient(circle, rgba(255, 245, 210, 1) 0%, rgba(255, 235, 180, 0.35) 35%, transparent 65%)'
+                : 'radial-gradient(circle, rgba(180, 210, 255, 0.9) 0%, rgba(140, 175, 230, 0.3) 35%, transparent 65%)',
+            filter: 'blur(40px)',
+          }}
+          animate={{ opacity: flash.opacidade }}
+          transition={{ duration: flash.opacidade > 0 ? 0.5 : duracao, ease: 'easeInOut' }}
+        />
+      </div>
+    </>
   )
 }
