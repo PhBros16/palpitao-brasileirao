@@ -50,16 +50,30 @@
 /* ─── Cor de fundo global (papel envelhecido com brilho) ────────────── */
 
 body {
-  background-color: rgb(245 232 195);
+  background-color: var(--fundo-base);
   background-image:
-    radial-gradient(ellipse at 15% 20%, rgba(184, 134, 11, 0.18), transparent 55%),
-    radial-gradient(ellipse at 85% 80%, rgba(139, 90, 43, 0.15), transparent 60%),
-    radial-gradient(ellipse at 50% 50%, rgba(244, 220, 132, 0.10), transparent 70%);
+    radial-gradient(ellipse at 15% 20%, var(--fundo-glow-1), transparent 55%),
+    radial-gradient(ellipse at 85% 80%, var(--fundo-glow-2), transparent 60%),
+    radial-gradient(ellipse at 50% 50%, var(--fundo-glow-3), transparent 70%);
   background-attachment: fixed;
   min-height: 100vh;
+  transition: background-color 0.6s ease;
 }
 
 html, body {
   touch-action: pan-y;
   background-color: #1f1206;
+}
+
+/* ─── Transição de tema (dia ↔ noite) ─────────────────────────────────
+   Aplicada em <html> por LuzesAmbiente.tsx só durante a troca de tema
+   (removida logo depois). Sem isso, trocar as variáveis de cor faria
+   o app inteiro "piscar" pro novo tema em vez de esmaecer suavemente. */
+
+.tema-transicionando,
+.tema-transicionando * {
+  transition:
+    background-color 0.6s ease,
+    border-color 0.6s ease,
+    color 0.6s ease !important;
 }
