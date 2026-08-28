@@ -7,6 +7,27 @@
  *
  * Direção: Álbum de Figurinhas (mix atemporal, tom equilibrado).
  * Ver CLAUDE.md Seção 4 para o racional de cada peça.
+ *
+ * ============================================================
+ * TEMA NOITE — como funciona
+ * ============================================================
+ * Todo componente do app consome cor via classe Tailwind (bg-papel-100,
+ * border-dourado-300, text-tinta-300...), e cada uma dessas classes está
+ * mapeada, no tailwind.config.ts, direto pra uma destas variáveis CSS.
+ * Isso significa que o tema noite NÃO precisa tocar em nenhum componente:
+ * basta sobrescrever os valores das variáveis dentro do seletor
+ * [data-tema="noite"] logo abaixo, que o app inteiro se redesenha sozinho.
+ *
+ * O atributo data-tema é escrito em <html> por LuzesAmbiente.tsx quando o
+ * interruptor da Home é usado (ver components/home/LuzesAmbiente.tsx).
+ *
+ * Ao escolher os valores da variante noite, o critério usado foi: manter
+ * a MESMA identidade (couro, dourado, papel envelhecido), só que
+ * recalculada pro contexto "estádio à noite" — nunca um preto genérico.
+ * Dourado no modo noite é levemente menos saturado que no modo dia, de
+ * propósito: dourado forte contra fundo escuro lê como neon; um pouco
+ * mais suave, lê como metal sob luz de estádio.
+ * ============================================================
  */
 
 :root {
@@ -140,6 +161,16 @@
   --raridade-frango-selo: #a3402a;
 
   /* ============================================================
+     FUNDO GLOBAL — cor de base + glows radiais usados em body{}
+     (globals.css). Separado em variáveis pra o tema noite poder
+     trocar o "clima" do fundo inteiro sem precisar reescrever CSS.
+     ============================================================ */
+  --fundo-base: #f5e8c3;
+  --fundo-glow-1: rgba(184, 134, 11, 0.18);
+  --fundo-glow-2: rgba(139, 90, 43, 0.15);
+  --fundo-glow-3: rgba(244, 220, 132, 0.10);
+
+  /* ============================================================
      TIPOGRAFIA
      ============================================================ */
   --font-display: Georgia, 'Times New Roman', serif;       /* emblema, headers de seção */
@@ -153,4 +184,59 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+}
+
+/* ============================================================
+   TEMA NOITE — "estádio sob luz de jogo noturno"
+   Ativado via [data-tema="noite"] em <html>, escrito por
+   components/home/LuzesAmbiente.tsx quando o interruptor é usado.
+   ============================================================ */
+[data-tema='noite'] {
+  /* PAPEL — deixa de ser página de álbum sob luz de dia e vira
+     estrutura escura (arquibancada/concreto sob refletor), texto claro */
+  --papel-50: #16283f;
+  --papel-100: #1a2e47;
+  --papel-200: #20374f;
+  --papel-300: #263e58;
+  --papel-400: #2c4560;
+
+  --papel-borda-100: #33507a;
+  --papel-borda-200: #3d5c88;
+  --papel-borda-300: #486a99;
+  --papel-borda-400: #5478a8;
+
+  --tinta-100: #9db3d4;
+  --tinta-200: #c7d6ea;
+  --tinta-300: #eef3fa;
+
+  /* DOURADO — mesma família, brilho contido pra não virar neon
+     contra o fundo escuro (ver CLAUDE.md/checkup — "problema do neon") */
+  --dourado-50: #e2c988;
+  --dourado-100: #d6bd78;
+  --dourado-200: #c2a75f;
+  --dourado-300: #b0954e;
+  --dourado-400: #9d8344;
+  --dourado-500: #8a723a;
+  --dourado-600: #786332;
+  --dourado-700: #67552b;
+  --dourado-800: #4f4020;
+
+  /* COURO — aprofunda mais um degrau, mantém a identidade de couro */
+  --couro-50: #9c7852;
+  --couro-100: #7a5636;
+  --couro-200: #5f4026;
+  --couro-300: #4a3019;
+  --couro-400: #382410;
+  --couro-500: #2e1d0c;
+  --couro-600: #241609;
+
+  --lombada-100: #402714;
+  --lombada-200: #341f10;
+  --lombada-300: #281808;
+
+  /* FUNDO GLOBAL — azul-petróleo de céu de jogo noturno, não preto-chapado */
+  --fundo-base: #0a1526;
+  --fundo-glow-1: rgba(38, 74, 122, 0.30);
+  --fundo-glow-2: rgba(10, 30, 55, 0.45);
+  --fundo-glow-3: rgba(70, 110, 160, 0.10);
 }
