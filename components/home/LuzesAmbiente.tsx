@@ -1,24 +1,18 @@
 'use client'
 
-// LuzesAmbiente — v8. Deixou de ser um véu preto por cima da tela e virou
-// o motor do tema noite/dia de verdade.
+// LuzesAmbiente — v9. O motor do tema noite/dia (v8) ganha os dois
+// momentos de identidade pedidos:
 //
-// Antes (v7): "apagar a luz" era só uma camada preta a 90% de opacidade
-// cobrindo tudo. Nenhum elemento da interface era redesenhado pro
-// contexto escuro — e é exatamente por isso que bordas douradas e badges
-// coloridos, feitos pra viver sobre papel claro, viravam "neon" contra
-// o fundo quase-preto.
+//   1. Modo DIA — ao acender (entrada do app ou toggle), holofotes de
+//      estádio varrem a tela num sweep rápido, sincronizados com o flash
+//      dourado que já existia. É o "TCHAN" da luz nascendo.
+//   2. Modo NOITE — enquanto apagado, um céu de "estádio depois do jogo"
+//      fica ativo: lua sutil no alto + estrelas cintilando bem discretas.
+//      Não é luz forte — é a ausência dela, com atmosfera.
 //
-// Agora: o toggle escreve data-tema="noite"/"dia" em <html>. Como todas
-// as cores do app (bg-papel-*, border-dourado-*, text-tinta-* etc.) já
-// resolvem via variável CSS (ver tailwind.config.ts → styles/tokens.css),
-// o app inteiro se redesenha sozinho pro tema noturno — sem tocar em
-// nenhum outro componente.
-//
-// O flash dourado (entrando) e o flash frio (saindo) continuam existindo,
-// só que agora são só o MOMENTO da transição — não uma camada permanente.
-// Quem cuida do "escuro de verdade" enquanto a luz fica apagada são as
-// variáveis do tema noite em tokens.css.
+// O "escuro de verdade" continua vindo do tema (tokens.css → data-tema),
+// não de nenhuma camada aqui. Este arquivo só cuida de: (a) escrever o
+// atributo de tema, e (b) os dois momentos visuais acima.
 
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
@@ -34,6 +28,26 @@ const DURACAO_TRANSICAO_MS = 650
 const DUR_TEATRAL = 0.8
 // Fade normal fora da entrada teatral
 const DUR_NORMAL = 1.6
+
+// Posições fixas das estrelas do céu noturno — geradas uma vez, não a
+// cada render (senão "pipocam" de lugar toda vez que o componente atualiza).
+const ESTRELAS = [
+  { x: 8, y: 6, tam: 1.6, atraso: 0.0 },
+  { x: 18, y: 14, tam: 1.1, atraso: 0.6 },
+  { x: 28, y: 5, tam: 1.4, atraso: 1.4 },
+  { x: 40, y: 11, tam: 1.0, atraso: 2.1 },
+  { x: 52, y: 4, tam: 1.7, atraso: 0.3 },
+  { x: 63, y: 9, tam: 1.1, atraso: 1.8 },
+  { x: 74, y: 3, tam: 1.3, atraso: 0.9 },
+  { x: 85, y: 8, tam: 1.5, atraso: 2.6 },
+  { x: 93, y: 15, tam: 1.0, atraso: 1.2 },
+  { x: 5, y: 20, tam: 1.2, atraso: 3.0 },
+  { x: 35, y: 22, tam: 0.9, atraso: 1.6 },
+  { x: 60, y: 19, tam: 1.3, atraso: 0.5 },
+  { x: 80, y: 24, tam: 1.0, atraso: 2.3 },
+  { x: 15, y: 27, tam: 1.1, atraso: 3.4 },
+  { x: 48, y: 26, tam: 0.9, atraso: 1.0 },
+] as const
 
 export function lerLuzesLigadas(): boolean {
   if (typeof window === 'undefined') return true
@@ -61,10 +75,14 @@ export function LuzesAmbiente() {
   const [pronto, setPronto] = useState(false)
   const [flash, setFlash] = useState<{ cor: string; opacidade: number }>({ cor: 'quente', opacidade: 0 })
   const [duracao, setDuracao] = useState(DUR_NORMAL)
+  const [mostrarHolofotes, setMostrarHolofotes] = useState(false)
 
   function piscarFlashQuente() {
     setFlash({ cor: 'quente', opacidade: 0.55 })
     setTimeout(() => setFlash((f) => ({ ...f, opacidade: 0 })), 1500)
+    // Sweep dos holofotes acompanha o flash — só no modo dia acendendo.
+    setMostrarHolofotes(true)
+    setTimeout(() => setMostrarHolofotes(false), 1500)
   }
 
   function piscarFlashFrio() {
@@ -160,10 +178,87 @@ export function LuzesAmbiente() {
 
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
-      {/* Flash de transição — só existe durante o instante da troca.
-          Quente (dourado) quando acende, frio (azulado) quando apaga.
-          O "escuro de verdade" enquanto a luz fica apagada não vem mais
-          daqui — vem do tema noite em tokens.css. */}
+      {/* ─── Céu de estádio apagado — só existe no modo noite ─────────── */}
+      {!ligado && (
+        <>
+          {/* Luar — glow branco-azulado sutil vindo de cima, não é luz de jogo */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              left: '50%',
+              top: '-10%',
+              width: 700,
+              height: 700,
+              transform: 'translateX(-50%)',
+              background: 'radial-gradient(circle, rgba(210, 225, 245, 0.16) 0%, rgba(180, 200, 230, 0.06) 45%, transparent 70%)',
+              filter: 'blur(20px)',
+            }}
+          />
+          {/* Estrelas — cintilação bem discreta, posições fixas */}
+          <svg
+            className="absolute inset-0 h-full w-full"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
+            {ESTRELAS.map((e, i) => (
+              <motion.circle
+                key={i}
+                cx={e.x}
+                cy={e.y}
+                r={e.tam * 0.15}
+                fill="#e8eefa"
+                initial={{ opacity: 0.15 }}
+                animate={{ opacity: [0.15, 0.7, 0.15] }}
+                transition={{
+                  duration: 3.2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: e.atraso,
+                }}
+              />
+            ))}
+          </svg>
+        </>
+      )}
+
+      {/* ─── Sweep de holofotes — só no instante em que o modo dia acende ─── */}
+      {mostrarHolofotes && (
+        <svg
+          className="absolute inset-0 h-full w-full"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 100"
+        >
+          {[
+            { origemX: 10, anguloDeg: 32, atraso: 0 },
+            { origemX: 50, anguloDeg: 0, atraso: 0.08 },
+            { origemX: 90, anguloDeg: -32, atraso: 0.16 },
+          ].map((feixe, i) => (
+            <motion.g
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.5, 0] }}
+              transition={{ duration: 1.1, delay: feixe.atraso, ease: 'easeOut' }}
+              style={{
+                transformOrigin: `${feixe.origemX}% 0%`,
+                transform: `rotate(${feixe.anguloDeg}deg)`,
+              }}
+            >
+              <defs>
+                <linearGradient id={`feixe-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(255, 248, 225, 0.85)" />
+                  <stop offset="100%" stopColor="rgba(255, 248, 225, 0)" />
+                </linearGradient>
+              </defs>
+              <polygon
+                points={`${feixe.origemX - 4},0 ${feixe.origemX + 4},0 ${feixe.origemX + 22},60 ${feixe.origemX - 22},60`}
+                fill={`url(#feixe-grad-${i})`}
+              />
+            </motion.g>
+          ))}
+        </svg>
+      )}
+
+      {/* Flash de transição — dourado ao acender, azulado ao apagar */}
       <motion.div
         className="absolute rounded-full"
         style={{
