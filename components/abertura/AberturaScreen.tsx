@@ -364,6 +364,7 @@ export function AberturaScreen() {
           perspectiveOrigin: '52% 45%',
           transform: `scale(${escala})`,
           transformOrigin: 'top center',
+          transition: 'transform 0.35s ease-out',
           zIndex: 2,
           boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
         }}
