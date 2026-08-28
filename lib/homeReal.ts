@@ -58,27 +58,36 @@ export interface HomeCompleta {
 }
 
 export async function buscarHomeCompleta(participantId: string): Promise<HomeCompleta> {
-  const { data: parts } = await supabase.from('participants').select('id, name, avatar, emoji, is_admin').eq('is_admin', false)
-  const participants = parts ?? []
+  // As 3 buscas abaixo não dependem uma da outra — disparadas juntas em
+  // vez de uma esperando a outra terminar (era o maior custo de tempo
+  // desta função: eram 11 idas sequenciais ao banco antes desta troca).
+  const [partsRes, formacaoRes, roundRes] = await Promise.all([
+    supabase.from('participants').select('id, name, avatar, emoji, is_admin').eq('is_admin', false),
+    supabase.from('app_settings').select('value').eq('key', 'formacao').maybeSingle().then(
+      (r) => r,
+      () => ({ data: null as any }),
+    ),
+    supabase
+      .from('rounds')
+      .select('id, name, is_double, number')
+      .eq('palpites_open', true)
+      .order('number', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const participants = partsRes.data ?? []
   const eu = participants.find((p) => p.id === participantId) ?? null
 
   let formacaoId = '4-3-3'
-  try {
-    const { data: f } = await supabase.from('app_settings').select('value').eq('key', 'formacao').maybeSingle()
-    if (f?.value) formacaoId = (f.value as any).id ?? (f.value as any).nome ?? '4-3-3'
-  } catch { /* ignora */ }
+  const formacaoValue = formacaoRes?.data?.value
+  if (formacaoValue) formacaoId = (formacaoValue as any).id ?? (formacaoValue as any).nome ?? '4-3-3'
 
-  const { data: round } = await supabase
-    .from('rounds')
-    .select('id, name, is_double, number')
-    .eq('palpites_open', true)
-    .order('number', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const round = roundRes.data
 
   if (!round) {
-    const podio = await calcPodioGeral(participants)
-    const f = await buscarUltimoFrango()
+    // Pódio e frango não dependem um do outro — dispara juntos.
+    const [podio, f] = await Promise.all([calcPodioGeral(participants), buscarUltimoFrango()])
     return {
       meuPerfil: eu ? { id: eu.id, nome: eu.name, avatar: eu.avatar, emoji: eu.emoji } : null,
       rodada: null, parcial: [], stats: null, frango: f, podioGeral: podio,
@@ -86,20 +95,29 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     }
   }
 
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
-    .eq('round_id', round.id)
-    .order('match_date', { ascending: true })
-  
-  const mList = matches ?? []
+  // matches e a base do ranking geral não dependem um do outro — só os
+  // palpites (preds) dependem de sabermos os IDs dos jogos primeiro.
+  const [matchesRes, pontuacaoBase] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
+      .eq('round_id', round.id)
+      .order('match_date', { ascending: true }),
+    calcBaseRanking(participants),
+  ])
 
-  const { data: preds } = mList.length > 0 ? await supabase
-    .from('predictions')
-    .select('participant_id, match_id, pred_h, pred_a')
-    .in('match_id', mList.map((m) => m.id)) : { data: [] }
-  
-  const pList = preds ?? []
+  const mList = matchesRes.data ?? []
+
+  // Palpites e o frango da rodada anterior não dependem um do outro —
+  // dispara juntos, já deixando o frango pronto pro fim da função.
+  const [predsRes, f] = await Promise.all([
+    mList.length > 0
+      ? supabase.from('predictions').select('participant_id, match_id, pred_h, pred_a').in('match_id', mList.map((m) => m.id))
+      : Promise.resolve({ data: [] as any[] }),
+    buscarUltimoFrango(),
+  ])
+
+  const pList = predsRes.data ?? []
 
   let proximoFechaEm: number | null = null
   let jogosAbertos = 0
@@ -126,7 +144,6 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
     }
   }
 
-  const pontuacaoBase = await calcBaseRanking(participants)
   const { parcial, cravadasMinhas, meusPtsRodada } = calcParcial(participants, mList, pList, round.is_double, pontuacaoBase, participantId)
 
   let posicaoRanking = 1
@@ -154,8 +171,10 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
 
   const { placares, distribuicao } = calcEstatisticasPalpites(mList, pList)
 
-  const podioGeral = await calcPodioGeral(participants)
-  const f = await buscarUltimoFrango()
+  // Reaproveita a MESMA pontuacaoBase já calculada acima — antes esta
+  // linha chamava calcPodioGeral(participants), que recalculava a base
+  // do zero (2 consultas repetidas ao banco só pra chegar no mesmo número).
+  const podioGeral = montarPodio(participants, pontuacaoBase)
 
   return {
     meuPerfil: eu ? { id: eu.id, nome: eu.name, avatar: eu.avatar, emoji: eu.emoji } : null,
@@ -187,8 +206,7 @@ async function calcBaseRanking(parts: any[]) {
   return res
 }
 
-async function calcPodioGeral(parts: any[]) {
-  const base = await calcBaseRanking(parts)
+function montarPodio(parts: any[], base: Map<string, number>) {
   const lista = parts.map((p) => ({
     id: p.id,
     nome: p.name,
@@ -198,6 +216,11 @@ async function calcPodioGeral(parts: any[]) {
   }))
   lista.sort((a, b) => b.pts - a.pts)
   return lista.slice(0, 3).filter((l) => l.pts > 0)
+}
+
+async function calcPodioGeral(parts: any[]) {
+  const base = await calcBaseRanking(parts)
+  return montarPodio(parts, base)
 }
 
 async function buscarUltimoFrango() {
