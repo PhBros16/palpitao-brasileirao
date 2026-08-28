@@ -4,17 +4,21 @@
 // afeta a URL (continua /inicio, /palpites, etc). AppLayout é montado
 // UMA VEZ aqui; só {children} troca ao navegar entre abas.
 //
-// A CortinaSubindo detecta se veio da abertura via login e sobe a cortina
-// de couro revelando a Home já pronta.
+// A revelação "vindo do login" (cortina subindo + luzes acendendo) é
+// tratada inteiramente por LuzesAmbiente (dentro de AppLayout) — não existe
+// mais um CortinaSubindo separado aqui. Os dois consumiam a mesma flag do
+// sessionStorage ('palpitao_cortina_subir') em momentos diferentes do ciclo
+// do React, e o CortinaSubindo sempre vencia a corrida (seu useState lê e
+// apaga a flag durante a renderização, antes de qualquer useEffect rodar) —
+// então LuzesAmbiente nunca via a flag a tempo, e as duas revelações
+// (cortina + luz) aconteciam desencontradas, uma por cima da outra.
 import { AppLayout } from '@/components/home/AppLayout'
 import { AtualizarProvider } from '@/components/home/AtualizarContext'
-import { CortinaSubindo } from '@/components/home/CortinaTransicao'
 
 export default function LogadoLayout({ children }: { children: React.ReactNode }) {
   return (
     <AtualizarProvider>
       <AppLayout>{children}</AppLayout>
-      <CortinaSubindo />
     </AtualizarProvider>
   )
 }
