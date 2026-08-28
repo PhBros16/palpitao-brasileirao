@@ -142,12 +142,18 @@ export function LuzesAmbiente() {
         return novo
       })
     }
-    // Mesmo nome de evento que BotoesLuz.tsx dispara (alternarInterruptor).
-    // Nas versões anteriores esse listener escutava 'palpitao:alternarLuzes',
-    // um nome que nada no app disparava — o interruptor nunca chegava a
-    // acionar nenhuma mudança visual real por causa disso.
+    // Existem DOIS botões de interruptor no app, em componentes diferentes,
+    // cada um historicamente disparando um nome de evento diferente:
+    //   - HeaderUsuario.tsx (ícone no cabeçalho)  → 'palpitao:alternarLuzes'
+    //   - BotoesLuz.tsx (card "Chamar o TI")       → 'palpitao:alternarInterruptor'
+    // Em vez de escolher um só (e quebrar o outro botão de novo), escuta os
+    // dois — assim qualquer um dos dois interruptores físicos funciona.
+    window.addEventListener('palpitao:alternarLuzes', handleToggle)
     window.addEventListener('palpitao:alternarInterruptor', handleToggle)
-    return () => window.removeEventListener('palpitao:alternarInterruptor', handleToggle)
+    return () => {
+      window.removeEventListener('palpitao:alternarLuzes', handleToggle)
+      window.removeEventListener('palpitao:alternarInterruptor', handleToggle)
+    }
   }, [])
 
   if (!pronto) return null
