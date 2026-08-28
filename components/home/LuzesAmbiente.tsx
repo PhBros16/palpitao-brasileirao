@@ -1,21 +1,22 @@
 'use client'
 
-// LuzesAmbiente — v9. O motor do tema noite/dia (v8) ganha os dois
-// momentos de identidade pedidos:
+// LuzesAmbiente — v10.
 //
-//   1. Modo DIA — ao acender (entrada do app ou toggle), holofotes de
-//      estádio varrem a tela num sweep rápido, sincronizados com o flash
-//      dourado que já existia. É o "TCHAN" da luz nascendo.
-//   2. Modo NOITE — enquanto apagado, um céu de "estádio depois do jogo"
-//      fica ativo: lua sutil no alto + estrelas cintilando bem discretas.
-//      Não é luz forte — é a ausência dela, com atmosfera.
+//   Modo DIA: voltou a ser só o flash dourado (v8) — o sweep de holofotes
+//   testado na v9 não convenceu visualmente (ficou geométrico, sem jeito
+//   de holofote de verdade) e foi removido. Melhor simples do que
+//   "turbinado" mas errado.
 //
-// O "escuro de verdade" continua vindo do tema (tokens.css → data-tema),
-// não de nenhuma camada aqui. Este arquivo só cuida de: (a) escrever o
-// atributo de tema, e (b) os dois momentos visuais acima.
+//   Modo NOITE: virou a arquibancada de um jogo grande com as luzes
+//   apagadas — muitas estrelas no céu, um mar de flashes de celular da
+//   torcida (pontos quentes cintilando em quantidade, não mais os 15
+//   discretos da v9) e sinalizadores vermelhos pulsando com fumaça subindo
+//   bem devagar. Ainda tudo atrás do conteúdo (z-index 1) e sem interferir
+//   na leitura da tela — "quantidade" aqui significa MUITOS elementos bem
+//   pequenos e sutis, não elementos grandes e chamativos.
 
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const CHAVE_LUZES = 'palpitao_luzes_ligado_v3'
 const CHAVE_CORTINA = 'palpitao_cortina_subir'
@@ -24,30 +25,8 @@ const ATRIBUTO_TEMA = 'data-tema'
 const CLASSE_TRANSICAO = 'tema-transicionando'
 const DURACAO_TRANSICAO_MS = 650
 
-// Fade rápido na entrada teatral (sincroniza com a cortina subindo em 1400ms)
 const DUR_TEATRAL = 0.8
-// Fade normal fora da entrada teatral
 const DUR_NORMAL = 1.6
-
-// Posições fixas das estrelas do céu noturno — geradas uma vez, não a
-// cada render (senão "pipocam" de lugar toda vez que o componente atualiza).
-const ESTRELAS = [
-  { x: 8, y: 6, tam: 1.6, atraso: 0.0 },
-  { x: 18, y: 14, tam: 1.1, atraso: 0.6 },
-  { x: 28, y: 5, tam: 1.4, atraso: 1.4 },
-  { x: 40, y: 11, tam: 1.0, atraso: 2.1 },
-  { x: 52, y: 4, tam: 1.7, atraso: 0.3 },
-  { x: 63, y: 9, tam: 1.1, atraso: 1.8 },
-  { x: 74, y: 3, tam: 1.3, atraso: 0.9 },
-  { x: 85, y: 8, tam: 1.5, atraso: 2.6 },
-  { x: 93, y: 15, tam: 1.0, atraso: 1.2 },
-  { x: 5, y: 20, tam: 1.2, atraso: 3.0 },
-  { x: 35, y: 22, tam: 0.9, atraso: 1.6 },
-  { x: 60, y: 19, tam: 1.3, atraso: 0.5 },
-  { x: 80, y: 24, tam: 1.0, atraso: 2.3 },
-  { x: 15, y: 27, tam: 1.1, atraso: 3.4 },
-  { x: 48, y: 26, tam: 0.9, atraso: 1.0 },
-] as const
 
 export function lerLuzesLigadas(): boolean {
   if (typeof window === 'undefined') return true
@@ -58,8 +37,6 @@ export function lerLuzesLigadas(): boolean {
   }
 }
 
-/** Aplica data-tema em <html>, com uma janela de transição suave
- * (ver .tema-transicionando em globals.css) que se remove sozinha. */
 function aplicarTema(ligado: boolean) {
   if (typeof document === 'undefined') return
   const html = document.documentElement
@@ -70,19 +47,53 @@ function aplicarTema(ligado: boolean) {
   }, DURACAO_TRANSICAO_MS)
 }
 
+// Gerador determinístico (sem Math.random) — mesma "semente" sempre produz
+// a mesma cena. Evita hidratação diferente entre servidor e cliente, e
+// evita a cena "pipocar" de lugar a cada re-render.
+function pseudoAleatorio(semente: number): number {
+  const x = Math.sin(semente * 12.9898) * 43758.5453
+  return x - Math.floor(x)
+}
+
+function gerarEstrelas(qtd: number) {
+  return Array.from({ length: qtd }, (_, i) => ({
+    x: pseudoAleatorio(i * 3.1 + 1) * 100,
+    y: pseudoAleatorio(i * 7.7 + 2) * 38,
+    tam: 0.6 + pseudoAleatorio(i * 5.3 + 3) * 1.1,
+    atraso: pseudoAleatorio(i * 9.1 + 4) * 4,
+    duracao: 2.4 + pseudoAleatorio(i * 4.4 + 5) * 2.2,
+  }))
+}
+
+function gerarFlashesCelular(qtd: number) {
+  return Array.from({ length: qtd }, (_, i) => ({
+    x: pseudoAleatorio(i * 6.2 + 11) * 100,
+    y: 30 + pseudoAleatorio(i * 8.8 + 12) * 62,
+    tam: 1.1 + pseudoAleatorio(i * 3.6 + 13) * 1.6,
+    atraso: pseudoAleatorio(i * 11.3 + 14) * 5,
+    duracao: 1.6 + pseudoAleatorio(i * 6.6 + 15) * 2.4,
+    picoOpacidade: 0.5 + pseudoAleatorio(i * 2.9 + 16) * 0.4,
+  }))
+}
+
+const SINALIZADORES = [
+  { x: 12, y: 78, escala: 1.15, atraso: 0 },
+  { x: 88, y: 82, escala: 0.9, atraso: 1.4 },
+  { x: 50, y: 88, escala: 0.75, atraso: 2.8 },
+] as const
+
 export function LuzesAmbiente() {
   const [ligado, setLigado] = useState(true)
   const [pronto, setPronto] = useState(false)
   const [flash, setFlash] = useState<{ cor: string; opacidade: number }>({ cor: 'quente', opacidade: 0 })
   const [duracao, setDuracao] = useState(DUR_NORMAL)
-  const [mostrarHolofotes, setMostrarHolofotes] = useState(false)
+
+  const estrelas = useMemo(() => gerarEstrelas(60), [])
+  const flashesCelular = useMemo(() => gerarFlashesCelular(40), [])
 
   function piscarFlashQuente() {
     setFlash({ cor: 'quente', opacidade: 0.55 })
     setTimeout(() => setFlash((f) => ({ ...f, opacidade: 0 })), 1500)
-    // Sweep dos holofotes acompanha o flash — só no modo dia acendendo.
-    setMostrarHolofotes(true)
-    setTimeout(() => setMostrarHolofotes(false), 1500)
   }
 
   function piscarFlashFrio() {
@@ -107,7 +118,6 @@ export function LuzesAmbiente() {
     } catch { /* ignora */ }
 
     if (entradaTeatral) {
-      // Nasce apagada, acende junto com a cortina subindo
       setDuracao(DUR_TEATRAL)
       setLigado(false)
       aplicarTema(false)
@@ -160,12 +170,6 @@ export function LuzesAmbiente() {
         return novo
       })
     }
-    // Existem DOIS botões de interruptor no app, em componentes diferentes,
-    // cada um historicamente disparando um nome de evento diferente:
-    //   - HeaderUsuario.tsx (ícone no cabeçalho)  → 'palpitao:alternarLuzes'
-    //   - BotoesLuz.tsx (card "Chamar o TI")       → 'palpitao:alternarInterruptor'
-    // Em vez de escolher um só (e quebrar o outro botão de novo), escuta os
-    // dois — assim qualquer um dos dois interruptores físicos funciona.
     window.addEventListener('palpitao:alternarLuzes', handleToggle)
     window.addEventListener('palpitao:alternarInterruptor', handleToggle)
     return () => {
@@ -178,10 +182,10 @@ export function LuzesAmbiente() {
 
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
-      {/* ─── Céu de estádio apagado — só existe no modo noite ─────────── */}
+      {/* ─── Estádio de noite, luzes apagadas ─────────────────────────── */}
       {!ligado && (
         <>
-          {/* Luar — glow branco-azulado sutil vindo de cima, não é luz de jogo */}
+          {/* Luar — glow bem sutil vindo de cima */}
           <div
             className="absolute rounded-full"
             style={{
@@ -190,72 +194,79 @@ export function LuzesAmbiente() {
               width: 700,
               height: 700,
               transform: 'translateX(-50%)',
-              background: 'radial-gradient(circle, rgba(210, 225, 245, 0.16) 0%, rgba(180, 200, 230, 0.06) 45%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(210, 225, 245, 0.14) 0%, rgba(180, 200, 230, 0.05) 45%, transparent 70%)',
               filter: 'blur(20px)',
             }}
           />
-          {/* Estrelas — cintilação bem discreta, posições fixas */}
-          <svg
-            className="absolute inset-0 h-full w-full"
-            preserveAspectRatio="none"
-            viewBox="0 0 100 100"
-          >
-            {ESTRELAS.map((e, i) => (
+
+          {/* Céu estrelado — concentrado no terço superior */}
+          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+            {estrelas.map((e, i) => (
               <motion.circle
-                key={i}
+                key={`estrela-${i}`}
                 cx={e.x}
                 cy={e.y}
-                r={e.tam * 0.15}
+                r={e.tam * 0.14}
                 fill="#e8eefa"
-                initial={{ opacity: 0.15 }}
-                animate={{ opacity: [0.15, 0.7, 0.15] }}
-                transition={{
-                  duration: 3.2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  delay: e.atraso,
-                }}
+                initial={{ opacity: 0.12 }}
+                animate={{ opacity: [0.12, 0.65, 0.12] }}
+                transition={{ duration: e.duracao, repeat: Infinity, ease: 'easeInOut', delay: e.atraso }}
               />
             ))}
           </svg>
-        </>
-      )}
 
-      {/* ─── Sweep de holofotes — só no instante em que o modo dia acende ─── */}
-      {mostrarHolofotes && (
-        <svg
-          className="absolute inset-0 h-full w-full"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-        >
-          {[
-            { origemX: 10, anguloDeg: 32, atraso: 0 },
-            { origemX: 50, anguloDeg: 0, atraso: 0.08 },
-            { origemX: 90, anguloDeg: -32, atraso: 0.16 },
-          ].map((feixe, i) => (
-            <motion.g
-              key={i}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 0.5, 0] }}
-              transition={{ duration: 1.1, delay: feixe.atraso, ease: 'easeOut' }}
-              style={{
-                transformOrigin: `${feixe.origemX}% 0%`,
-                transform: `rotate(${feixe.anguloDeg}deg)`,
-              }}
-            >
-              <defs>
-                <linearGradient id={`feixe-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(255, 248, 225, 0.85)" />
-                  <stop offset="100%" stopColor="rgba(255, 248, 225, 0)" />
-                </linearGradient>
-              </defs>
-              <polygon
-                points={`${feixe.origemX - 4},0 ${feixe.origemX + 4},0 ${feixe.origemX + 22},60 ${feixe.origemX - 22},60`}
-                fill={`url(#feixe-grad-${i})`}
+          {/* Mar de flashes de celular da torcida — muitos pontos pequenos
+              cintilando em ritmos diferentes, espalhados pela tela toda */}
+          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+            {flashesCelular.map((f, i) => (
+              <motion.circle
+                key={`flash-${i}`}
+                cx={f.x}
+                cy={f.y}
+                r={f.tam * 0.16}
+                fill="#fff6d8"
+                initial={{ opacity: 0.06 }}
+                animate={{ opacity: [0.06, f.picoOpacidade, 0.06] }}
+                transition={{ duration: f.duracao, repeat: Infinity, ease: 'easeInOut', delay: f.atraso }}
+                style={{ filter: 'blur(0.15px)' }}
               />
-            </motion.g>
+            ))}
+          </svg>
+
+          {/* Sinalizadores vermelhos — glow pulsando + fumaça subindo devagar */}
+          {SINALIZADORES.map((s, i) => (
+            <div key={`sinalizador-${i}`} className="absolute" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+              <motion.div
+                className="absolute rounded-full"
+                style={{
+                  left: '50%',
+                  top: '50%',
+                  width: 180 * s.escala,
+                  height: 180 * s.escala,
+                  transform: 'translate(-50%, -50%)',
+                  background: 'radial-gradient(circle, rgba(220, 40, 30, 0.55) 0%, rgba(200, 30, 20, 0.22) 40%, transparent 70%)',
+                  filter: 'blur(6px)',
+                }}
+                animate={{ opacity: [0.5, 1, 0.6, 0.9, 0.5] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: s.atraso }}
+              />
+              <motion.div
+                className="absolute rounded-full"
+                style={{
+                  left: '50%',
+                  bottom: '50%',
+                  width: 60 * s.escala,
+                  height: 140 * s.escala,
+                  transform: 'translateX(-50%)',
+                  background: 'linear-gradient(to top, rgba(120, 60, 50, 0.28), transparent 80%)',
+                  filter: 'blur(8px)',
+                }}
+                animate={{ y: [0, -40, -80], opacity: [0.35, 0.18, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeOut', delay: s.atraso }}
+              />
+            </div>
           ))}
-        </svg>
+        </>
       )}
 
       {/* Flash de transição — dourado ao acender, azulado ao apagar */}
