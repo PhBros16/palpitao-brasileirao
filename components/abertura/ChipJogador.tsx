@@ -170,7 +170,7 @@ export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titul
             fontSize: 8,
             letterSpacing: variante === 'titular' ? '1px' : '0.3px',
             textShadow: '0 1px 2px rgba(0,0,0,0.9)',
-            maxWidth: variante === 'titular' ? 66 : 58,
+            maxWidth: variante === 'titular' ? 66 : variante === 'tecnico' ? 80 : 58,
             whiteSpace: 'normal',
             textAlign: 'center',
             lineHeight: 1.15,
