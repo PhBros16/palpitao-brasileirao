@@ -100,9 +100,9 @@ export const FORMACOES: Formacao[] = [
     slots: { gol: 1, def: 4, mei: 5, ata: 1 },
     posicoes: [
       { left: '50%', top: '86%' },
-      { left: '16%', top: '74%' }, { left: '39%', top: '74%' }, { left: '61%', top: '74%' }, { left: '84%', top: '74%' },
-      { left: '35%', top: '60%' }, { left: '65%', top: '60%' },
-      { left: '22%', top: '40%' }, { left: '50%', top: '40%' }, { left: '78%', top: '40%' },
+      { left: '16%', top: '70%' }, { left: '39%', top: '70%' }, { left: '61%', top: '70%' }, { left: '84%', top: '70%' },
+      { left: '35%', top: '53%' }, { left: '65%', top: '53%' },
+      { left: '22%', top: '36%' }, { left: '50%', top: '36%' }, { left: '78%', top: '36%' },
       { left: '50%', top: '20%' },
     ],
     banco: BANCO_PADRAO,
