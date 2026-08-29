@@ -455,51 +455,6 @@ function EstatisticasCampeonato({
         </div>
       </div>
 
-      {/* MELHOR ATAQUE / MELHOR DEFESA */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
-        <div className="rounded-lg border border-dourado-300 bg-dourado-50 p-3">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dourado-800">🎯 Melhor Ataque</p>
-          <div className="space-y-2">
-            {[...dados.tabela].sort((a, b) => b.golsMarcados - a.golsMarcados).slice(0, 3).map((t, i) => (
-              <button
-                key={t.time}
-                type="button"
-                onClick={() => onClickTime(t.time)}
-                className="flex w-full items-center justify-between font-sans text-xs"
-              >
-                <span className="flex items-center gap-1.5 font-semibold text-dourado-900">
-                  <span className="w-3 text-center text-[10px] text-dourado-600">{i + 1}º</span>
-                  <img src={getEscudo(t.time)} className="h-3.5 w-3.5 object-contain" alt="" />
-                  {t.time}
-                </span>
-                <span className="font-mono font-bold text-dourado-700">{t.golsMarcados} gols</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-blue-300 bg-blue-50 p-3">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-blue-800">🛡️ Melhor Defesa</p>
-          <div className="space-y-2">
-            {[...dados.tabela].sort((a, b) => a.golsSofridos - b.golsSofridos).slice(0, 3).map((t, i) => (
-              <button
-                key={t.time}
-                type="button"
-                onClick={() => onClickTime(t.time)}
-                className="flex w-full items-center justify-between font-sans text-xs"
-              >
-                <span className="flex items-center gap-1.5 font-semibold text-blue-900">
-                  <span className="w-3 text-center text-[10px] text-blue-600">{i + 1}º</span>
-                  <img src={getEscudo(t.time)} className="h-3.5 w-3.5 object-contain" alt="" />
-                  {t.time}
-                </span>
-                <span className="font-mono font-bold text-blue-700">{t.golsSofridos} sofridos</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* MÉDIA DE GOLS POR RODADA */}
       <CardEnvelope titulo="⚽ Média de Gols por Rodada">
         <div className="max-h-56 space-y-1.5 overflow-y-auto p-3 scrollbar-tema">
