@@ -164,10 +164,33 @@ export function CenaEstadio({
                 position: 'absolute',
                 left: j.left,
                 top: j.top,
-                filter: `drop-shadow(0 10px 8px rgba(0,0,0,${(0.38 * zona.brilhoOpacity).toFixed(2)}))`,
-                transition: zona.brilhoTransition,
               }}
             >
+              {/* Sombra de contato — elipse simples e borrada nos "pés" do
+                  jogador, SEM filter no ancestral. A v1 disso usava
+                  filter:drop-shadow() no wrapper, e filter num pai enquanto
+                  o filho de dentro anima transform via @keyframes obriga o
+                  navegador a repintar a cada frame em vez de só mover uma
+                  camada pronta na GPU — foi isso que causou o "piscando/
+                  pulando/frame drop" na corrida dos jogadores pro campo.
+                  Uma elipse independente, com só opacity mudando (barato,
+                  compositor puro), não tem esse problema. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: -6,
+                  width: 34,
+                  height: 10,
+                  transform: 'translateX(-50%)',
+                  borderRadius: '50%',
+                  background: 'radial-gradient(closest-side, rgba(0,0,0,0.4), transparent 75%)',
+                  opacity: zona.brilhoOpacity,
+                  transition: zona.brilhoTransition,
+                  pointerEvents: 'none',
+                }}
+              />
               <ChipJogador
                 iniciais={j.iniciais}
                 nome={j.nome}
