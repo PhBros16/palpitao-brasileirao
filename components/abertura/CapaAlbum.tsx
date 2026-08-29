@@ -30,18 +30,21 @@ export function CapaAlbum({
         background: 'radial-gradient(120% 90% at 50% 25%, var(--couro-300) 0%, var(--couro-400) 48%, var(--couro-600) 100%)',
       }}
     >
-      {/* grão de couro — cross-hatch fino + especkle, assíncrono */}
+      {/* grão de couro — ruído orgânico via feTurbulence (SVG), no lugar das
+          3 camadas de repeating-linear-gradient empilhadas de antes. Padrão
+          repetido linear lia "regular demais" em telas de alta densidade;
+          turbulência fractal dá a irregularidade de couro de verdade, com
+          uma única camada em vez de três. */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ mixBlendMode: 'multiply' }}>
+        <filter id="grao-couro-capa">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={7} stitchTiles="stitch" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.09 0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grao-couro-capa)" />
+      </svg>
       <div
         className={`pointer-events-none absolute inset-0 ${styles.leatherContrastShift}`}
-        style={{ background: 'repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 1px, rgba(0,0,0,0.045) 1px 2px)' }}
-      />
-      <div
-        className={`pointer-events-none absolute inset-0 ${styles.leatherContrastShift}`}
-        style={{ background: 'repeating-linear-gradient(0deg, color-mix(in srgb, var(--papel-100) 0%, transparent) 0 2px, color-mix(in srgb, var(--papel-100) 3%, transparent) 2px 3px)', animationDelay: '1.5s' }}
-      />
-      <div
-        className={`pointer-events-none absolute inset-0 ${styles.leatherContrastShift}`}
-        style={{ background: 'repeating-linear-gradient(125deg, rgba(0,0,0,0) 0 4px, rgba(0,0,0,0.05) 4px 5px)', animationDelay: '3s' }}
+        style={{ background: 'repeating-linear-gradient(125deg, rgba(0,0,0,0) 0 4px, rgba(0,0,0,0.04) 4px 5px)', animationDelay: '3s' }}
       />
       <div
         className="pointer-events-none absolute inset-0"
@@ -92,6 +95,13 @@ export function CapaAlbum({
           }}
         />
       ))}
+
+      {/* sombra de contato — a capa "pousada" numa mesa/superfície projeta
+          uma sombra sutil na própria base; sem isso ela parecia flutuar */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0"
+        style={{ height: 22, background: 'linear-gradient(to top, rgba(0,0,0,0.35), transparent)' }}
+      />
 
       {/* sombra difusa ocasional cruzando a capa */}
       <div
@@ -153,8 +163,17 @@ export function CapaAlbum({
             />
           </div>
 
-          {/* troféu — silhueta ampulheta/diamante flat, sem gradiente metálico */}
+          {/* troféu — corpo com gradiente metálico sutil (dourado→bronze→dourado),
+              dá peso de "metal batido" mantendo o estilo flat do resto */}
           <svg viewBox="0 0 100 128" className="relative" style={{ width: 84, height: 108 }}>
+            <defs>
+              <linearGradient id="trofeu-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="var(--dourado-100)" />
+                <stop offset="45%" stopColor="var(--dourado-400)" />
+                <stop offset="55%" stopColor="var(--dourado-600)" />
+                <stop offset="100%" stopColor="var(--dourado-200)" />
+              </linearGradient>
+            </defs>
             <rect x={20} y={99} width={60} height={18} rx={2.5} fill="var(--papel-300)" stroke="var(--couro-600)" strokeWidth={1.6} />
             <rect x={26} y={103} width={48} height={2.6} fill="var(--verde-badge)" />
             <path
@@ -164,8 +183,8 @@ export function CapaAlbum({
               strokeWidth={1.6}
               strokeLinejoin="round"
             />
-            <path d="M50,16 L70,44 L55,64 C57,74 57,82 61,92 L39,92 C43,82 43,74 45,64 L30,44 Z" fill="var(--dourado-300)" stroke="var(--madeira-100)" strokeWidth={1.4} strokeLinejoin="round" />
-            <circle cx={50} cy={44} r={13} fill="var(--dourado-50)" stroke="var(--madeira-100)" strokeWidth={1} />
+            <path d="M50,16 L70,44 L55,64 C57,74 57,82 61,92 L39,92 C43,82 43,74 45,64 L30,44 Z" fill="url(#trofeu-metal)" stroke="var(--madeira-100)" strokeWidth={1.4} strokeLinejoin="round" />
+            <circle cx={50} cy={44} r={13} fill="url(#trofeu-metal)" stroke="var(--madeira-100)" strokeWidth={1} />
             <g stroke="var(--madeira-100)" strokeWidth={0.8} fill="none" strokeLinecap="round">
               <line x1={50} y1={39} x2={50} y2={31} />
               <line x1={54.33} y1={41.5} x2={61.26} y2={37.5} />
@@ -231,4 +250,8 @@ const POEIRA_DOURADA = [
   { left: '8%', top: '40%', size: '2px', cor: 'var(--dourado-200)', queda: '160px', deriva: '5px', opacidade: '0.26', duracao: '9.3s', atraso: '1.5s' },
   { left: '55%', top: '36%', size: '1.8px', cor: 'var(--dourado-200)', queda: '170px', deriva: '-6px', opacidade: '0.22', duracao: '10.5s', atraso: '7s' },
   { left: '28%', top: '58%', size: '1.8px', cor: 'var(--dourado-200)', queda: '185px', deriva: '6px', opacidade: '0.18', duracao: '11.5s', atraso: '3.3s' },
+  { left: '20%', top: '68%', size: '1.6px', cor: 'var(--dourado-200)', queda: '150px', deriva: '5px', opacidade: '0.14', duracao: '10.8s', atraso: '2.2s' },
+  { left: '72%', top: '72%', size: '1.8px', cor: 'var(--dourado-200)', queda: '160px', deriva: '-6px', opacidade: '0.15', duracao: '11.2s', atraso: '5s' },
+  { left: '44%', top: '78%', size: '1.6px', cor: 'var(--dourado-200)', queda: '145px', deriva: '4px', opacidade: '0.12', duracao: '9.8s', atraso: '6.5s' },
+  { left: '60%', top: '82%', size: '1.6px', cor: 'var(--dourado-200)', queda: '155px', deriva: '-4px', opacidade: '0.1', duracao: '10.2s', atraso: '1.8s' },
 ]
