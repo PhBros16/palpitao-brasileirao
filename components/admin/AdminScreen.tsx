@@ -653,7 +653,8 @@ function SecaoResultadoCorrecao() {
     if (valor === undefined || valor === '') return
     try {
       await corrigirPontoManual(predictionId, parseInt(valor, 10))
-      await gravarLog('PONTOS_CORRIGIDOS_MANUAL', { predictionId, novoValor: parseInt(valor, 10), jogador: jogadorSel })
+      const pAlvo = participantes.find((x) => x.name === jogadorSel)
+      await gravarLog('PONTOS_CORRIGIDOS_MANUAL', { predictionId, novoValor: parseInt(valor, 10), jogador: jogadorSel }, undefined, pAlvo?.id)
       if (jogadorSel && roundId) {
         const p = participantes.find((x) => x.name === jogadorSel)
         if (p) setPalpites(await buscarPalpitesParticipante(roundId, p.id))
@@ -777,6 +778,7 @@ function SecaoFrango() {
           .from('rounds')
           .select('id, name, finalized')
           .eq('palpites_open', true)
+          .eq('finalized', false)
           .order('number', { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -841,7 +843,8 @@ function SecaoFrango() {
         })
         if (error) throw error
         const rodadaNome = rodadas.find((r) => r.id === roundIdSelecionada)?.nome ?? ''
-        await gravarLog('FRANGO_ATRIBUIDO', { roundId: roundIdSelecionada, jogador, rodada: rodadaNome })
+        const pFrango = participantes.find((x) => x.name === jogador.trim())
+        await gravarLog('FRANGO_ATRIBUIDO', { roundId: roundIdSelecionada, jogador, rodada: rodadaNome }, undefined, pFrango?.id)
       }
       vibrar('sucesso')
       showToast('Frango salvo! 🐔', 'sucesso')
@@ -1702,7 +1705,7 @@ function SecaoPINs() {
     setSalvando(p.id)
     try {
       await atualizarPin(p.id, novoPin)
-      await gravarLog('PIN_ATUALIZADO', { participante: p.name })
+      await gravarLog('PIN_ATUALIZADO', { participante: p.name }, undefined, p.id)
       setParticipantes((ps) => ps.map((x) => x.id === p.id ? { ...x, pin: novoPin } : x))
       setBuf((b) => { const next = { ...b }; delete next[p.id]; return next })
       vibrar('sucesso')
@@ -1735,6 +1738,12 @@ function SecaoPINs() {
 }
 
 // ─── 14. SEÇÃO: Log de Ações ─────────────────────────────────────────────────
+//
+// Visão geral (nenhum participante selecionado) fica enxuta: linha única por
+// ação, detalhe só ao clicar. Ao selecionar UM participante, entra o "modo
+// detalhado": busca até 500 ações (não só 200), e cada entrada já vem aberta
+// mostrando o payload completo — pensado pra checagem minuciosa de alguém
+// específico, sem precisar clicar entrada por entrada.
 
 function SecaoLog() {
   const [entradas, setEntradas] = useState<EntradaLog[]>([])
@@ -1742,10 +1751,13 @@ function SecaoLog() {
   const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
   const [filtroParticipanteId, setFiltroParticipanteId] = useState<string>('')
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'admin' | 'usuario'>('todos')
+  const [expandidoId, setExpandidoId] = useState<string | null>(null)
+
+  const modoDetalhado = !!filtroParticipanteId
 
   async function carregar() {
     setCarregando(true)
-    try { setEntradas(await buscarLog(200, filtroParticipanteId || undefined)) }
+    try { setEntradas(await buscarLog(modoDetalhado ? 500 : 100, filtroParticipanteId || undefined)) }
     catch (e) { showToast(`Erro ao carregar: ${(e as Error).message}`, 'erro') }
     finally { setCarregando(false) }
   }
@@ -1756,6 +1768,16 @@ function SecaoLog() {
   function formatarData(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function formatarPayload(action: string, payload: Record<string, any> | null): string {
+    if (!payload) return '—'
+    if (action === 'PALPITE_SALVO' && Array.isArray(payload.jogos)) {
+      return payload.jogos.map((j: any) => `${j.jogo}: ${j.palpite}`).join('  ·  ')
+    }
+    return Object.entries(payload)
+      .map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`)
+      .join('  ·  ')
   }
 
   const ACOES_USUARIO = new Set(['PALPITE_SALVO', 'PALPITE_EDITADO'])
@@ -1771,21 +1793,67 @@ function SecaoLog() {
             {participantes.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
           </select>
         </Row>
+        <Row label="Tipo">
+          <div className="flex flex-1 gap-1.5">
+            {(['todos', 'admin', 'usuario'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFiltroTipo(t)}
+                className={`flex-1 rounded border px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  filtroTipo === t
+                    ? 'border-dourado-400 bg-dourado-100 font-bold text-dourado-800'
+                    : 'border-papel-borda-300 bg-papel-50 text-tinta-100'
+                }`}
+              >
+                {t === 'todos' ? 'Todos' : t === 'admin' ? 'Ações Admin' : 'Palpites'}
+              </button>
+            ))}
+          </div>
+        </Row>
+        {modoDetalhado && (
+          <p className="mt-2 font-sans text-[11px] italic text-dourado-700">
+            🔍 Modo detalhado — até 500 ações de {participantes.find((p) => p.id === filtroParticipanteId)?.name}, com detalhe de cada uma.
+          </p>
+        )}
       </Card>
 
       <Card>
-        <SubLabel>Ações registradas</SubLabel>
-        {carregando ? <p className="font-sans text-xs text-tinta-100">Carregando...</p> : (
+        <SubLabel>Ações registradas ({entradasFiltradas.length})</SubLabel>
+        {carregando ? (
+          <p className="font-sans text-xs text-tinta-100">Carregando...</p>
+        ) : entradasFiltradas.length === 0 ? (
+          <p className="font-sans text-xs text-tinta-100">Nenhuma ação encontrada com esse filtro.</p>
+        ) : (
           <div className="max-h-[500px] overflow-y-auto space-y-0 scrollbar-tema">
-            {entradasFiltradas.map((e) => (
-              <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0 flex justify-between">
-                <div>
-                  <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
-                  {e.performed_by && <p className="font-sans text-[10px] text-tinta-100">por {e.performed_by}</p>}
+            {entradasFiltradas.map((e) => {
+              const expandido = modoDetalhado || expandidoId === e.id
+              return (
+                <div key={e.id} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => !modoDetalhado && setExpandidoId((cur) => (cur === e.id ? null : e.id))}
+                    className="flex w-full items-center justify-between text-left"
+                  >
+                    <div>
+                      <p className="font-mono text-xs font-bold text-tinta-300">{e.action}</p>
+                      {e.performed_by && <p className="font-sans text-[10px] text-tinta-100">por {e.performed_by}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-tinta-100">{formatarData(e.created_at)}</span>
+                      {!modoDetalhado && e.payload && (
+                        <span className="font-mono text-[10px] text-dourado-600">{expandido ? '▲' : '▼'}</span>
+                      )}
+                    </div>
+                  </button>
+                  {expandido && e.payload && (
+                    <p className="mt-1.5 rounded bg-papel-100 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-tinta-200">
+                      {formatarPayload(e.action, e.payload)}
+                    </p>
+                  )}
                 </div>
-                <span className="font-mono text-[10px] text-tinta-100">{formatarData(e.created_at)}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>
