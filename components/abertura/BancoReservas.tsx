@@ -30,7 +30,7 @@ export function BancoReservas({
       style={{
         left: 12,
         right: 12,
-        height: 116,
+        height: 100,
         bottom: 12,
         background: revelado ? 'var(--parede-100)' : 'transparent',
         border: `2px solid ${revelado ? 'rgba(245, 235, 215, 0.2)' : 'transparent'}`,
