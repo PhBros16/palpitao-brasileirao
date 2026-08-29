@@ -32,16 +32,6 @@ export function CenaEstadio({
   const zDefesa = estiloZonaLuz(1, revelado)
   const zGoleiro = estiloZonaLuz(0, revelado)
 
-  // Mapa tier → zona de luz, usado pra sombra direcional de cada jogador
-  // (item 2 do refinamento de campinho: chips "acendiam" mas não pareciam
-  // receber luz de cima — sem sombra nenhuma vindo da direção do refletor).
-  function zonaDoTier(tier: number) {
-    if (tier >= 3) return zAtaque
-    if (tier === 2) return zMeio
-    if (tier === 1) return zDefesa
-    return zGoleiro
-  }
-
   const lineTransitionAtaque = 'stroke-dashoffset 900ms ease-out 540ms'
   const lineTransitionMeio = 'stroke-dashoffset 900ms ease-out 360ms'
   const lineTransitionGoleiro = 'stroke-dashoffset 900ms ease-out 0ms'
@@ -155,55 +145,20 @@ export function CenaEstadio({
         <ZonaLuz top={446} altura={120} zona={zDefesa} />
         <ZonaLuz top={566} altura={142} zona={zGoleiro} centroY={42} />
 
-        {titulares.map((j) => {
-          const zona = zonaDoTier(j.tier)
-          return (
-            <div
-              key={j.id}
-              style={{
-                position: 'absolute',
-                left: j.left,
-                top: j.top,
-              }}
-            >
-              {/* Sombra de contato — elipse simples e borrada nos "pés" do
-                  jogador, SEM filter no ancestral. A v1 disso usava
-                  filter:drop-shadow() no wrapper, e filter num pai enquanto
-                  o filho de dentro anima transform via @keyframes obriga o
-                  navegador a repintar a cada frame em vez de só mover uma
-                  camada pronta na GPU — foi isso que causou o "piscando/
-                  pulando/frame drop" na corrida dos jogadores pro campo.
-                  Uma elipse independente, com só opacity mudando (barato,
-                  compositor puro), não tem esse problema. */}
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: -6,
-                  width: 34,
-                  height: 10,
-                  transform: 'translateX(-50%)',
-                  borderRadius: '50%',
-                  background: 'radial-gradient(closest-side, rgba(0,0,0,0.4), transparent 75%)',
-                  opacity: zona.brilhoOpacity,
-                  transition: zona.brilhoTransition,
-                  pointerEvents: 'none',
-                }}
-              />
-              <ChipJogador
-                iniciais={j.iniciais}
-                nome={j.nome}
-                numero={j.numero}
-                entrada={j.entrada}
-                variante="titular"
-                onClick={revelado ? () => onEntrar?.(j) : undefined}
-                carregando={carregandoId === j.id}
-                avatar={j.avatar}
-              />
-            </div>
-          )
-        })}
+        {titulares.map((j) => (
+          <ChipJogador
+            key={j.id}
+            iniciais={j.iniciais}
+            nome={j.nome}
+            numero={j.numero}
+            entrada={j.entrada}
+            variante="titular"
+            posicaoCampo={{ left: j.left, top: j.top }}
+            onClick={revelado ? () => onEntrar?.(j) : undefined}
+            carregando={carregandoId === j.id}
+            avatar={j.avatar}
+          />
+        ))}
       </div>
 
       <div
