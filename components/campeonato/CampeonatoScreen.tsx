@@ -429,7 +429,7 @@ function EstatisticasCampeonato({
         </div>
       </div>
       
-      <div className="grid grid-cols-4 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
           <span className="font-mono text-base font-bold text-green-600">{dados.tabela.reduce((s,t) => s + t.vitorias, 0)}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Vitórias</span>
@@ -438,6 +438,13 @@ function EstatisticasCampeonato({
           <span className="font-mono text-base font-bold text-gray-500">{dados.tabela.reduce((s,t) => s + t.empates, 0) / 2}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Empates</span>
         </div>
+        <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
+          <span className="font-mono text-base font-bold text-red-600">{dados.tabela.reduce((s,t) => s + t.derrotas, 0)}</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Derrotas</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="flex flex-col items-center rounded-lg border border-papel-borda-200 bg-papel-50 p-2 text-center">
           <span className="font-mono text-base font-bold text-tinta-300">{dados.tabela.reduce((s,t) => s + t.golsMarcados, 0)}</span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">Gols</span>
@@ -448,6 +455,51 @@ function EstatisticasCampeonato({
         </div>
       </div>
 
+      {/* MELHOR ATAQUE / MELHOR DEFESA */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
+        <div className="rounded-lg border border-dourado-300 bg-dourado-50 p-3">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dourado-800">🎯 Melhor Ataque</p>
+          <div className="space-y-2">
+            {[...dados.tabela].sort((a, b) => b.golsMarcados - a.golsMarcados).slice(0, 3).map((t, i) => (
+              <button
+                key={t.time}
+                type="button"
+                onClick={() => onClickTime(t.time)}
+                className="flex w-full items-center justify-between font-sans text-xs"
+              >
+                <span className="flex items-center gap-1.5 font-semibold text-dourado-900">
+                  <span className="w-3 text-center text-[10px] text-dourado-600">{i + 1}º</span>
+                  <img src={getEscudo(t.time)} className="h-3.5 w-3.5 object-contain" alt="" />
+                  {t.time}
+                </span>
+                <span className="font-mono font-bold text-dourado-700">{t.golsMarcados} gols</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-blue-300 bg-blue-50 p-3">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-blue-800">🛡️ Melhor Defesa</p>
+          <div className="space-y-2">
+            {[...dados.tabela].sort((a, b) => a.golsSofridos - b.golsSofridos).slice(0, 3).map((t, i) => (
+              <button
+                key={t.time}
+                type="button"
+                onClick={() => onClickTime(t.time)}
+                className="flex w-full items-center justify-between font-sans text-xs"
+              >
+                <span className="flex items-center gap-1.5 font-semibold text-blue-900">
+                  <span className="w-3 text-center text-[10px] text-blue-600">{i + 1}º</span>
+                  <img src={getEscudo(t.time)} className="h-3.5 w-3.5 object-contain" alt="" />
+                  {t.time}
+                </span>
+                <span className="font-mono font-bold text-blue-700">{t.golsSofridos} sofridos</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* MÉDIA DE GOLS POR RODADA */}
       <CardEnvelope titulo="⚽ Média de Gols por Rodada">
         <div className="max-h-56 space-y-1.5 overflow-y-auto p-3 scrollbar-tema">
@@ -455,10 +507,10 @@ function EstatisticasCampeonato({
             <p className="text-center font-sans text-xs text-tinta-200">Nenhum dado de gols disponível.</p>
           ) : (
             e.golsPorRodada.map((r) => (
-              <div key={r.roundNumber} className="flex items-center justify-between border-b border-papel-borda-200/60 pb-1 font-mono text-xs last:border-0">
-                <span className="font-semibold text-tinta-300">{r.roundName}</span>
-                <span className="text-tinta-100">{r.totalGols} gols</span>
-                <span className="font-bold text-dourado-600">{r.mediaGols} gols/jogo</span>
+              <div key={r.roundNumber} className="flex items-center border-b border-papel-borda-200/60 pb-1 font-mono text-xs last:border-0">
+                <span className="w-20 flex-shrink-0 truncate font-semibold text-tinta-300">{r.roundName}</span>
+                <span className="flex-1 text-center tabular-nums text-tinta-100">{r.totalGols} gols</span>
+                <span className="w-24 flex-shrink-0 text-right tabular-nums font-bold text-dourado-600">{r.mediaGols} gols/jogo</span>
               </div>
             ))
           )}
