@@ -1,115 +1,186 @@
 'use client'
 
-import { ChipJogador } from './ChipJogador'
-import { estiloZonaLuz } from './coreografia'
+import { useState, type CSSProperties } from 'react'
+import styles from './abertura.module.css'
 import type { EstiloEntrada } from './coreografia'
-import type { JogadorBanco } from './tipos'
 
-export function BancoReservas({
-  revelado,
-  reservas,
-  admin,
-  tecnico,
-  onEntrarAdmin,
-  onEntrarJogador,
-  carregandoId,
-}: {
-  revelado: boolean
-  reservas: Array<JogadorBanco & { entrada: EstiloEntrada }>
-  admin: { entrada: EstiloEntrada; avatar?: string | null }
-  tecnico: JogadorBanco & { entrada: EstiloEntrada }
-  onEntrarAdmin?: () => void
-  onEntrarJogador?: (j: { id: string; nome: string }) => void
-  carregandoId?: string | null
-}) {
-  const zBanco = estiloZonaLuz(4, revelado)
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ')
+}
+
+export interface ChipJogadorProps {
+  iniciais: string
+  nome: string
+  numero: string
+  entrada: EstiloEntrada
+  variante?: 'titular' | 'reserva' | 'admin' | 'tecnico'
+  posicaoCampo?: { left: string; top: string }
+  onClick?: () => void
+  carregando?: boolean
+  avatar?: string | null
+}
+
+export function ChipJogador({ iniciais, nome, numero, entrada, variante = 'titular', posicaoCampo, onClick, carregando, avatar }: ChipJogadorProps) {
+  const tamanho = variante === 'titular' ? 52 : 44
+  const isAdmin = variante === 'admin'
+  const isTecnico = variante === 'tecnico'
+  const temSeloEspecial = isAdmin || isTecnico
+
+  const avatarLimpo = avatar && avatar.trim().length > 0 ? avatar : null
+  const [fotoFalhou, setFotoFalhou] = useState(false)
+  const temFoto = !!avatarLimpo && !fotoFalhou
+
+  const wrapperStyle: CSSProperties = {
+    ...(posicaoCampo ? { position: 'absolute', left: posicaoCampo.left, top: posicaoCampo.top } : {}),
+    ['--t0' as string]: entrada.t0,
+    ['--t1' as string]: entrada.t1,
+    ['--t2' as string]: entrada.t2,
+    opacity: entrada.opacity,
+    transform: entrada.animar ? undefined : entrada.transformEstatico,
+    animationDuration: entrada.animar ? '1200ms' : undefined,
+    animationDelay: entrada.animar ? entrada.animationDelay : undefined,
+  }
 
   return (
     <div
-      className="absolute flex flex-col gap-[7px] overflow-hidden rounded-[3px]"
-      style={{
-        left: 12,
-        right: 12,
-        height: 100,
-        bottom: 12,
-        background: revelado ? 'var(--parede-100)' : 'transparent',
-        border: `2px solid ${revelado ? 'rgba(245, 235, 215, 0.2)' : 'transparent'}`,
-        transition: 'background-color 900ms ease-out, border-color 900ms ease-out',
-        padding: '9px 14px',
-        zIndex: 0,
-      }}
+      className={cx('flex flex-col items-center gap-[3px]', posicaoCampo && '-translate-x-1/2 -translate-y-1/2', entrada.animar && styles.filaUnica)}
+      style={wrapperStyle}
+      onClick={
+        onClick
+          ? (e) => {
+              e.stopPropagation()
+              onClick()
+            }
+          : undefined
+      }
     >
+      {/* Wrapper externo — NÃO tem overflow-hidden, pra selos poderem sair pra fora */}
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'rgba(4,7,12,0.98)',
-          opacity: zBanco.escuroOpacity,
-          transition: zBanco.escuroTransition,
-          zIndex: 10,
-        }}
-      />
-
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(70% 120% at 50% 40%, color-mix(in srgb, var(--dourado-200) 50%, transparent) 0%, color-mix(in srgb, var(--dourado-400) 22%, transparent) 50%, transparent 80%)',
-          opacity: zBanco.brilhoOpacity,
-          transform: zBanco.brilhoScale,
-          transition: zBanco.brilhoTransition,
-          zIndex: 11,
-        }}
-      />
-
-      <div className="relative flex items-center gap-[7px]">
-        <span className="whitespace-nowrap font-mono text-[8px] font-medium tracking-[2.5px] text-dourado-400">
-          BANCO DE RESERVAS
-        </span>
-        <span
-          className="h-px flex-1"
+        className="relative"
+        style={{ width: tamanho, height: tamanho }}
+      >
+        {/* Círculo principal — clip da foto (overflow-hidden aqui) */}
+        <div
+          className={cx(
+            'relative flex h-full w-full items-center justify-center overflow-hidden rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.45)]',
+            variante === 'titular' ? 'border-2 border-dourado-300' : temSeloEspecial ? 'border-2 border-dourado-300' : 'border-[1.5px] border-dourado-400',
+            entrada.animar && styles.chipIdle,
+          )}
           style={{
-            background:
-              'linear-gradient(90deg, color-mix(in srgb, var(--dourado-400) 45%, transparent), transparent)',
+            background: 'radial-gradient(circle at 38% 30%, var(--papel-100) 0%, var(--dourado-100) 60%, var(--dourado-200) 100%)',
+            boxShadow: temSeloEspecial ? '0 1px 3px rgba(0,0,0,0.45), 0 0 0 1.5px color-mix(in srgb, var(--dourado-300) 35%, transparent)' : undefined,
+            animationDelay: entrada.animar ? entrada.idleDelay : undefined,
+            opacity: carregando ? 0.55 : 1,
+            transform: carregando ? 'scale(0.9)' : undefined,
+            transition: 'opacity 180ms ease-out, transform 180ms ease-out',
           }}
-        />
+        >
+          {/* Iniciais SEMPRE renderizadas por baixo (fallback) */}
+          <span
+            className="absolute inset-0 flex items-center justify-center font-mono font-bold text-couro-600"
+            style={{ fontSize: variante === 'titular' ? 14 : 12, letterSpacing: variante === 'titular' ? '0.5px' : undefined }}
+          >
+            {iniciais}
+          </span>
+
+          {/* Foto por cima (se existir e não falhou) */}
+          {temFoto && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarLimpo!}
+              alt={nome}
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={() => setFotoFalhou(true)}
+            />
+          )}
+        </div>
+
+        {/* Selos — FORA do círculo com overflow (pra vazar pros lados) */}
+        {isAdmin ? (
+          <span
+            className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600"
+            style={{
+              right: -2,
+              top: -2,
+              width: 18,
+              height: 18,
+              zIndex: 3,
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--dourado-100)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 13.5c.04-.33.06-.66.06-1s-.02-.67-.06-1l2.1-1.6a.5.5 0 0 0 .12-.65l-2-3.4a.5.5 0 0 0-.6-.23l-2.5 1a7.6 7.6 0 0 0-1.7-1l-.38-2.65A.5.5 0 0 0 14 2.5h-4a.5.5 0 0 0-.5.43L9.12 5.6a7.6 7.6 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.23l-2 3.4a.5.5 0 0 0 .12.65l2.1 1.6c-.04.33-.06.66-.06 1s.02.67.06 1l-2.1 1.6a.5.5 0 0 0-.12.65l2 3.4c.14.23.4.32.6.23l2.5-1c.5.42 1.08.76 1.7 1l.38 2.65a.5.5 0 0 0 .5.43h4a.5.5 0 0 0 .5-.43l.38-2.65c.62-.24 1.2-.58 1.7-1l2.5 1c.2.09.46 0 .6-.23l2-3.4a.5.5 0 0 0-.12-.65z" />
+            </svg>
+          </span>
+        ) : isTecnico ? (
+          <span
+            className="absolute flex items-center justify-center bg-couro-600"
+            style={{
+              right: -3,
+              top: -3,
+              width: 20,
+              height: 20,
+              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+              zIndex: 3,
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--dourado-100)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="4" width="14" height="17" rx="2" />
+              <rect x="9" y="2" width="6" height="3" rx="1" fill="var(--dourado-100)" stroke="none" />
+              <line x1="8" y1="11" x2="16" y2="11" />
+              <line x1="8" y1="15" x2="13" y2="15" />
+            </svg>
+          </span>
+        ) : numero ? (
+          <span
+            className="absolute flex items-center justify-center rounded-full border border-dourado-300 bg-couro-600 font-mono font-bold text-dourado-100"
+            style={{
+              right: -2,
+              top: -2,
+              minWidth: variante === 'titular' ? 20 : 17,
+              height: variante === 'titular' ? 20 : 17,
+              padding: '0 4px',
+              fontSize: variante === 'titular' ? 10 : 9,
+              zIndex: 3,
+            }}
+          >
+            {numero}
+          </span>
+        ) : null}
       </div>
 
-      <div className="relative grid grid-cols-4 items-start justify-items-center gap-2.5">
-        <ChipJogador
-          iniciais={tecnico.iniciais}
-          nome={tecnico.nome}
-          numero=""
-          entrada={tecnico.entrada}
-          variante="tecnico"
-          onClick={onEntrarJogador ? () => onEntrarJogador(tecnico) : undefined}
-          carregando={carregandoId === tecnico.id}
-          avatar={tecnico.avatar}
-        />
-
-        {reservas.map((r) => (
-          <ChipJogador
-            key={r.id}
-            iniciais={r.iniciais}
-            nome={r.nome}
-            numero={r.numero}
-            entrada={r.entrada}
-            variante="reserva"
-            onClick={onEntrarJogador ? () => onEntrarJogador(r) : undefined}
-            carregando={carregandoId === r.id}
-            avatar={r.avatar}
-          />
-        ))}
-
-        <ChipJogador
-          iniciais="AD"
-          nome="Admin"
-          numero=""
-          entrada={admin.entrada}
-          variante="admin"
-          onClick={onEntrarAdmin}
-          avatar={admin.avatar}
-        />
-      </div>
+      <span
+        className="flex flex-col items-center"
+        style={{
+          opacity: entrada.nomeOpacity,
+          transition: `opacity 350ms ease-out ${entrada.nomeTransitionDelay}`,
+        }}
+      >
+        {isTecnico && (
+          <span
+            className="whitespace-nowrap font-mono uppercase text-dourado-300"
+            style={{ fontSize: 6.5, letterSpacing: '1.5px', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+          >
+            TÉCNICO
+          </span>
+        )}
+        <span
+          className="font-mono uppercase text-papel-100"
+          style={{
+            fontSize: 8,
+            letterSpacing: variante === 'titular' ? '1px' : '0.3px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+            maxWidth: variante === 'titular' ? 66 : variante === 'tecnico' ? 80 : 58,
+            whiteSpace: 'normal',
+            textAlign: 'center',
+            lineHeight: 1.15,
+            wordBreak: 'keep-all',
+            overflowWrap: 'normal',
+          }}
+        >
+          {variante === 'admin' ? 'ADM' : nome}
+        </span>
+      </span>
     </div>
   )
 }
