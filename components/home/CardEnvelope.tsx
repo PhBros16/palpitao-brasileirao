@@ -62,7 +62,7 @@ export function CardEnvelope({
           className={cx(
             'flex items-center justify-between gap-2 px-3 py-2',
             isAlerta
-              ? 'border-b-2 border-raridade-frango-selo bg-red-50'
+              ? 'border-b-2 border-raridade-frango-selo bg-red-50 dark:bg-red-950/40'
               : 'border-b-2 border-dourado-400 bg-couro-300',
           )}
         >
