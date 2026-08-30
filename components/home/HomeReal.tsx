@@ -131,7 +131,7 @@ export function HomeReal() {
   return (
     <>
       {erro && (
-        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
+        <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo dark:bg-red-950/40">
           {erro}
         </div>
       )}
@@ -341,7 +341,7 @@ function BlocoParcial({ linhas, meuId, isDouble }: { linhas: ParcialLinha[]; meu
 function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }) {
   return (
     <div className="overflow-hidden rounded-lg border-2 border-raridade-frango-selo bg-papel-50 shadow-sm">
-      <div className="border-b-2 border-raridade-frango-selo bg-red-50 px-3 py-2 text-center">
+      <div className="border-b-2 border-raridade-frango-selo bg-red-50 px-3 py-2 text-center dark:bg-red-950/40">
         <p className="font-display text-sm font-bold uppercase tracking-widest text-raridade-frango-selo">
           🐔 Pior Palpiteiro
         </p>
