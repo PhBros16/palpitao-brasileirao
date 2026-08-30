@@ -359,7 +359,7 @@ function BlocoCravadasZeros({ dados }: { dados: JogadorCravadasZeros[] }) {
   const rankZeros = [...dados].sort((a, b) => b.zeros - a.zeros || b.pctZeros - a.pctZeros)
 
   return (
-    <BlocoAccordion titulo="Cravadas & Zeros" emoji="🎯" cor="bg-green-50">
+    <BlocoAccordion titulo="Cravadas & Zeros" emoji="🎯" cor="bg-green-50 dark:bg-green-950">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-green-700">🎯 Mais cravadas</p>
@@ -383,7 +383,7 @@ function BlocoCravadasZeros({ dados }: { dados: JogadorCravadasZeros[] }) {
 function BlocoAcertoVencedor({ dados }: { dados: JogadorAcertoVencedor[] }) {
   const rank = [...dados].sort((a, b) => b.pct - a.pct || b.acertos - a.acertos)
   return (
-    <BlocoAccordion titulo="Taxa de Pontuação" emoji="✅" cor="bg-blue-50">
+    <BlocoAccordion titulo="Taxa de Pontuação" emoji="✅" cor="bg-blue-50 dark:bg-blue-950">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">Taxa de vezes que o jogador não zerou o palpite</p>
       <Top3Barra items={rank} getValor={(x) => x.pct} getSublinha={(x) => `${x.acertos}/${x.totalPalpites}`} formatValor={(v) => `${v}%`} corBarra="bg-blue-500" />
       <VerTodos>
@@ -409,7 +409,7 @@ function BlocoDonoRodada({ dados }: { dados: JogadorDonoRodada[] }) {
 function BlocoZebras({ dados }: { dados: JogadorCacadorZebras[] }) {
   const rank = [...dados].filter(x => x.pontosZebra > 0).sort((a, b) => b.pontosZebra - a.pontosZebra)
   return (
-    <BlocoAccordion titulo="Caçador de Zebras" emoji="🦓" cor="bg-zinc-100">
+    <BlocoAccordion titulo="Caçador de Zebras" emoji="🦓" cor="bg-zinc-100 dark:bg-zinc-800">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">Pontos feitos em jogos onde 70% do grupo zerou</p>
       <Top3Barra items={rank} getValor={(x) => x.pontosZebra} getSublinha={(x) => `${x.jogosZebra} jgs`} formatValor={(v) => `${v} pts`} corBarra="bg-zinc-800" />
       <VerTodos>
@@ -422,7 +422,7 @@ function BlocoZebras({ dados }: { dados: JogadorCacadorZebras[] }) {
 function BlocoViciadosEmpate({ dados }: { dados: JogadorViciadoEmpate[] }) {
   const rank = [...dados].sort((a, b) => b.empatesApostados - a.empatesApostados)
   return (
-    <BlocoAccordion titulo="Viciados em Empate" emoji="🤝" cor="bg-gray-50">
+    <BlocoAccordion titulo="Viciados em Empate" emoji="🤝" cor="bg-gray-50 dark:bg-gray-800">
       <Top3Barra items={rank} getValor={(x) => x.empatesApostados} getSublinha={(x) => `${x.pct}% hit`} formatValor={(v) => `${v} palps`} corBarra="bg-gray-500" />
       <VerTodos>
         <TabelaSimples cabecalho={['Jogador', 'Apostas', 'Acertos', '% Acerto']} linhas={rank.map((x) => [x.nome, String(x.empatesApostados), String(x.acertos), `${x.pct}%`])} />
@@ -433,7 +433,7 @@ function BlocoViciadosEmpate({ dados }: { dados: JogadorViciadoEmpate[] }) {
 
 function BlocoEmocionados({ dados }: { dados: { emocionados: JogadorEmocionado[]; retranqueiros: JogadorEmocionado[] } }) {
   return (
-    <BlocoAccordion titulo="Emocionados vs Retranqueiros" emoji="🎭" cor="bg-purple-50">
+    <BlocoAccordion titulo="Emocionados vs Retranqueiros" emoji="🎭" cor="bg-purple-50 dark:bg-purple-950">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">Média de gols previstos por partida</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -463,7 +463,7 @@ function BlocoEmocionados({ dados }: { dados: { emocionados: JogadorEmocionado[]
 function BlocoBipolares({ dados }: { dados: JogadorBipolar[] }) {
   const rank = [...dados].sort((a, b) => b.variacao - a.variacao)
   return (
-    <BlocoAccordion titulo="Os mais bipolares" emoji="🎢" cor="bg-orange-50">
+    <BlocoAccordion titulo="Os mais bipolares" emoji="🎢" cor="bg-orange-50 dark:bg-orange-950">
       <Top3Barra items={rank} getValor={(x) => x.variacao} getSublinha={(x) => `${x.min}→${x.max}`} formatValor={(v) => String(v)} corBarra="bg-orange-500" />
       <VerTodos><TabelaSimples cabecalho={['Jogador', 'Mín', 'Máx', 'Variação']} linhas={rank.map((x) => [x.nome, String(x.min), String(x.max), String(x.variacao)])} /></VerTodos>
     </BlocoAccordion>
@@ -474,7 +474,7 @@ function BlocoConsistencia({ dados }: { dados: JogadorConsistencia[] }) {
   const rank = [...dados].sort((a, b) => a.desvioPadrao - b.desvioPadrao)
   const iconePerfil = (p: string) => p === 'consistente' ? '🧊' : p === 'regular' ? '😐' : '🎢'
   return (
-    <BlocoAccordion titulo="Consistência" emoji="📏" cor="bg-cyan-50">
+    <BlocoAccordion titulo="Consistência" emoji="📏" cor="bg-cyan-50 dark:bg-cyan-950">
       <p className="mb-2 font-mono text-[10px] italic text-tinta-100">Mais baixo o desvio, mais previsível o jogador</p>
       <div className="space-y-2">
         {rank.slice(0, 3).map((item, i) => (
@@ -493,7 +493,7 @@ function BlocoConsistencia({ dados }: { dados: JogadorConsistencia[] }) {
 
 function BlocoOverUnder({ dados }: { dados: { overs: JogadorOverUnder[]; unders: JogadorOverUnder[]; mediaGrupo: number } }) {
   return (
-    <BlocoAccordion titulo="Over & Underperforming" emoji="📈" cor="bg-indigo-50">
+    <BlocoAccordion titulo="Over & Underperforming" emoji="📈" cor="bg-indigo-50 dark:bg-indigo-950">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">Média do grupo: <b className="text-tinta-300">{dados.mediaGrupo} pts/rodada</b></p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -513,7 +513,7 @@ function BlocoOverUnder({ dados }: { dados: { overs: JogadorOverUnder[]; unders:
 function BlocoPerfilAposta({ dados }: { dados: JogadorPerfilAposta[] }) {
   const rank = [...dados].sort((a, b) => b.pctMandante - a.pctMandante)
   return (
-    <BlocoAccordion titulo="Perfil de Aposta" emoji="🏠" cor="bg-yellow-50">
+    <BlocoAccordion titulo="Perfil de Aposta" emoji="🏠" cor="bg-yellow-50 dark:bg-yellow-950">
       <p className="mb-3 font-mono text-[10px] italic text-tinta-100">% dos palpites de cada jogador em cada tipo de resultado</p>
       <div className="space-y-2">
         {rank.slice(0, 3).map((item) => (
@@ -544,7 +544,7 @@ function BlocoRecordes({ dados }: { dados: JogadorRecorde[] }) {
   const iconeT = (t: string) => t === 'alta' ? '⬆️' : t === 'baixa' ? '⬇️' : t === 'estavel' ? '➡️' : '—'
   const corT = (t: string) => t === 'alta' ? 'text-green-600' : t === 'baixa' ? 'text-red-600' : 'text-tinta-200'
   return (
-    <BlocoAccordion titulo="Recordes & Tendência" emoji="🏅" cor="bg-red-50">
+    <BlocoAccordion titulo="Recordes & Tendência" emoji="🏅" cor="bg-red-50 dark:bg-red-950">
       <div className="space-y-2">
         {rank.slice(0, 3).map((item, i) => (
           <div key={item.nome} className="flex items-center gap-2">
@@ -562,7 +562,7 @@ function BlocoRecordes({ dados }: { dados: JogadorRecorde[] }) {
 
 function BlocoPlacares({ dados }: { dados: { apostados: PlacarFrequencia[]; reais: PlacarFrequencia[] } }) {
   return (
-    <BlocoAccordion titulo="Placares" emoji="🔢" cor="bg-teal-50">
+    <BlocoAccordion titulo="Placares" emoji="🔢" cor="bg-teal-50 dark:bg-teal-950">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-teal-700">Mais apostados</p>
