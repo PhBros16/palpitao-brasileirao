@@ -290,9 +290,9 @@ function EstatisticasCampeonato({
               </div>
               <div className="flex items-center gap-2">
                 {t.risco === 'titulo' && <span className="rounded bg-dourado-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-dourado-700">🏆 Título</span>}
-                {t.risco === 'libertadores' && <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-blue-700">G4</span>}
-                {t.risco === 'sulamericana' && <span className="rounded bg-green-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-green-700">Sula</span>}
-                {t.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-red-700">🚨 Z4</span>}
+                {t.risco === 'libertadores' && <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">G4</span>}
+                {t.risco === 'sulamericana' && <span className="rounded bg-green-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-green-700 dark:bg-green-950 dark:text-green-300">Sula</span>}
+                {t.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-red-700 dark:bg-red-950 dark:text-red-300">🚨 Z4</span>}
                 <span className="w-12 text-right font-mono text-xs font-bold text-tinta-300">{t.projecaoFinal} pts</span>
               </div>
             </button>
@@ -324,7 +324,7 @@ function EstatisticasCampeonato({
           </div>
         </div>
 
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3">
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-red-800">🚨 Risco de Rebaixamento</p>
           <p className="mb-3 font-sans text-[9px] text-red-700 italic">Proporção para projeção ≤ 45 pts</p>
           <div className="max-h-48 space-y-3 overflow-y-auto pr-1 scrollbar-tema">
@@ -729,9 +729,9 @@ function ModalTime({
         {projecao && (
           <div className="flex flex-col items-end">
             {projecao.risco === 'titulo' && <span className="rounded bg-dourado-100 px-2 py-0.5 font-mono text-xs font-bold text-dourado-700">🏆 Título</span>}
-            {projecao.risco === 'libertadores' && <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-700">🔵 G4</span>}
-            {projecao.risco === 'sulamericana' && <span className="rounded bg-green-100 px-2 py-0.5 font-mono text-xs font-bold text-green-700">🟢 Sula</span>}
-            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700">🚨 Risco Z4</span>}
+            {projecao.risco === 'libertadores' && <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">🔵 G4</span>}
+            {projecao.risco === 'sulamericana' && <span className="rounded bg-green-100 px-2 py-0.5 font-mono text-xs font-bold text-green-700 dark:bg-green-950 dark:text-green-300">🟢 Sula</span>}
+            {projecao.risco === 'rebaixamento' && <span className="rounded bg-red-100 px-2 py-0.5 font-mono text-xs font-bold text-red-700 dark:bg-red-950 dark:text-red-300">🚨 Risco Z4</span>}
             <span className="mt-0.5 font-mono text-[10px] text-tinta-200">Proj: {projecao.projecaoFinal} pts</span>
           </div>
         )}
