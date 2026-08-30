@@ -19,6 +19,11 @@ import type { Config } from 'tailwindcss'
  */
 
 const config: Config = {
+  // Liga o dark: ao nosso atributo de tema (data-tema="noite" em <html>,
+  // escrito por components/home/LuzesAmbiente.tsx), em vez do padrão do
+  // Tailwind (prefers-color-scheme do sistema operacional, que não tem
+  // nada a ver com o interruptor do app).
+  darkMode: ['selector', '[data-tema="noite"]'],
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
