@@ -30,7 +30,7 @@ export default function CampeonatoPage() {
 
   if (erro && !dados) {
     return (
-      <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo">
+      <div className="rounded-lg border border-raridade-frango-selo bg-red-50 p-3 text-center font-sans text-sm text-raridade-frango-selo dark:bg-red-950/40">
         {erro}
       </div>
     )
