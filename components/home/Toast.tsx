@@ -35,11 +35,15 @@ const ICONES: Record<ToastTipo, string> = {
   aviso: '⚠',
 }
 
+// Cores por tipo — usam as variáveis de tema (tokens.css) em vez de classes
+// fixas do Tailwind (bg-green-50 etc.). Cor fixa nunca escurece no modo
+// noite; como o texto (text-tinta-300) É ligado ao tema e vira quase-branco
+// à noite, um fundo claro fixo + texto quase-branco ficava ilegível.
 const CORES: Record<ToastTipo, { bg: string; border: string; icon: string }> = {
-  sucesso: { bg: 'bg-green-50', border: 'border-green-500', icon: 'text-green-600' },
-  erro: { bg: 'bg-red-50', border: 'border-red-500', icon: 'text-red-600' },
-  info: { bg: 'bg-blue-50', border: 'border-blue-500', icon: 'text-blue-600' },
-  aviso: { bg: 'bg-dourado-50', border: 'border-dourado-500', icon: 'text-dourado-700' },
+  sucesso: { bg: 'var(--tom-verde-bg)', border: 'var(--tom-verde-borda)', icon: 'var(--tom-verde-texto)' },
+  erro: { bg: 'var(--tom-vermelho-bg)', border: 'var(--tom-vermelho-borda)', icon: 'var(--tom-vermelho-texto)' },
+  info: { bg: 'var(--tom-azul-bg)', border: 'var(--tom-azul-borda)', icon: 'var(--tom-azul-texto)' },
+  aviso: { bg: 'var(--dourado-50)', border: 'var(--dourado-500)', icon: 'var(--dourado-700)' },
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -76,10 +80,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12, scale: 0.95 }}
                 transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                className={`pointer-events-auto flex items-center gap-3 rounded-lg border-2 ${cor.border} ${cor.bg} px-4 py-2.5 shadow-lg backdrop-blur-sm`}
-                style={{ maxWidth: '90vw', minWidth: '240px' }}
+                className="pointer-events-auto flex items-center gap-3 rounded-lg border-2 px-4 py-2.5 shadow-lg backdrop-blur-sm"
+                style={{ maxWidth: '90vw', minWidth: '240px', backgroundColor: cor.bg, borderColor: cor.border }}
               >
-                <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 ${cor.border} ${cor.icon} font-mono text-sm font-bold`}>
+                <span
+                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 font-mono text-sm font-bold"
+                  style={{ borderColor: cor.border, color: cor.icon }}
+                >
                   {ICONES[t.tipo]}
                 </span>
                 <span className="font-sans text-sm font-medium text-tinta-300">
