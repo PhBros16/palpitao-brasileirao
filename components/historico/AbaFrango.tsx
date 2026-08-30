@@ -6,7 +6,7 @@ export function AbaFrango({ frango }: { frango: FrangoHistorico | null }) {
   }
 
   return (
-    <div className="rounded-md border-2 border-raridade-frango-selo bg-red-50 p-3">
+    <div className="rounded-md border-2 border-raridade-frango-selo bg-red-50 p-3 dark:bg-red-950/40">
       <div className="flex items-center gap-2 border-b border-raridade-frango-selo/40 pb-2">
         <span className="text-2xl">🐔</span>
         <div>
