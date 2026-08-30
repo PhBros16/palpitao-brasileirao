@@ -10,15 +10,15 @@ const LEGENDA = [
   { cat: 'cravou', label: 'Cravou (5)', cor: 'bg-green-200 text-green-900 border-green-400' },
   { cat: 'saldo', label: 'Saldo (3)', cor: 'bg-blue-200 text-blue-900 border-blue-400' },
   { cat: 'vencedor', label: 'Vencedor (1)', cor: 'bg-yellow-200 text-yellow-900 border-yellow-400' },
-  { cat: 'errou', label: 'Errou (0)', cor: 'bg-red-100 text-red-900 border-red-300' },
+  { cat: 'errou', label: 'Errou (0)', cor: 'bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800' },
 ]
 
 function corCategoria(cat: string): string {
   switch (cat) {
-    case 'cravou': return 'bg-green-100 text-green-900'
-    case 'saldo': return 'bg-blue-100 text-blue-900'
-    case 'vencedor': return 'bg-yellow-100 text-yellow-900'
-    case 'errou': return 'bg-red-50 text-red-900'
+    case 'cravou': return 'bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-300'
+    case 'saldo': return 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300'
+    case 'vencedor': return 'bg-yellow-100 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-300'
+    case 'errou': return 'bg-red-50 text-red-900 dark:bg-red-950/40 dark:text-red-300'
     case 'sem-palpite': return 'bg-neutral-100 text-neutral-500 italic'
     default: return 'bg-papel-100 text-tinta-200'
   }
