@@ -184,6 +184,29 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  /* ============================================================
+     TONS SEMÂNTICOS — sucesso/erro/info, usados em toasts e em
+     cabeçalhos de card (BlocoAccordion). Existem como variável (e
+     não como classe direta do Tailwind tipo bg-green-50) porque
+     precisam de uma versão diferente no modo noite: fundo pastel
+     claro + texto quase-branco do tema (--tinta-300) lê perfeito
+     de dia, mas no modo noite --tinta-300 já É quase-branco, então
+     em cima de um fundo ainda claro o texto some. Aqui embaixo,
+     dia e noite têm fundo e texto pensados pra funcionar cada um
+     no seu contexto.
+     ============================================================ */
+  --tom-verde-bg: #f0fdf4;
+  --tom-verde-borda: #22c55e;
+  --tom-verde-texto: #16a34a;
+
+  --tom-azul-bg: #eff6ff;
+  --tom-azul-borda: #3b82f6;
+  --tom-azul-texto: #2563eb;
+
+  --tom-vermelho-bg: #fef2f2;
+  --tom-vermelho-borda: #ef4444;
+  --tom-vermelho-texto: #dc2626;
 }
 
 /* ============================================================
@@ -239,4 +262,20 @@
   --fundo-glow-1: rgba(38, 74, 122, 0.30);
   --fundo-glow-2: rgba(10, 30, 55, 0.45);
   --fundo-glow-3: rgba(70, 110, 160, 0.10);
+
+  /* TONS SEMÂNTICOS — fundo escuro + texto claro, pra funcionar junto com
+     --tinta-300 (que aqui no modo noite já é quase-branco). Borda mantém
+     a mesma cor viva do dia — verde/azul/vermelho de saturação média lê
+     bem tanto em fundo claro quanto escuro, não precisa de versão própria. */
+  --tom-verde-bg: #12271b;
+  --tom-verde-borda: #22c55e;
+  --tom-verde-texto: #4ade80;
+
+  --tom-azul-bg: #10233b;
+  --tom-azul-borda: #3b82f6;
+  --tom-azul-texto: #60a5fa;
+
+  --tom-vermelho-bg: #2f1416;
+  --tom-vermelho-borda: #ef4444;
+  --tom-vermelho-texto: #f87171;
 }
