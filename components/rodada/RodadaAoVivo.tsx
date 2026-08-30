@@ -184,11 +184,11 @@ function corCelula(cat: PalpiteCelula['categoria']): string {
 
 function corPts(pts: number | null): string {
   if (pts === null) return 'bg-papel-100 text-tinta-100'
-  if (pts >= 20) return 'bg-green-100 text-green-800'
-  if (pts >= 15) return 'bg-blue-100 text-blue-800'
-  if (pts >= 10) return 'bg-yellow-100 text-yellow-800'
-  if (pts >= 5) return 'bg-orange-100 text-orange-800'
-  return 'bg-red-100 text-red-800'
+  if (pts >= 20) return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+  if (pts >= 15) return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+  if (pts >= 10) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300'
+  if (pts >= 5) return 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
 }
 
 function CabecalhoJogo({ jogo }: { jogo: JogoRodada }) {
