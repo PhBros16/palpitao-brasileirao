@@ -21,7 +21,7 @@ import {
 } from './coreografia'
 import { PoeiraTransicao, DUST_SETTLE_HOLD, DUST_BLOW_DUR } from './PoeiraTransicao'
 import { somKit } from './somKit'
-import { buscarAvatares, buscarPinPorNome, gerarElenco, type JogadorComPin } from './elencoMock'
+import { buscarAvatares, buscarParticipantePorNome, gerarElenco, type JogadorComPin } from './elencoMock'
 import { PinModal } from './PinModal'
 import { FundoMesa } from './FundoMesa'
 import { CortinaDescendo } from '@/components/home/CortinaTransicao'
@@ -216,7 +216,7 @@ export function AberturaScreen() {
     setBuscandoPin(true)
     setCarregandoId(j.id)
     try {
-      const player = await buscarPinPorNome(j.nome)
+      const player = await buscarParticipantePorNome(j.nome)
       if (player) setPinPlayer(player)
     } finally {
       setBuscandoPin(false)
@@ -228,7 +228,7 @@ export function AberturaScreen() {
     if (buscandoPin || pinPlayer || cortinaAtiva) return
     setBuscandoPin(true)
     try {
-      const admin = await buscarPinPorNome('Administração')
+      const admin = await buscarParticipantePorNome('Administração')
       if (admin) setPinPlayer(admin)
     } finally {
       setBuscandoPin(false)
