@@ -12,12 +12,15 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { vibrar } from '@/lib/haptic'
+import { validarPin } from './elencoMock'
 
+// Sem campo "pin" — o valor certo nunca sai do banco. A validação
+// acontece via validarPin() (chama a função validar_pin do Postgres),
+// não por comparação local. Ver fix_pin_seguranca.sql.
 export interface PinPlayer {
   id: string
   nome: string
   vulgo?: string
-  pin: string
   avatar?: string | null
 }
 
@@ -45,27 +48,43 @@ export function PinModal({
   const [erro, setErro] = useState(false)
 
   function digitar(d: string) {
+    if (validando) return
     vibrar('leve')
     setPin((atual) => (atual.length >= 4 ? atual : atual + d))
     setErro(false)
   }
 
   function apagar() {
+    if (validando) return
     vibrar('leve')
     setErro(false)
     setPin((atual) => atual.slice(0, -1))
   }
 
+  const [validando, setValidando] = useState(false)
+
   useEffect(() => {
     if (pin.length !== 4) return
-    if (pin === player.pin) {
-      vibrar('sucesso')
-      onSucesso(player)
-    } else {
-      vibrar('erro')
-      setErro(true)
-      // Limpa o pin depois do shake terminar
-      setTimeout(() => setPin(''), 500)
+    let cancelado = false
+    setValidando(true)
+    validarPin(player.nome, pin)
+      .then((resultado) => {
+        if (cancelado) return
+        if (resultado) {
+          vibrar('sucesso')
+          onSucesso(resultado)
+        } else {
+          vibrar('erro')
+          setErro(true)
+          // Limpa o pin depois do shake terminar
+          setTimeout(() => setPin(''), 500)
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setValidando(false)
+      })
+    return () => {
+      cancelado = true
     }
   }, [pin, player, onSucesso])
 
