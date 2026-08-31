@@ -199,11 +199,14 @@ export const TECNICO = _default.TECNICO
 
 import { supabase } from '@/lib/supabase'
 
+// Sem campo "pin" — o PIN de verdade nunca sai do banco. Ver
+// fix_pin_seguranca.sql: a comparação acontece dentro do Postgres,
+// via validar_pin(), e a coluna pin fica travada pra leitura direta
+// do navegador (anon key).
 export interface JogadorComPin {
   id: string
   nome: string
   vulgo?: string
-  pin: string
   avatar?: string | null
   isAdmin: boolean
 }
@@ -225,10 +228,15 @@ const VULGO_MAP: Record<string, string> = {
   'Damus':          'Novato',
 }
 
-export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | null> {
+/**
+ * Busca dados PÚBLICOS do participante pra abrir o modal de PIN
+ * (nome, avatar, se é admin). Não traz o PIN — só serve pra mostrar
+ * o rosto/nome certo na tela antes da pessoa digitar o código.
+ */
+export async function buscarParticipantePorNome(nome: string): Promise<JogadorComPin | null> {
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, pin, avatar, is_admin')
+    .select('id, name, avatar, is_admin')
     .eq('name', nome)
     .maybeSingle()
 
@@ -238,7 +246,27 @@ export async function buscarPinPorNome(nome: string): Promise<JogadorComPin | nu
     id: data.id,
     nome: data.name,
     vulgo: VULGO_MAP[data.name],
-    pin: data.pin,
+    avatar: data.avatar,
+    isAdmin: data.is_admin ?? false,
+  }
+}
+
+/**
+ * Valida o PIN digitado chamando a função validar_pin() do Postgres
+ * (ver fix_pin_seguranca.sql) — a comparação acontece no banco, o
+ * navegador nunca sabe qual é o PIN certo, só se acertou ou não.
+ */
+export async function validarPin(nome: string, pinTentativa: string): Promise<JogadorComPin | null> {
+  const { data, error } = await supabase
+    .rpc('validar_pin', { nome_jogador: nome, pin_tentativa: pinTentativa })
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    nome: data.name,
+    vulgo: VULGO_MAP[data.name],
     avatar: data.avatar,
     isAdmin: data.is_admin ?? false,
   }
