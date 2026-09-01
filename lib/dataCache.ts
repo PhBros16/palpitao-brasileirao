@@ -57,6 +57,12 @@ export function limparCache(chave: string): void {
  * cache muito antigo (app fechado há dias) ainda vale a pena mostrar de
  * primeira ou se é melhor já nascer no estado de loading. */
 export const CACHE_TTL = {
-  CURTO: 2 * 60 * 1000, // 2 min — dados que mudam com o jogo (palpites, rodada ativa)
+  // 2 min era curto demais pro uso real: navegar por algumas abas e voltar
+  // pra Home já passava disso, fazendo o cache "nunca ajudar" na prática.
+  // A revalidação em segundo plano continua rodando em TODA visita, TTL só
+  // decide se o retrato salvo ainda é bom o bastante pra mostrar de cara —
+  // subir esse número não deixa o dado mais desatualizado na tela, só reduz
+  // quantas vezes a pessoa vê "Carregando..." à toa.
+  CURTO: 15 * 60 * 1000, // 15 min — dados que mudam com o jogo (palpites, rodada ativa)
   MEDIO: 10 * 60 * 1000, // 10 min — tabela, ranking, campeonato
 } as const
