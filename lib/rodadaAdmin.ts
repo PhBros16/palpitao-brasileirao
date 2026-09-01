@@ -54,7 +54,7 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
     .from('matches')
     .select('id, home, away, match_date, match_time, travado_manual, home_score, away_score')
     .eq('round_id', round.id)
-    .order('match_date', { ascending: true })
+    .order('match_date', { ascending: true }).order('match_time', { ascending: true })
 
   const jogos: JogoAdmin[] = (matches ?? []).map((m) => ({
     id: m.id,
@@ -140,7 +140,7 @@ export async function buscarJogosSemPlacar(
     .from('matches')
     .select('id, home, away, home_score, away_score')
     .eq('round_id', roundId)
-    .order('match_date', { ascending: true })
+    .order('match_date', { ascending: true }).order('match_time', { ascending: true })
   if (error) throw error
   return (data ?? [])
     .filter((m) => m.home_score === null || m.away_score === null)
@@ -369,7 +369,7 @@ export async function buscarPalpitesParticipante(
     .from('matches')
     .select('id, home, away, home_score, away_score')
     .eq('round_id', roundId)
-    .order('match_date', { ascending: true })
+    .order('match_date', { ascending: true }).order('match_time', { ascending: true })
   if (mErr) throw mErr
 
   const matchIds = (matches ?? []).map((m) => m.id)
