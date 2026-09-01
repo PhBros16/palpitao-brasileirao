@@ -140,7 +140,7 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     supabase
       .from('matches')
       .select('id, home, away, home_score, away_score, match_date, match_time, round_id')
-      .order('match_date', { ascending: true, nullsFirst: false }),
+      .order('match_date', { ascending: true, nullsFirst: false }).order('match_time', { ascending: true }),
     supabase
       .from('rounds')
       .select('id, number, name, finalized')
