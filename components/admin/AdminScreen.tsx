@@ -341,6 +341,23 @@ function SecaoConfiguracaoRodada() {
     setValeDobro(false)
     setJogos([])
     setIdsOriginais([])
+    setEhExtra(false)
+  }
+
+  // Rodadas Extra usam número >= 100 de propósito, pra nunca colidir com
+  // o número de uma rodada real da temporada nem entrar na contagem
+  // sequencial normal. O nome já vem no padrão "Extra: —" pronto pra editar.
+  function iniciarNovaRodadaExtra() {
+    const extras = listaRodadas.filter((r) => r.number >= 100)
+    const proximoNumeroExtra = extras.length > 0 ? Math.max(...extras.map((r) => r.number)) + 1 : 101
+    setRoundId(null)
+    setNome('Extra: —')
+    setNumero(proximoNumeroExtra)
+    setAberta(true)
+    setValeDobro(false)
+    setJogos([])
+    setIdsOriginais([])
+    setEhExtra(true)
   }
 
   useEffect(() => {
@@ -420,7 +437,11 @@ function SecaoConfiguracaoRodada() {
             value={roundId ?? ''}
             onChange={(e) => {
               if (e.target.value === 'nova') {
-                iniciarNovaRodada(listaRodadas[listaRodadas.length - 1]?.number ?? 24)
+                const rodadasReais = listaRodadas.filter((r) => r.number < 100)
+                const ultimaReal = rodadasReais[rodadasReais.length - 1]
+                iniciarNovaRodada(ultimaReal?.number ?? 24)
+              } else if (e.target.value === 'nova-extra') {
+                iniciarNovaRodadaExtra()
               } else if (e.target.value) {
                 carregarRodadaPorId(e.target.value)
               }
@@ -433,8 +454,14 @@ function SecaoConfiguracaoRodada() {
               </option>
             ))}
             <option value="nova">+ Criar Nova Rodada do Zero</option>
+            <option value="nova-extra">+ Criar Rodada Extra</option>
           </select>
         </Row>
+        {ehExtra && (
+          <p className="mt-2 rounded border border-dourado-300 bg-dourado-50 px-2 py-1.5 font-sans text-xs text-dourado-800">
+            ⚡ Rodada Extra — número {numero}, fora da contagem sequencial normal da temporada.
+          </p>
+        )}
       </Card>
 
       <Card>
@@ -589,7 +616,14 @@ function SecaoResultadoCorrecao() {
     ]).then(([rRes, nomes, ativa]) => {
       if (rRes.data) setListaRodadas(rRes.data)
       setParticipantes(nomes)
-      const inicial = ativa.roundId ?? rRes.data?.[0]?.id
+      // Rodadas Extra usam número >= 100 de propósito — como a lista está em
+      // ordem decrescente, elas sempre ficariam em primeiro lugar aqui e
+      // "ganhavam" a escolha de rodada padrão sempre que não havia nenhuma
+      // rodada realmente aberta no momento. Prioriza uma rodada real (< 100)
+      // como fallback; só cai pra qualquer uma (mesmo Extra) se não sobrar
+      // nenhuma rodada real na lista.
+      const rodadasReais = (rRes.data ?? []).filter((r) => r.number < 100)
+      const inicial = ativa.roundId ?? rodadasReais[0]?.id ?? rRes.data?.[0]?.id
       if (inicial) carregarRodadaParaPlacares(inicial)
     }).finally(() => setCarregando(false))
   }, [])
