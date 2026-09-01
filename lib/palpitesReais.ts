@@ -34,7 +34,7 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     .from('matches')
     .select('id, home, away, match_date, match_time, travado_manual')
     .eq('round_id', round.id)
-    .order('match_date', { ascending: true })
+    .order('match_date', { ascending: true }).order('match_time', { ascending: true })
 
   const agora = Date.now()
 
