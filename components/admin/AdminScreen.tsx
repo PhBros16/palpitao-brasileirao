@@ -344,9 +344,6 @@ function SecaoConfiguracaoRodada() {
     setEhExtra(false)
   }
 
-  // Rodadas Extra usam número >= 100 de propósito, pra nunca colidir com
-  // o número de uma rodada real da temporada nem entrar na contagem
-  // sequencial normal. O nome já vem no padrão "Extra: —" pronto pra editar.
   function iniciarNovaRodadaExtra() {
     const extras = listaRodadas.filter((r) => r.number >= 100)
     const proximoNumeroExtra = extras.length > 0 ? Math.max(...extras.map((r) => r.number)) + 1 : 101
@@ -448,6 +445,14 @@ function SecaoConfiguracaoRodada() {
             }}
             className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
           >
+            {/* Sem isso, quando roundId vira null (modo "criando nova"), o
+                <select> não acha nenhuma option com value="" e o navegador
+                cai pra mostrar a primeira opção da lista por padrão — no
+                caso, sempre "Rodada 1", mesmo com o formulário abaixo
+                mostrando corretamente os dados da rodada nova/extra. */}
+            {roundId === null && (
+              <option value="">✨ Criando rodada nova...</option>
+            )}
             {listaRodadas.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} {r.palpites_open ? '🟢 (Aberta)' : r.finalized ? '✅ (Finalizada)' : '🔒 (Fechada)'}
@@ -616,12 +621,6 @@ function SecaoResultadoCorrecao() {
     ]).then(([rRes, nomes, ativa]) => {
       if (rRes.data) setListaRodadas(rRes.data)
       setParticipantes(nomes)
-      // Rodadas Extra usam número >= 100 de propósito — como a lista está em
-      // ordem decrescente, elas sempre ficariam em primeiro lugar aqui e
-      // "ganhavam" a escolha de rodada padrão sempre que não havia nenhuma
-      // rodada realmente aberta no momento. Prioriza uma rodada real (< 100)
-      // como fallback; só cai pra qualquer uma (mesmo Extra) se não sobrar
-      // nenhuma rodada real na lista.
       const rodadasReais = (rRes.data ?? []).filter((r) => r.number < 100)
       const inicial = ativa.roundId ?? rodadasReais[0]?.id ?? rRes.data?.[0]?.id
       if (inicial) carregarRodadaParaPlacares(inicial)
