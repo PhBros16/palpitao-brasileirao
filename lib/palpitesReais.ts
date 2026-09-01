@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { calcPoints } from './domain/pontuacao'
 
 export interface JogoParaPalpite {
   id: string
@@ -105,12 +106,26 @@ export async function salvarPalpitesReais(
   const matchIds = Object.keys(palpites)
   if (matchIds.length === 0) return
 
+  // Busca o resultado (se já existir) e se a rodada vale x2 — precisamos
+  // disso pra calcular o points na hora, em vez de gravar null sempre.
+  //
+  // ANTES: todo save gravava points:null incondicionalmente. Se o palpite
+  // fosse salvo/editado DEPOIS que o admin já tinha corrigido o resultado
+  // daquele jogo, o points voltava pra null e ficava assim pra sempre — a
+  // Home (que sempre recalcula na hora) continuava mostrando a pontuação
+  // certa, mas a aba Rodada (que lê points do banco) mostrava 0, porque
+  // nada nunca reescreveu esse campo de volta.
+  const { data: matchesData } = await supabase
+    .from('matches')
+    .select('id, home, away, home_score, away_score, round_id, rounds!inner(is_double)')
+    .in('id', matchIds)
+
+  const matchMap = new Map((matchesData ?? []).map((m: any) => [m.id, m]))
+
   try {
     const { data: parts } = await supabase.from('participants').select('name').eq('id', participantId).single()
-    const { data: matchesData } = await supabase.from('matches').select('id, home, away').in('id', matchIds)
 
     if (parts && matchesData) {
-      const matchMap = new Map(matchesData.map((m) => [m.id, m]))
       const logJogos = matchIds
         .map((id) => {
           const m = matchMap.get(id)
@@ -128,13 +143,27 @@ export async function salvarPalpitesReais(
     }
   } catch { /* ignora erro de log */ }
 
-  const upserts = matchIds.map((matchId) => ({
-    participant_id: participantId,
-    match_id: matchId,
-    pred_h: palpites[matchId].h,
-    pred_a: palpites[matchId].a,
-    points: null,
-  }))
+  const upserts = matchIds.map((matchId) => {
+    const m: any = matchMap.get(matchId)
+    const p = palpites[matchId]
+
+    let points: number | null = null
+    if (m && m.home_score !== null && m.away_score !== null) {
+      const val = calcPoints({ h: p.h, a: p.a }, { h: m.home_score, a: m.away_score })
+      if (val !== null) {
+        const valeDobro = m.rounds?.is_double ?? false
+        points = valeDobro ? val * 2 : val
+      }
+    }
+
+    return {
+      participant_id: participantId,
+      match_id: matchId,
+      pred_h: p.h,
+      pred_a: p.a,
+      points,
+    }
+  })
 
   const { error } = await supabase.from('predictions').upsert(upserts, { onConflict: 'participant_id, match_id' })
   if (error) throw error
