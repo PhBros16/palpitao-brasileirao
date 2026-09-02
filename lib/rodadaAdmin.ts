@@ -37,13 +37,31 @@ export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
     .maybeSingle()
 
   if (!round) {
+    // Fallback de emergência quando nenhuma rodada está genuinamente aberta
+    // (ex.: entre rodadas). Antes essa consulta não tinha filtro nenhum —
+    // pegava sempre "a de maior número" — e como as rodadas Extra usam
+    // número 100+ de propósito, elas sempre venciam essa disputa, mesmo já
+    // finalizadas há muito tempo. Prefere uma rodada real (< 100) aqui.
     const res = await supabase
       .from('rounds')
       .select('id, number, name, palpites_open, finalized, is_double')
+      .lt('number', 100)
       .order('number', { ascending: false })
       .limit(1)
       .maybeSingle()
     round = res.data
+
+    // Só cai pra "qualquer rodada, mesmo Extra" se não existir NENHUMA
+    // rodada real cadastrada ainda (cenário raríssimo/inicial).
+    if (!round) {
+      const res2 = await supabase
+        .from('rounds')
+        .select('id, number, name, palpites_open, finalized, is_double')
+        .order('number', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      round = res2.data
+    }
   }
 
   if (!round) {
