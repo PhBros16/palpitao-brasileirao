@@ -103,8 +103,6 @@ export function AberturaScreen() {
     timers.current = []
   }, [])
 
-  const [zoomPronto, setZoomPronto] = useState(false)
-
   useEffect(() => {
     function medirSafeTop(): number {
       try {
@@ -138,19 +136,6 @@ export function AberturaScreen() {
       window.visualViewport?.removeEventListener('resize', calcular)
     }
   }, [])
-
-  // Zoom de entrada — a capa nasce pequena (como um objeto exposto, visto
-  // de longe, dentro do cone de luz de FundoMesa) e só depois de um respiro
-  // anima até o tamanho real calculado. Esse atraso é o que resolve o
-  // "pisca de ajuste": o recálculo tardio de viewport do Safari mobile
-  // (que já existia e só era suavizado por uma transição) acontece agora
-  // ENQUANTO a capa ainda está pequena e longe — inaudível visualmente —
-  // em vez de acontecer com ela já grande na tela.
-  useEffect(() => {
-    if (!dimensoes) return
-    const t = setTimeout(() => setZoomPronto(true), 550)
-    return () => clearTimeout(t)
-  }, [dimensoes])
 
   useEffect(() => {
     let raf: number | null = null
@@ -377,70 +362,13 @@ export function AberturaScreen() {
           overflow: 'visible',
           perspective: 1700,
           perspectiveOrigin: '52% 45%',
-          transform: `scale(${zoomPronto ? escala : escala * 0.32})`,
+          transform: `scale(${escala})`,
           transformOrigin: 'top center',
-          transition: zoomPronto
-            ? 'transform 1.1s cubic-bezier(0.22, 0.61, 0.36, 1)'
-            : 'none',
+          transition: 'transform 0.35s ease-out',
           zIndex: 2,
           boxShadow: '0 40px 80px rgba(0, 0, 0, 0.6), 0 20px 40px rgba(0, 0, 0, 0.4)',
         }}
       >
-        {/* Bancada de exposição — só faz sentido visualmente enquanto a
-            capa está pequena (fase do zoom de entrada). Fica posicionada
-            logo abaixo do limite da cena (844px) — como tudo aqui dentro
-            escala junto via o transform do data-cena-raiz, ela nasce do
-            tamanho certo durante o zoom, e no tamanho final (escala ~1,
-            cena preenchendo a tela) ela naturalmente cai fora do quadro,
-            exatamente como uma câmera se aproximando deixaria o pedestal
-            pra trás. Sem lógica extra de opacidade — o próprio zoom resolve. */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: ALTURA_CENA,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 260,
-            opacity: capaVisivel ? 1 : 0,
-            transition: 'opacity 400ms ease-out',
-          }}
-        >
-          {/* Topo da bancada — tábua de madeira vista de leve ângulo, onde
-              a capa "repousa" */}
-          <div
-            style={{
-              height: 22,
-              borderRadius: '50% 50% 0 0 / 100% 100% 0 0',
-              background: 'linear-gradient(180deg, var(--madeira-100) 0%, var(--madeira-200) 60%, var(--madeira-300) 100%)',
-              boxShadow: 'inset 0 -3px 6px rgba(0,0,0,0.35), inset 0 2px 3px rgba(255,235,180,0.25)',
-            }}
-          />
-          {/* Corpo da bancada — trapézio (mais estreito embaixo), tom mais
-              escuro de madeira, com friso dourado sutil perto do topo */}
-          <div
-            style={{
-              height: 130,
-              margin: '0 auto',
-              width: '86%',
-              clipPath: 'polygon(4% 0%, 96% 0%, 88% 100%, 12% 100%)',
-              background: 'linear-gradient(180deg, var(--madeira-200) 0%, var(--madeira-300) 45%, var(--madeira-400) 100%)',
-              borderTop: '3px solid var(--dourado-500)',
-              boxShadow: 'inset 8px 0 16px rgba(0,0,0,0.3), inset -8px 0 16px rgba(0,0,0,0.3)',
-            }}
-          />
-          {/* Sombra de contato no chão, sob a bancada */}
-          <div
-            style={{
-              height: 14,
-              width: '70%',
-              margin: '4px auto 0',
-              borderRadius: '50%',
-              background: 'radial-gradient(closest-side, rgba(0,0,0,0.5), transparent 75%)',
-            }}
-          />
-        </div>
-
         <div
           style={{
             position: 'absolute',
