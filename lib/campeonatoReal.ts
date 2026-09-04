@@ -158,10 +158,23 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
   const jogosFuturos: JogoBrasileirao[] = []
   const todosJogosComPlacar: JogoBrasileirao[] = []
 
+  // Rodadas 100 e 101 (Athletico x Botafogo, Athletico x Corinthians) já
+  // estavam jogadas e finalizadas ANTES do retrato BASE_OFICIAL_R24 acima
+  // ter sido digitado à mão — os resultados delas já estão embutidos nesses
+  // números fixos. Continuam de fora do cálculo ao vivo pra não duplicar.
+  //
+  // Qualquer OUTRA rodada Extra (102 em diante) é nova de verdade, criada
+  // e jogada DEPOIS desse retrato — precisa somar ao vivo, senão o
+  // resultado dela nunca aparece na Tabela Oficial (bug real, achado numa
+  // sessão de testes: a rodada Extra nova nunca entrava na tabela porque
+  // isExtra excluía TODA rodada 100+ incondicionalmente, não só essas duas).
+  const JA_CONTABILIZADAS_NO_RETRATO_FIXO = new Set([100, 101])
+
   for (const m of matches) {
     const r = roundMap.get(m.round_id)
     if (!r) continue
 
+    const jaContabilizada = JA_CONTABILIZADAS_NO_RETRATO_FIXO.has(r.number)
     const isExtra = r.number >= 100
     const jogo: JogoBrasileirao = {
       matchId: m.id,
@@ -176,12 +189,12 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     }
 
     if (m.home_score !== null && m.away_score !== null) {
-      if (!isExtra) {
+      if (!jaContabilizada) {
         todosJogosComPlacar.push(jogo)
-        if (r.number >= 25) jogosNovosAoVivo.push(jogo)
+        if (r.number >= 25 || isExtra) jogosNovosAoVivo.push(jogo)
       }
     } else {
-      if (!isExtra) jogosFuturos.push(jogo)
+      if (!jaContabilizada) jogosFuturos.push(jogo)
     }
   }
 
