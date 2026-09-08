@@ -600,8 +600,10 @@ function SecaoResultadoCorrecao() {
 
       const { data: matches } = await supabase
         .from('matches')
-        .select('id, home, away, home_score, away_score')
+        .select('id, home, away, home_score, away_score, match_date, match_time')
         .eq('round_id', rid)
+        .order('match_date', { ascending: true })
+        .order('match_time', { ascending: true })
 
       const lista = matches ?? []
       setJogos(lista)
@@ -768,6 +770,9 @@ function SecaoResultadoCorrecao() {
                   <span className="font-sans text-xs text-tinta-100">Palpite: <b className="font-mono text-tinta-300">{pj.predH !== null ? `${pj.predH}×${pj.predA}` : 'NP'}</b></span>
                   <span className="font-sans text-xs text-tinta-100">Resultado: <b className="font-mono text-dourado-500">{pj.resultadoH !== null ? `${pj.resultadoH}×${pj.resultadoA}` : '—'}</b></span>
                   <span className="font-sans text-xs text-tinta-100">Pontos: <b className="font-mono text-dourado-500">{pj.points ?? '—'}</b></span>
+                  {pj.manualOverride && (
+                    <span className="rounded bg-dourado-500/20 px-1.5 py-0.5 font-mono text-[10px] text-dourado-500" title="Setado manualmente — protegido de recálculo em massa da rodada">🔒 manual</span>
+                  )}
                   <span className="flex items-center gap-1.5 font-mono text-xs text-tinta-100">
                     Corrigir:
                     <input type="number" inputMode="numeric" min={0} placeholder="—"
