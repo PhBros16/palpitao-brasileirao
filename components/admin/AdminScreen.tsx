@@ -201,7 +201,7 @@ function SecaoWhatsApp() {
       .from('matches')
       .select('home, away, match_date, match_time')
       .eq('round_id', rodada.roundId)
-      .order('match_date', { ascending: true })
+      .order('match_date', { ascending: true }).order('match_time', { ascending: true })
 
     if (mErr) throw mErr
 
@@ -209,19 +209,13 @@ function SecaoWhatsApp() {
       return `📢 *${rodada.nome} LIBERADA!*\n\nSem jogos cadastrados ainda.`
     }
 
-    function formatarDataHora(date: string | null, time: string | null): string {
-      if (!date) return ''
-      const [, mes, dia] = date.split('-')
-      const dataStr = `${dia}/${mes}`
-      const horaStr = time ? time.substring(0, 5) : ''
-      return horaStr ? ` — ${dataStr} ${horaStr}` : ` — ${dataStr}`
-    }
+    const primeiro = matches[0]
+    const [, mes, dia] = (primeiro.match_date ?? '').split('-')
+    const dataStr = primeiro.match_date ? `${dia}/${mes}` : ''
+    const horaStr = primeiro.match_time ? ` às ${primeiro.match_time.substring(0, 5)}` : ''
+    const abre = dataStr ? ` — abre ${dataStr}${horaStr}` : ''
 
-    const linhas = matches
-      .map((m) => `⚽ ${m.home} × ${m.away}${formatarDataHora(m.match_date, m.match_time)}`)
-      .join('\n')
-
-    return `📢 *${rodada.nome} LIBERADA!*\n\nPalpites estão abertos, corram pro app!\n\n${linhas}\n\n🔥 Boa sorte, palpiteiros!`
+    return `📢 *${rodada.nome} liberada!*\n\n${matches.length} jogos${abre}. Bora palpitar antes que a bola role ⚽\n\n🔥 Boa sorte, palpiteiros!`
   }
 
   async function share(tipo: 'geral' | 'parcial' | 'liberada') {
