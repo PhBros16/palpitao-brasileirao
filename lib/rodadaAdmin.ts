@@ -349,11 +349,15 @@ export async function calcularPontosRodada(
 
   const { data: predictions, error: predErr } = await supabase
     .from('predictions')
-    .select('id, match_id, pred_h, pred_a')
+    .select('id, match_id, pred_h, pred_a, manual_override')
     .in('match_id', matchIds)
   if (predErr) throw predErr
 
   for (const p of predictions ?? []) {
+    // Predição com ponto setado manualmente pelo admin (ex.: prêmio de outro
+    // campeonato) — não deixa o recálculo em massa da rodada sobrescrever.
+    if (p.manual_override) continue
+
     const resultado = resultados[p.match_id]
     if (!resultado) continue
     const pontos = calcPoints({ h: p.pred_h, a: p.pred_a }, { h: resultado.h, a: resultado.a })
@@ -377,6 +381,7 @@ export interface PalpitePorJogo {
   resultadoA: number | null
   points: number | null
   predictionId: string | null
+  manualOverride: boolean
 }
 
 export async function buscarPalpitesParticipante(
@@ -393,7 +398,7 @@ export async function buscarPalpitesParticipante(
   const matchIds = (matches ?? []).map((m) => m.id)
   const { data: predictions, error: pErr } = await supabase
     .from('predictions')
-    .select('id, match_id, pred_h, pred_a, points')
+    .select('id, match_id, pred_h, pred_a, points, manual_override')
     .eq('participant_id', participantId)
     .in('match_id', matchIds.length ? matchIds : ['00000000-0000-0000-0000-000000000000'])
   if (pErr) throw pErr
@@ -412,6 +417,7 @@ export async function buscarPalpitesParticipante(
       resultadoA: m.away_score ?? null,
       points: pred?.points ?? null,
       predictionId: pred?.id ?? null,
+      manualOverride: pred?.manual_override ?? false,
     }
   })
 }
@@ -420,9 +426,11 @@ export async function corrigirPontoManual(
   predictionId: string,
   novoValor: number,
 ): Promise<void> {
+  // Marca manual_override=true: protege esse ponto de ser sobrescrito na
+  // próxima vez que a rodada for recalculada em massa (calcularPontosRodada).
   const { error } = await supabase
     .from('predictions')
-    .update({ points: novoValor })
+    .update({ points: novoValor, manual_override: true })
     .eq('id', predictionId)
   if (error) throw error
 }
