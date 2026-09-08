@@ -265,19 +265,24 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
       item.position = idx + 1
     })
 
-    const campeao: CampeaoHistorico | null = ranking[0]
-      ? {
-          nome: ranking[0].nome,
-          name: ranking[0].nome,
-          pontos: ranking[0].pontos,
-          pts: ranking[0].pontos,
-          round_pts: ranking[0].pontos,
-          total_pts: ranking[0].pontos,
-          score: ranking[0].pontos,
-          avatar: ranking[0].avatar,
-          emoji: ranking[0].emoji,
-        }
-      : null
+    // Campeão(ões) da rodada: todo mundo empatado no MAIOR número de pontos,
+    // não só ranking[0] — o ranking já vem desempatado por cravadas/saldo pra
+    // fins de posição (1º, 2º...), mas isso não significa que só um venceu.
+    const maxPontos = ranking[0]?.pontos ?? 0
+    const campeoes: CampeaoHistorico[] = ranking
+      .filter((item) => item.pontos === maxPontos)
+      .map((item) => ({
+        nome: item.nome,
+        name: item.nome,
+        pontos: item.pontos,
+        pts: item.pontos,
+        round_pts: item.pontos,
+        total_pts: item.pontos,
+        score: item.pontos,
+        avatar: item.avatar,
+        emoji: item.emoji,
+      }))
+    const campeao: CampeaoHistorico | null = campeoes[0] ?? null
 
     const meuRank = sessaoId ? ranking.find((p) => p.participantId === sessaoId) : null
     const meusPts = meuRank ? meuRank.pontos : 0
@@ -313,7 +318,7 @@ export async function buscarRodadasFinalizadasHistorico(): Promise<RodadaHistori
       ranking,
       campeao,
       campeaoRodada: campeao,
-      campeoes: campeao ? [campeao] : [],
+      campeoes,
       campeaoPontos: campeao ? campeao.pontos : 0,
       meusPontos: meusPts,
       meuPontos: meusPts,
