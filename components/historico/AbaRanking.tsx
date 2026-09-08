@@ -20,8 +20,8 @@ export function AbaRanking({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-papel-borda-200">
-      <table className="w-full border-separate border-spacing-0">
+    <div className="overflow-x-auto rounded-md border border-papel-borda-200">
+      <table className="w-full min-w-[420px] border-separate border-spacing-0">
         <thead>
           <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-200">
             <th className="border-b border-papel-borda-200 bg-papel-200 px-2 py-1.5 text-center w-10">#</th>
