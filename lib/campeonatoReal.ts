@@ -198,8 +198,20 @@ export async function buscarDadosCampeonato(): Promise<DadosCampeonato> {
     }
   }
 
-  jogosNovosAoVivo.sort((a, b) => a.roundNumber - b.roundNumber)
-  todosJogosComPlacar.sort((a, b) => a.roundNumber - b.roundNumber)
+  function porData(a: JogoBrasileirao, b: JogoBrasileirao) {
+    const da = a.date ?? '', db = b.date ?? ''
+    if (da !== db) return da.localeCompare(db)
+    return (a.time ?? '').localeCompare(b.time ?? '')
+  }
+
+  // Ordena por data/hora real do jogo, não pelo número da rodada — rodadas
+  // Extra (100+) têm número fora de sequência de propósito e podem ter
+  // acontecido cronologicamente ANTES de uma rodada normal ainda em
+  // andamento. Ordenar por roundNumber jogava a Extra pro final do
+  // histórico mesmo quando ela foi jogada antes, invertendo a ordem real
+  // dos resultados no ÚLT.5 de quem jogou a Extra.
+  jogosNovosAoVivo.sort(porData)
+  todosJogosComPlacar.sort(porData)
 
   const tabela = calcularTabelaComBaseOficial(jogosNovosAoVivo)
   const estatisticas = calcularEstatisticas(todosJogosComPlacar, tabela)
