@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { calcPoints } from './domain/pontuacao'
 
 export interface ParcialLinha {
   participantId: string
@@ -112,7 +111,7 @@ export async function buscarHomeCompleta(participantId: string): Promise<HomeCom
   // dispara juntos, já deixando o frango pronto pro fim da função.
   const [predsRes, f] = await Promise.all([
     mList.length > 0
-      ? supabase.from('predictions').select('participant_id, match_id, pred_h, pred_a').in('match_id', mList.map((m) => m.id))
+      ? supabase.from('predictions').select('participant_id, match_id, pred_h, pred_a, points').in('match_id', mList.map((m) => m.id))
       : Promise.resolve({ data: [] as any[] }),
     buscarUltimoFrango(),
   ])
@@ -237,7 +236,7 @@ async function buscarUltimoFrango() {
 }
 
 function calcParcial(parts: any[], matches: any[], preds: any[], isDouble: boolean, pontuacaoBase: Map<string, number>, meuId: string) {
-  const pMap = new Map<string, Array<{ match_id: string; pred_h: number; pred_a: number }>>()
+  const pMap = new Map<string, Array<{ match_id: string; pred_h: number; pred_a: number; points: number | null }>>()
   for (const p of preds) {
     if (!pMap.has(p.participant_id)) pMap.set(p.participant_id, [])
     pMap.get(p.participant_id)!.push(p)
@@ -259,12 +258,12 @@ function calcParcial(parts: any[], matches: any[], preds: any[], isDouble: boole
     for (const p of palps) {
       const m = matches.find((x) => x.id === p.match_id)
       if (!m || m.home_score === null || m.away_score === null) continue
-      const val = calcPoints({ h: p.pred_h, a: p.pred_a }, { h: m.home_score, a: m.away_score })
-      if (val !== null) {
-        const pFinal = isDouble ? val * 2 : val
-        rodPts += pFinal
-        if (pt.id === meuId && (val === 5 || val === 10)) cravadasMinhas++
-      }
+      // Usa o points já salvo (calculado pelo admin ou corrigido na mão) em
+      // vez de recalcular do zero — recalcular ignorava qualquer correção
+      // manual (manual_override), já que a Home nunca lia essa coluna.
+      const pFinal = p.points ?? 0
+      rodPts += pFinal
+      if (pt.id === meuId && (pFinal === 5 || pFinal === 10)) cravadasMinhas++
     }
     if (pt.id === meuId) meusPtsRodada = rodPts
     parcial.push({ participantId: pt.id, nome: pt.name, avatar: pt.avatar, emoji: pt.emoji, ptsRodada: rodPts, totalGeral: base + rodPts })
