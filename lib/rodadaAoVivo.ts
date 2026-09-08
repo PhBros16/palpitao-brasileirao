@@ -128,11 +128,11 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
   const matchIds = jogos.map((j) => j.matchId)
   const { data: predsRaw } = matchIds.length > 0 ? await supabase
     .from('predictions')
-    .select('participant_id, match_id, pred_h, pred_a, points, created_at')
+    .select('participant_id, match_id, pred_h, pred_a, points, manual_override, created_at')
     .in('match_id', matchIds) : { data: [] as any[] }
 
   // Indexa: participantId → matchId → predição
-  const predByPartMatch = new Map<string, Map<string, { pred_h: number; pred_a: number; points: number | null; created_at: string }>>()
+  const predByPartMatch = new Map<string, Map<string, { pred_h: number; pred_a: number; points: number | null; manual_override: boolean; created_at: string }>>()
   const ultimoPorPart = new Map<string, string>()
 
   for (const p of predsRaw ?? []) {
@@ -177,7 +177,15 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
       const pts = pred.points ?? 0
       ptsRodada += pts
       let categoria: PalpiteCelula['categoria']
-      if (pred.pred_h === j.home_score && pred.pred_a === j.away_score) {
+      if (pred.manual_override) {
+        // Ponto setado na mão pelo admin — o palpite bruto pode não bater
+        // com nenhuma categoria natural (ex.: prêmio de outro campeonato).
+        // A cor precisa refletir o points salvo, não a comparação crua.
+        if (pts === 5 || pts === 10) { categoria = 'cravou'; cravadas++ }
+        else if (pts === 3 || pts === 6) { categoria = 'saldo'; saldos++ }
+        else if (pts === 1 || pts === 2) { categoria = 'vencedor'; vencedores++ }
+        else { categoria = 'errou' }
+      } else if (pred.pred_h === j.home_score && pred.pred_a === j.away_score) {
         categoria = 'cravou'
         cravadas++
       } else if (pred.pred_h - pred.pred_a === (j.home_score ?? 0) - (j.away_score ?? 0)) {
