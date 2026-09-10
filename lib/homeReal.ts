@@ -223,7 +223,10 @@ async function calcPodioGeral(parts: any[]) {
 }
 
 async function buscarUltimoFrango() {
-  const { data: rounds } = await supabase.from('rounds').select('id, name').eq('finalized', true).order('number', { ascending: false }).limit(1).maybeSingle()
+  // Rodadas Extra usam número >=100 de propósito (fora da sequência 1-38),
+  // então "maior número" nunca pode significar "mais recente" aqui — mesmo
+  // bug da rodada fantasma já corrigido em outros lugares do app.
+  const { data: rounds } = await supabase.from('rounds').select('id, name').eq('finalized', true).lt('number', 100).order('number', { ascending: false }).limit(1).maybeSingle()
   if (!rounds) return null
   const { data: sh } = await supabase.from('shame').select('player_name, text, photo_url').eq('round_id', rounds.id).maybeSingle()
   if (!sh) return null
