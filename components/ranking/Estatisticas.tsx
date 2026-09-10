@@ -298,7 +298,7 @@ function Top3Barra({ items, getValor, getSublinha, formatValor, corBarra }: { it
         return (
           <div key={item.nome} className="flex items-center gap-2">
             <span className="w-5 text-center text-sm">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-            <span className="w-24 truncate font-sans text-xs font-semibold text-tinta-300">{item.nome}</span>
+            <span className="w-28 truncate font-sans text-xs font-semibold text-tinta-300" title={item.nome}>{item.nome}</span>
             <div className="flex-1 overflow-hidden rounded-full bg-papel-200">
               <div className={cx('h-2 rounded-full transition-all duration-500', corBarra)} style={{ width: `${pctBarra}%` }} />
             </div>
@@ -446,7 +446,7 @@ function BlocoEmocionados({ dados }: { dados: { emocionados: JogadorEmocionado[]
             {dados.retranqueiros.slice(0, 3).map((item, i) => (
               <div key={item.nome} className="flex items-center gap-2">
                 <span className="w-5 text-center text-sm">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                <span className="w-24 truncate font-sans text-xs font-semibold text-tinta-300">{item.nome}</span>
+                <span className="w-28 truncate font-sans text-xs font-semibold text-tinta-300" title={item.nome}>{item.nome}</span>
                 <div className="flex-1 overflow-hidden rounded-full bg-papel-200">
                   <div className="h-2 rounded-full transition-all duration-500 bg-teal-500" style={{ width: `${Math.round((item.mediaGols / dados.emocionados[0].mediaGols) * 100)}%` }} />
                 </div>
@@ -480,7 +480,7 @@ function BlocoConsistencia({ dados }: { dados: JogadorConsistencia[] }) {
         {rank.slice(0, 3).map((item, i) => (
           <div key={item.nome} className="flex items-center gap-2">
             <span className="w-5 text-center text-sm">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-            <span className="w-24 truncate font-sans text-xs font-semibold text-tinta-300">{item.nome}</span>
+            <span className="w-28 truncate font-sans text-xs font-semibold text-tinta-300" title={item.nome}>{item.nome}</span>
             <span className="flex-1 font-mono text-[11px] text-tinta-200">média {item.media} · DP {item.desvioPadrao}</span>
             <span className="font-mono text-xs">{iconePerfil(item.perfil)}</span>
           </div>
