@@ -347,12 +347,12 @@ function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }
         </p>
         <p className="font-mono text-[9px] text-tinta-100">Administração atualiza após cada rodada</p>
       </div>
-      {frango.photoUrl && (
+      {frango.fotoUrl && (
         <div className="border-b border-papel-borda-200 bg-papel-100 p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={frango.photoUrl}
-            alt={frango.playerName}
+            src={frango.fotoUrl}
+            alt={frango.jogador}
             className="mx-auto max-h-96 w-auto max-w-full rounded object-contain"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
@@ -360,10 +360,10 @@ function BlocoFrango({ frango }: { frango: NonNullable<HomeCompleta['frango']> }
       )}
       <div className="px-3 py-3 text-center">
         <p className="font-display text-base font-bold text-raridade-frango-selo">
-          😂 {frango.playerName}
+          😂 {frango.jogador}
         </p>
-        {frango.text && (
-          <p className="mt-1.5 font-sans text-xs italic text-tinta-200">"{frango.text}"</p>
+        {frango.texto && (
+          <p className="mt-1.5 font-sans text-xs italic text-tinta-200">"{frango.texto}"</p>
         )}
       </div>
     </div>
