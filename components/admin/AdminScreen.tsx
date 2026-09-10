@@ -792,7 +792,7 @@ function SecaoResultadoCorrecao() {
 function SecaoFrango() {
   const [rodadas, setRodadas] = useState<Array<{ id: string; nome: string; finalizada: boolean }>>([])
   const [roundIdSelecionada, setRoundIdSelecionada] = useState<string>('')
-  const [jogador, setJogador] = useState('')
+  const [jogadores, setJogadores] = useState<string[]>([])
   const [fotoUrl, setFotoUrl] = useState('')
   const [texto, setTexto] = useState('')
   const [participantes, setParticipantes] = useState<Array<{ id: string; name: string }>>([])
@@ -843,17 +843,22 @@ function SecaoFrango() {
   }, [])
 
   async function carregarFrangoDaRodada(rid: string) {
-    setJogador(''); setTexto(''); setFotoUrl('')
+    setJogadores([]); setTexto(''); setFotoUrl('')
     const { data } = await supabase
       .from('shame')
       .select('player_name, text, photo_url')
       .eq('round_id', rid)
       .maybeSingle()
     if (data) {
-      setJogador(data.player_name ?? '')
+      // Nomes empatados ficam salvos juntos separados por " & "
+      setJogadores(data.player_name ? data.player_name.split(' & ').map((s) => s.trim()).filter(Boolean) : [])
       setTexto(data.text ?? '')
       setFotoUrl(data.photo_url ?? '')
     }
+  }
+
+  function alternarJogador(nome: string) {
+    setJogadores((atual) => (atual.includes(nome) ? atual.filter((n) => n !== nome) : [...atual, nome]))
   }
 
   async function trocarRodada(rid: string) {
@@ -866,17 +871,17 @@ function SecaoFrango() {
     setSalvando(true)
     try {
       await supabase.from('shame').delete().eq('round_id', roundIdSelecionada)
-      if (jogador.trim()) {
+      const nomeConjunto = jogadores.join(' & ').trim()
+      if (nomeConjunto) {
         const { error } = await supabase.from('shame').insert({
           round_id: roundIdSelecionada,
-          player_name: jogador.trim(),
+          player_name: nomeConjunto,
           text: texto.trim() || null,
           photo_url: fotoUrl.trim() || null,
         })
         if (error) throw error
         const rodadaNome = rodadas.find((r) => r.id === roundIdSelecionada)?.nome ?? ''
-        const pFrango = participantes.find((x) => x.name === jogador.trim())
-        await gravarLog('FRANGO_ATRIBUIDO', { roundId: roundIdSelecionada, jogador, rodada: rodadaNome }, undefined, pFrango?.id)
+        await gravarLog('FRANGO_ATRIBUIDO', { roundId: roundIdSelecionada, jogadores, rodada: rodadaNome }, undefined, undefined)
       }
       vibrar('sucesso')
       showToast('Frango salvo! 🐔', 'sucesso')
@@ -893,7 +898,7 @@ function SecaoFrango() {
     setSalvando(true)
     try {
       await supabase.from('shame').delete().eq('round_id', roundIdSelecionada)
-      setJogador(''); setFotoUrl(''); setTexto('')
+      setJogadores([]); setFotoUrl(''); setTexto('')
       vibrar('leve')
       showToast('Frango removido.', 'info')
     } catch (e) {
@@ -931,13 +936,25 @@ function SecaoFrango() {
             {rodadaSel.finalizada ? '✅ Rodada finalizada' : '🟡 Rodada em andamento'}
           </p>
         )}
-        <Row label="Jogador">
-          <select value={jogador} onChange={(e) => setJogador(e.target.value)}
-            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm text-tinta-300 outline-none">
-            <option value="">Nenhum (limpar frango)</option>
-            {participantes.map((p) => (<option key={p.id} value={p.name}>{p.name}</option>))}
-          </select>
-        </Row>
+        <div className="mb-2">
+          <p className="mb-1 font-sans text-xs text-tinta-200">Jogador(es) — pode marcar mais de um em caso de empate</p>
+          <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-papel-borda-300 bg-papel-50 p-2">
+            {participantes.map((p) => (
+              <label key={p.id} className="flex cursor-pointer items-center gap-2 font-sans text-sm text-tinta-300">
+                <input
+                  type="checkbox"
+                  checked={jogadores.includes(p.name)}
+                  onChange={() => alternarJogador(p.name)}
+                  className="h-4 w-4 accent-dourado-500"
+                />
+                {p.name}
+              </label>
+            ))}
+          </div>
+          {jogadores.length === 0 && (
+            <p className="mt-1 font-mono text-[10px] text-tinta-100">Nenhum jogador marcado — salvar assim remove o frango dessa rodada.</p>
+          )}
+        </div>
         <Row label="Foto URL"><InputText value={fotoUrl} onChange={setFotoUrl} placeholder="https://..." className="flex-1" /></Row>
         <Row label="Texto">
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Mensagem carinhosamente constrangedora..." rows={2}
