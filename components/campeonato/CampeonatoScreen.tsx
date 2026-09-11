@@ -129,10 +129,10 @@ function TabelaBrasileirao({
                   <td className={cx('border-b border-papel-borda-200/60 px-1.5 py-2 text-center font-mono text-xs font-bold text-tinta-200', getBordaLateral(l.zona))}>
                     {l.posicao}
                   </td>
-                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2">
-                    <div className="flex items-center gap-2">
-                      <img src={getEscudo(l.time)} alt={l.time} className="h-5 w-5 object-contain" />
-                      <span className="max-w-[130px] truncate font-sans text-xs font-semibold text-tinta-300" title={l.time}>{l.time}</span>
+                  <td className="sticky left-0 z-10 w-40 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <img src={getEscudo(l.time)} alt={l.time} className="h-5 w-5 flex-shrink-0 object-contain" />
+                      <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={l.time}>{l.time}</span>
                     </div>
                   </td>
                   <td className="border-b border-papel-borda-200/60 bg-papel-100/50 px-2 py-2 text-center font-mono text-xs font-bold text-tinta-300">{l.pontos}</td>
@@ -481,8 +481,8 @@ function EstatisticasCampeonato({
                 <span className="w-16 font-mono text-[9px] text-tinta-100">{g.roundName ?? 'Série A'}</span>
                 <div className="flex flex-1 items-center justify-center gap-3">
                   <div className="flex flex-1 items-center justify-end gap-1.5">
-                    <span className="max-w-[120px] truncate font-sans text-xs font-semibold text-tinta-300" title={g.home}>{g.home}</span>
-                    <img src={getEscudo(g.home)} className="h-5 w-5 object-contain" alt="" />
+                    <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={g.home}>{g.home}</span>
+                    <img src={getEscudo(g.home)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
                   </div>
                   <div className="flex items-center gap-1.5 rounded bg-papel-200 px-2 py-0.5">
                     <span className="font-mono text-sm font-bold text-tinta-300">{g.homeScore}</span>
@@ -490,8 +490,8 @@ function EstatisticasCampeonato({
                     <span className="font-mono text-sm font-bold text-tinta-300">{g.awayScore}</span>
                   </div>
                   <div className="flex flex-1 items-center justify-start gap-1.5">
-                    <img src={getEscudo(g.away)} className="h-5 w-5 object-contain" alt="" />
-                    <span className="max-w-[120px] truncate font-sans text-xs font-semibold text-tinta-300" title={g.away}>{g.away}</span>
+                    <img src={getEscudo(g.away)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
+                    <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={g.away}>{g.away}</span>
                   </div>
                 </div>
               </div>
@@ -627,8 +627,8 @@ function AgendaCampeonato({
 
                       <div className="flex flex-1 items-center justify-center gap-2">
                         <div className="flex flex-1 items-center justify-end gap-1.5">
-                          <span className="max-w-[120px] truncate font-sans text-xs font-semibold text-tinta-300" title={j.home}>{j.home}</span>
-                          <img src={getEscudo(j.home)} className="h-5 w-5 object-contain" alt="" />
+                          <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={j.home}>{j.home}</span>
+                          <img src={getEscudo(j.home)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
                         </div>
 
                         {tipo === 'resultados' && j.homeScore !== null ? (
@@ -642,8 +642,8 @@ function AgendaCampeonato({
                         )}
 
                         <div className="flex flex-1 items-center justify-start gap-1.5">
-                          <img src={getEscudo(j.away)} className="h-5 w-5 object-contain" alt="" />
-                          <span className="max-w-[120px] truncate font-sans text-xs font-semibold text-tinta-300" title={j.away}>{j.away}</span>
+                          <img src={getEscudo(j.away)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
+                          <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={j.away}>{j.away}</span>
                         </div>
                       </div>
                     </div>
@@ -814,8 +814,8 @@ function ModalTime({
                 <span className="w-16 font-mono text-[9px] font-semibold text-dourado-600">{j.roundName}</span>
                 <div className="flex flex-1 items-center justify-center gap-2">
                   <span className="font-sans text-[10px] text-tinta-100">{mandante ? 'vs' : '@'}</span>
-                  <img src={getEscudo(adversario)} className="h-4 w-4 object-contain" alt="" />
-                  <span className="max-w-[130px] truncate font-sans text-xs font-semibold text-tinta-300" title={adversario}>{adversario}</span>
+                  <img src={getEscudo(adversario)} className="h-4 w-4 flex-shrink-0 object-contain" alt="" />
+                  <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={adversario}>{adversario}</span>
                 </div>
                 <span className={cx('w-12 text-right font-mono text-xs font-bold', cor)}>
                   {gf}×{gs}
