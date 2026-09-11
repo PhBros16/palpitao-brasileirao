@@ -481,7 +481,7 @@ function EstatisticasCampeonato({
                 <span className="w-16 font-mono text-[9px] text-tinta-100">{g.roundName ?? 'Série A'}</span>
                 <div className="flex flex-1 items-center justify-center gap-3">
                   <div className="flex flex-1 items-center justify-end gap-1.5">
-                    <span className="w-28 flex-shrink-0 truncate font-sans text-xs font-semibold text-tinta-300" title={g.home}>{g.home}</span>
+                    <span className="w-28 flex-shrink-0 truncate text-right font-sans text-xs font-semibold text-tinta-300" title={g.home}>{g.home}</span>
                     <img src={getEscudo(g.home)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
                   </div>
                   <div className="flex items-center gap-1.5 rounded bg-papel-200 px-2 py-0.5">
@@ -627,7 +627,7 @@ function AgendaCampeonato({
 
                       <div className="flex flex-1 items-center justify-center gap-2">
                         <div className="flex flex-1 items-center justify-end gap-1.5">
-                          <span className="w-28 flex-shrink-0 truncate font-sans text-xs font-semibold text-tinta-300" title={j.home}>{j.home}</span>
+                          <span className="w-28 flex-shrink-0 truncate text-right font-sans text-xs font-semibold text-tinta-300" title={j.home}>{j.home}</span>
                           <img src={getEscudo(j.home)} className="h-5 w-5 flex-shrink-0 object-contain" alt="" />
                         </div>
 
