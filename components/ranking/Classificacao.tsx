@@ -160,8 +160,8 @@ export function Classificacao({
             </colgroup>
             <thead>
               <tr className="font-mono text-[9px] uppercase tracking-wider text-tinta-100">
-                <th className="border-b border-papel-borda-200 bg-papel-100 px-1 py-2 text-center">#</th>
-                <th className="border-b border-r-2 border-papel-borda-300 bg-papel-100 px-2 py-2 text-left">
+                <th className="border-b border-papel-borda-200 bg-papel-100 px-0.5 py-2 text-center">#</th>
+                <th className="border-b border-r-2 border-papel-borda-300 bg-papel-100 py-2 pl-1 pr-2 text-left">
                   Nome
                 </th>
                 <th className="border-b border-papel-borda-200 bg-papel-100 px-1 py-2 text-center">Pontos</th>
@@ -183,10 +183,10 @@ export function Classificacao({
                   onClick={clicavel ? () => onClickLinha!(d) : undefined}
                   className={clicavel ? 'cursor-pointer transition-colors hover:bg-papel-100' : undefined}
                 >
-                  <td className="border-b border-papel-borda-200/60 px-1 py-2 text-center font-mono text-xs text-tinta-200">
+                  <td className="border-b border-papel-borda-200/60 px-0.5 py-2 text-center font-mono text-xs text-tinta-200">
                     {i + 1}
                   </td>
-                  <td className="border-b border-r-2 border-papel-borda-300 px-2 py-2 font-sans text-xs font-semibold text-tinta-300">
+                  <td className="border-b border-r-2 border-papel-borda-300 py-2 pl-1 pr-2 font-sans text-xs font-semibold text-tinta-300">
                     <div className="flex items-center gap-1.5">
                       <AvatarMini avatar={d.avatar} nome={d.nome} />
                       {d.emoji && <span className="flex-shrink-0 text-sm leading-none">{d.emoji}</span>}
