@@ -1,10 +1,22 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { Modal } from '@/components/home/Modal'
+import { Accordion } from '@/components/home/Accordion'
 import { getEscudo } from '@/lib/escudos'
 import type { DadosCampeonato, LinhaTabela, JogoBrasileirao } from '@/lib/campeonatoReal'
+import {
+  buscarMandanteVisitante,
+  buscarTabelasPorTurno,
+  buscarAproveitamentoGeral,
+  buscarSequenciasAtuais,
+  type MandanteVisitante,
+  type LinhaMandanteVisitante,
+  type LinhaTabelaTurno,
+  type LinhaAproveitamento,
+  type LinhaSequencia,
+} from '@/lib/estatisticasAvancadas'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ')
@@ -184,6 +196,26 @@ function EstatisticasCampeonato({
   const e = dados.estatisticas
   const [filtroEvo, setFiltroEvo] = useState<number | 'z4'>(5)
 
+  const [avancadas, setAvancadas] = useState<{
+    mandanteVisitante: MandanteVisitante | null
+    turnos: { turno1: LinhaTabelaTurno[]; turno2: LinhaTabelaTurno[]; turno2EmAndamento: boolean } | null
+    aproveitamento: LinhaAproveitamento[] | null
+    sequencias: LinhaSequencia[] | null
+  }>({ mandanteVisitante: null, turnos: null, aproveitamento: null, sequencias: null })
+
+  useEffect(() => {
+    let vivo = true
+    Promise.all([
+      buscarMandanteVisitante(),
+      buscarTabelasPorTurno(),
+      buscarAproveitamentoGeral(),
+      buscarSequenciasAtuais(),
+    ]).then(([mandanteVisitante, turnos, aproveitamento, sequencias]) => {
+      if (vivo) setAvancadas({ mandanteVisitante, turnos, aproveitamento, sequencias })
+    }).catch(() => { /* estatísticas avançadas são um extra — falha aqui não deve travar a tela */ })
+    return () => { vivo = false }
+  }, [])
+
   const timesEvo = useMemo(() => {
     if (filtroEvo === 'z4') return dados.tabela.slice(-4)
     return dados.tabela.slice(0, filtroEvo)
@@ -233,6 +265,69 @@ function EstatisticasCampeonato({
       .filter(t => t.risco > 0)
       .sort((a, b) => b.risco - a.risco)
   }, [e.projecoes])
+
+  function TabelaTurnoCompacta({ linhas }: { linhas: LinhaTabelaTurno[] }) {
+    if (linhas.length === 0) return <p className="p-3 font-sans text-xs text-tinta-100">Sem jogos nesse turno ainda.</p>
+    return (
+      <div className="overflow-x-auto scrollbar-tema">
+        <table className="w-full border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr className="font-mono text-[9px] uppercase tracking-widest text-tinta-100">
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center">#</th>
+              <th className="border-b border-papel-borda-200 px-2 py-1.5 text-left">Clube</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center font-bold">Pts</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center">J</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center">V</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center">E</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center">D</th>
+              <th className="border-b border-papel-borda-200 px-1 py-1.5 text-center font-bold">SG</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.time} onClick={() => onClickTime(l.time)} className="cursor-pointer hover:bg-papel-100">
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono text-tinta-200">{l.posicao}</td>
+                <td className="border-b border-papel-borda-200/60 px-2 py-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <img src={getEscudo(l.time)} alt="" className="h-4 w-4 flex-shrink-0 object-contain" />
+                    <span className="min-w-0 flex-1 truncate font-sans font-semibold text-tinta-300">{l.time}</span>
+                  </div>
+                </td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono font-bold text-tinta-300">{l.pontos}</td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono text-tinta-200">{l.jogos}</td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono text-tinta-200">{l.vitorias}</td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono text-tinta-200">{l.empates}</td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono text-tinta-200">{l.derrotas}</td>
+                <td className="border-b border-papel-borda-200/60 px-1 py-1.5 text-center font-mono font-bold text-tinta-300">{l.saldoGols}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  function ListaMandanteVisitante({ linhas }: { linhas: LinhaMandanteVisitante[] }) {
+    return (
+      <div className="max-h-56 space-y-1.5 overflow-y-auto p-2 scrollbar-tema">
+        {linhas.map((l, i) => (
+          <button
+            key={l.time}
+            type="button"
+            onClick={() => onClickTime(l.time)}
+            className="flex w-full items-center justify-between rounded px-1 py-0.5 hover:bg-papel-100"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="w-4 flex-shrink-0 text-center font-mono text-[9px] text-tinta-100">{i + 1}º</span>
+              <img src={getEscudo(l.time)} alt="" className="h-4 w-4 flex-shrink-0 object-contain" />
+              <span className="min-w-0 truncate font-sans text-xs font-semibold text-tinta-300">{l.time}</span>
+            </div>
+            <span className="flex-shrink-0 font-mono text-xs font-bold text-tinta-300">{l.aproveitamento}%</span>
+          </button>
+        ))}
+      </div>
+    )
+  }
 
   function ListaExpandivel({ titulo, icone, corTexto, lista, sufixo = '' }: {
     titulo: string; icone: string; corTexto: string; lista: Array<{ time: string; valor: number }>; sufixo?: string
@@ -507,7 +602,86 @@ function EstatisticasCampeonato({
         <ListaExpandivel titulo="Mais Vitórias" icone="✅" corTexto="text-blue-700" lista={e.maisVitorias} sufixo=" vit" />
         <ListaExpandivel titulo="Rei do Empate" icone="🤝" corTexto="text-gray-600" lista={e.reiEmpate} sufixo=" emp" />
         <ListaExpandivel titulo="A Fortaleza (Clean Sheets)" icone="🧱" corTexto="text-orange-700" lista={e.fortaleza} sufixo=" jogos" />
+        {avancadas.aproveitamento && (
+          <ListaExpandivel
+            titulo="Aproveitamento"
+            icone="📈"
+            corTexto="text-purple-700"
+            lista={avancadas.aproveitamento.map((a) => ({ time: a.time, valor: a.aproveitamento }))}
+            sufixo="%"
+          />
+        )}
       </div>
+
+      {/* SEQUÊNCIA ATUAL */}
+      {avancadas.sequencias && avancadas.sequencias.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-green-700">🟢 Melhores Sequências (Invicto)</p>
+            <div className="max-h-48 space-y-1.5 overflow-y-auto scrollbar-tema">
+              {avancadas.sequencias.filter((s) => s.tipo === 'invicto').slice(0, 10).map((s, i) => (
+                <button key={s.time} type="button" onClick={() => onClickTime(s.time)}
+                  className="flex w-full items-center justify-between rounded px-1 py-0.5 hover:bg-papel-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 text-center font-mono text-[9px] text-tinta-100">{i + 1}º</span>
+                    <img src={getEscudo(s.time)} alt="" className="h-4 w-4 object-contain" />
+                    <span className="font-sans text-xs font-semibold text-tinta-300">{s.time}</span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-tinta-300">{s.jogos} jogos</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-papel-borda-200 bg-papel-50 p-3">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-red-700">🔴 Piores Jejuns</p>
+            <div className="max-h-48 space-y-1.5 overflow-y-auto scrollbar-tema">
+              {avancadas.sequencias.filter((s) => s.tipo === 'jejum').slice(0, 10).map((s, i) => (
+                <button key={s.time} type="button" onClick={() => onClickTime(s.time)}
+                  className="flex w-full items-center justify-between rounded px-1 py-0.5 hover:bg-papel-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 text-center font-mono text-[9px] text-tinta-100">{i + 1}º</span>
+                    <img src={getEscudo(s.time)} alt="" className="h-4 w-4 object-contain" />
+                    <span className="font-sans text-xs font-semibold text-tinta-300">{s.time}</span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-tinta-300">{s.jogos} jogos</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANDANTE × VISITANTE */}
+      {avancadas.mandanteVisitante && (
+        <CardEnvelope titulo="🏟️ Mandante × Visitante" subtitulo="Aproveitamento (%) jogando em casa e fora">
+          <div className="grid grid-cols-1 divide-y divide-papel-borda-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <div>
+              <p className="border-b border-papel-borda-200 bg-papel-100 px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest text-tinta-200">🏠 Em casa</p>
+              <ListaMandanteVisitante linhas={avancadas.mandanteVisitante.casa} />
+            </div>
+            <div>
+              <p className="border-b border-papel-borda-200 bg-papel-100 px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest text-tinta-200">✈️ Fora de casa</p>
+              <ListaMandanteVisitante linhas={avancadas.mandanteVisitante.fora} />
+            </div>
+          </div>
+        </CardEnvelope>
+      )}
+
+      {/* TABELAS POR TURNO */}
+      {avancadas.turnos && (
+        <div className="flex flex-col gap-3">
+          <Accordion titulo="🥇 1º Turno (rodadas 1-19)" storageKey="campeonato-turno1-aberto" defaultOpen={false}>
+            <TabelaTurnoCompacta linhas={avancadas.turnos.turno1} />
+          </Accordion>
+          <Accordion
+            titulo={avancadas.turnos.turno2EmAndamento ? '🥈 2º Turno (em andamento)' : '🥈 2º Turno'}
+            storageKey="campeonato-turno2-aberto"
+            defaultOpen
+          >
+            <TabelaTurnoCompacta linhas={avancadas.turnos.turno2} />
+          </Accordion>
+        </div>
+      )}
     </div>
   )
 }
