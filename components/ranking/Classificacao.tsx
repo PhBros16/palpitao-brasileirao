@@ -151,7 +151,7 @@ export function Classificacao({
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
               <col className="w-8" />
-              <col className="w-[136px]" />
+              <col className="w-[118px]" />
               <col className="w-12" />
               <col className="w-11" />
               <col className="w-11" />
