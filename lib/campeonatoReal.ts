@@ -94,7 +94,7 @@ const BASE_OFICIAL_R24: Record<string, {
   'Chapecoense':  { pontos: 14, jogos: 23, vitorias: 2,  empates: 8,  derrotas: 13, gp: 24, gc: 46, ultimos5: ['D', 'E', 'D', 'E', 'V'] },
 }
 
-function normalizarNomeTime(nomeBruto: string): string {
+export function normalizarNomeTime(nomeBruto: string): string {
   if (!nomeBruto) return ''
   const str = nomeBruto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
