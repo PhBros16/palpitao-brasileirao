@@ -6,6 +6,7 @@
 
 import { motion } from 'framer-motion'
 import { CardEnvelope } from '@/components/home/CardEnvelope'
+import { useMedidaTexto } from '@/lib/useMedidaTexto'
 import type { ClassificacaoLinha } from './tipos'
 
 function cx(...classes: Array<string | false | null | undefined>): string {
@@ -129,6 +130,11 @@ export function Classificacao({
   onClickLinha?: (linha: ClassificacaoLinha) => void
 }) {
   const clicavel = !!onClickLinha
+  const NOME_CLASSE = 'whitespace-nowrap font-sans text-xs font-semibold'
+  const [larguraNome, medidorNome] = useMedidaTexto(linhas.map((d) => abreviarNome(d.nome)), NOME_CLASSE)
+  // Avatar (24) + emoji no pior caso (18) + 2 gaps (12) + padding pl-1/pr-2
+  // (12) + borda direita (2) = 68px de folga fixa, mais o texto REAL medido.
+  const larguraColunaNome = larguraNome !== null ? larguraNome + 68 : 118
   return (
     <div className="flex flex-col gap-4">
       {/* Pódio dentro do card padrão */}
@@ -151,7 +157,7 @@ export function Classificacao({
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
               <col className="w-8" />
-              <col className="w-[118px]" />
+              <col style={{ width: larguraColunaNome }} />
               <col className="w-12" />
               <col className="w-11" />
               <col className="w-11" />
@@ -190,7 +196,7 @@ export function Classificacao({
                     <div className="flex items-center gap-1.5">
                       <AvatarMini avatar={d.avatar} nome={d.nome} />
                       {d.emoji && <span className="flex-shrink-0 text-sm leading-none">{d.emoji}</span>}
-                      <span className="whitespace-nowrap truncate" title={d.nome}>{abreviarNome(d.nome)}</span>
+                      <span className={NOME_CLASSE + ' truncate'} title={d.nome}>{abreviarNome(d.nome)}</span>
                     </div>
                   </td>
                   <td className="border-b border-papel-borda-200/60 px-1 py-2 text-center font-mono text-xs font-bold text-tinta-300">
@@ -219,6 +225,7 @@ export function Classificacao({
           </p>
         )}
       </CardEnvelope>
+      {medidorNome}
     </div>
   )
 }
