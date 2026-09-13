@@ -51,12 +51,17 @@ interface JogoInterno {
   away: string
   homeScore: number
   awayScore: number
-  date: string // YYYY-MM-DD, sempre presente (jogos sem data são ignorados)
+  date: string | null // YYYY-MM-DD — pode faltar (ex.: rodadas 16-22 têm placar mas sem data cadastrada); nesses casos cai no fallback por número de rodada
   time: string | null
   roundNumber: number
 }
 
 // ─── Busca base: todos os jogos com placar, uma vez só ────────────────────
+// IMPORTANTE: não filtra por match_date aqui. Um bom bloco de rodadas
+// (16-22, ~66 jogos) tem placar completo mas ficou sem data cadastrada no
+// banco — exigir data pra contar o jogo simplesmente apagava esses jogos de
+// toda estatística nova, o que não bate com o "J" da Tabela Oficial (que
+// não depende de data pra contar).
 
 async function buscarTodosJogosComPlacar(): Promise<JogoInterno[]> {
   const { data, error } = await supabase
@@ -64,7 +69,6 @@ async function buscarTodosJogosComPlacar(): Promise<JogoInterno[]> {
     .select('home, away, home_score, away_score, match_date, match_time, rounds!inner(number)')
     .not('home_score', 'is', null)
     .not('away_score', 'is', null)
-    .not('match_date', 'is', null)
 
   if (error) throw error
 
@@ -132,13 +136,20 @@ export async function buscarTabelasPorTurno(): Promise<{ turno1: LinhaTabelaTurn
   const jogos = await buscarTodosJogosComPlacar()
 
   // Data de corte: último jogo, por data, entre as rodadas REAIS 1-19.
-  const datasT1Oficial = jogos.filter((j) => j.roundNumber >= 1 && j.roundNumber <= 19).map((j) => j.date)
+  const datasT1Oficial = jogos
+    .filter((j) => j.roundNumber >= 1 && j.roundNumber <= 19 && j.date !== null)
+    .map((j) => j.date as string)
   const dataCorte = datasT1Oficial.length > 0 ? datasT1Oficial.reduce((a, b) => (a > b ? a : b)) : null
 
   const t1: JogoInterno[] = []
   const t2: JogoInterno[] = []
   for (const j of jogos) {
-    if (dataCorte && j.date <= dataCorte) t1.push(j)
+    const ehTurno1 = j.date
+      ? (dataCorte ? j.date <= dataCorte : j.roundNumber >= 1 && j.roundNumber <= 19)
+      // Sem data cadastrada (ex.: rodadas 16-22): classifica pelo número da
+      // rodada real em vez de descartar o jogo.
+      : j.roundNumber >= 1 && j.roundNumber <= 19
+    if (ehTurno1) t1.push(j)
     else t2.push(j)
   }
 
@@ -214,8 +225,13 @@ export async function buscarSequenciasAtuais(): Promise<LinhaSequencia[]> {
   }
 
   const ordenados = [...jogos].sort((a, b) => {
-    if (a.date !== b.date) return a.date < b.date ? -1 : 1
-    return (a.time ?? '').localeCompare(b.time ?? '')
+    if (a.date && b.date) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1
+      return (a.time ?? '').localeCompare(b.time ?? '')
+    }
+    // Falta data em pelo menos um dos dois (ex.: rodadas 16-22) — usa o
+    // número da rodada como aproximação da ordem cronológica.
+    return a.roundNumber - b.roundNumber
   })
 
   for (const j of ordenados) {
