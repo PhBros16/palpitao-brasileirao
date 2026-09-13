@@ -141,10 +141,16 @@ function TabelaBrasileirao({
                   <td className={cx('border-b border-papel-borda-200/60 px-1.5 py-2 text-center font-mono text-xs font-bold text-tinta-200', getBordaLateral(l.zona))}>
                     {l.posicao}
                   </td>
-                  <td className="sticky left-0 z-10 w-40 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <img src={getEscudo(l.time)} alt={l.time} className="h-5 w-5 flex-shrink-0 object-contain" />
-                      <span className="min-w-0 flex-1 truncate font-sans text-xs font-semibold text-tinta-300" title={l.time}>{l.time}</span>
+                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2" style={{ width: 160, minWidth: 160, maxWidth: 160 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <img src={getEscudo(l.time)} alt={l.time} style={{ height: 20, width: 20, flexShrink: 0, objectFit: 'contain' }} />
+                      <span
+                        title={l.time}
+                        className="font-sans text-xs font-semibold text-tinta-300"
+                        style={{ display: 'inline-block', width: 116, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                      >
+                        {l.time}
+                      </span>
                     </div>
                   </td>
                   <td className="border-b border-papel-borda-200/60 bg-papel-100/50 px-2 py-2 text-center font-mono text-xs font-bold text-tinta-300">{l.pontos}</td>
@@ -195,6 +201,7 @@ function EstatisticasCampeonato({
 }) {
   const e = dados.estatisticas
   const [filtroEvo, setFiltroEvo] = useState<number | 'z4'>(5)
+  const [destaqueEvo, setDestaqueEvo] = useState<string | null>(null)
 
   const [avancadas, setAvancadas] = useState<{
     mandanteVisitante: MandanteVisitante | null
@@ -222,6 +229,7 @@ function EstatisticasCampeonato({
   }, [dados.tabela, filtroEvo])
 
   const maxPtsEvo = Math.max(...timesEvo.map((t) => t.pontos), 1)
+  const maxRodadasEvo = Math.max(...timesEvo.map((t) => t.evolucaoPts.length), 1)
 
   const CORES_EVO = [
     '#059669', '#DC2626', '#2563EB', '#B8860B', '#D97706', '#7C3AED', 
@@ -457,7 +465,7 @@ function EstatisticasCampeonato({
                 <button
                   key={String(b.val)}
                   type="button"
-                  onClick={() => setFiltroEvo(b.val as any)}
+                  onClick={() => { setFiltroEvo(b.val as any); setDestaqueEvo(null) }}
                   className={cx(
                     'rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
                     filtroEvo === b.val ? 'border-dourado-400 bg-dourado-100 text-dourado-700' : 'border-papel-borda-300 text-tinta-200 hover:bg-papel-100',
@@ -468,28 +476,68 @@ function EstatisticasCampeonato({
               ))}
             </div>
 
-            <div className="relative h-44 w-full overflow-hidden rounded bg-papel-100/50 p-2">
-              <svg viewBox="0 0 300 100" className="h-full w-full">
+            {destaqueEvo && (
+              <p className="mb-1.5 text-center font-sans text-[10px] text-tinta-100">
+                Mostrando <span className="font-bold text-tinta-300">{destaqueEvo}</span> — toque de novo no time pra voltar a ver todos
+              </p>
+            )}
+
+            <div className="relative h-52 w-full overflow-hidden rounded bg-papel-100/50 p-2">
+              <svg viewBox="0 0 300 120" className="h-full w-full">
+                {/* Gridlines horizontais + rótulo de pontos no eixo Y */}
+                {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                  const y = 100 - frac * 80
+                  const valor = Math.round(frac * maxPtsEvo)
+                  return (
+                    <g key={frac}>
+                      <line x1="22" y1={y} x2="300" y2={y} stroke="currentColor" className="text-tinta-100/25" strokeWidth="0.5" />
+                      <text x="0" y={y + 3} fontSize="7" className="fill-tinta-100">{valor}</text>
+                    </g>
+                  )
+                })}
+
+                {/* Rótulos de rodada no eixo X (início, meio, fim) */}
+                {maxRodadasEvo > 1 && [0, 0.5, 1].map((frac) => {
+                  const x = 22 + frac * 268
+                  const rodada = Math.max(1, Math.round(frac * (maxRodadasEvo - 1)) + 1)
+                  return (
+                    <text key={frac} x={x} y="118" fontSize="7" textAnchor={frac === 0 ? 'start' : frac === 1 ? 'end' : 'middle'} className="fill-tinta-100">
+                      R{rodada}
+                    </text>
+                  )
+                })}
+
                 {timesEvo.map((t, idx) => {
                   const pts = t.evolucaoPts
                   if (pts.length < 2) return null
-                  const totalPontos = pts.length
-                  const denom = totalPontos > 1 ? totalPontos - 1 : 1
-                  const path = pts.map((p, i) => {
-                    const x = 10 + (i / denom) * 280
-                    const y = 90 - (p / maxPtsEvo) * 80
-                    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-                  }).join(' ')
+                  const denom = pts.length > 1 ? pts.length - 1 : 1
+                  const emDestaque = destaqueEvo === t.time
+                  const apagado = destaqueEvo !== null && !emDestaque
+                  const coords = pts.map((p, i) => ({
+                    x: 22 + (i / denom) * 268,
+                    y: 100 - (p / maxPtsEvo) * 80,
+                  }))
+                  const path = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')
+                  const ultimo = coords[coords.length - 1]
 
                   return (
-                    <path
-                      key={t.time}
-                      d={path}
-                      fill="none"
-                      stroke={CORES_EVO[idx % CORES_EVO.length]}
-                      strokeWidth={filtroEvo === 20 ? '1.5' : '2.5'}
-                      strokeLinecap="round"
-                    />
+                    <g key={t.time} opacity={apagado ? 0.12 : 1}>
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke={CORES_EVO[idx % CORES_EVO.length]}
+                        strokeWidth={emDestaque ? '3' : filtroEvo === 20 ? '1.3' : '2.2'}
+                        strokeLinecap="round"
+                      />
+                      {emDestaque && (
+                        <>
+                          <circle cx={ultimo.x} cy={ultimo.y} r="2.2" fill={CORES_EVO[idx % CORES_EVO.length]} />
+                          <text x={Math.min(ultimo.x, 262)} y={ultimo.y - 4} fontSize="7.5" fontWeight="bold" textAnchor="end" className="fill-tinta-300">
+                            {t.time} ({t.pontos})
+                          </text>
+                        </>
+                      )}
+                    </g>
                   )
                 })}
               </svg>
@@ -497,15 +545,25 @@ function EstatisticasCampeonato({
 
             <div className="mt-3 flex max-h-24 flex-wrap justify-center gap-1.5 overflow-y-auto scrollbar-tema">
               {timesEvo.map((t, idx) => (
-                <button
+                <div
                   key={t.time}
-                  type="button"
-                  onClick={() => onClickTime(t.time)}
-                  className="flex items-center gap-1 rounded bg-papel-100 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-tinta-300 hover:underline"
+                  className={cx(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold text-tinta-300',
+                    destaqueEvo === t.time ? 'bg-dourado-100' : 'bg-papel-100',
+                  )}
                 >
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CORES_EVO[idx % CORES_EVO.length] }} />
-                  <span>{t.time}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setDestaqueEvo((atual) => (atual === t.time ? null : t.time))}
+                    className="flex items-center gap-1"
+                  >
+                    <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: CORES_EVO[idx % CORES_EVO.length] }} />
+                    <span>{t.time}</span>
+                  </button>
+                  <button type="button" onClick={() => onClickTime(t.time)} className="pl-0.5 text-tinta-100 hover:text-tinta-300" title="Ver detalhes do time">
+                    ›
+                  </button>
+                </div>
               ))}
             </div>
           </div>
