@@ -5,6 +5,7 @@ import { CardEnvelope } from '@/components/home/CardEnvelope'
 import { Modal } from '@/components/home/Modal'
 import { Accordion } from '@/components/home/Accordion'
 import { getEscudo } from '@/lib/escudos'
+import { useMedidaTexto } from '@/lib/useMedidaTexto'
 import type { DadosCampeonato, LinhaTabela, JogoBrasileirao } from '@/lib/campeonatoReal'
 import {
   buscarMandanteVisitante,
@@ -90,6 +91,13 @@ function TabelaBrasileirao({
   linhas: LinhaTabela[]
   onClickTime: (t: LinhaTabela) => void
 }) {
+  const NOME_CLUBE_CLASSE = 'font-sans text-xs font-semibold'
+  const [larguraNomeClube, medidorNomeClube] = useMedidaTexto(linhas.map((l) => l.time), NOME_CLUBE_CLASSE)
+  // Ícone (20) + gap (8) + padding horizontal da célula (16) = 44px de folga
+  // fixa, mais a largura de texto REAL medida no DOM (não estimada).
+  const larguraColunaClube = larguraNomeClube !== null ? larguraNomeClube + 44 : undefined
+  const larguraTextoClube = larguraNomeClube ?? undefined
+
   if (linhas.length === 0) {
     return <div className="rounded-lg bg-papel-100 p-6 text-center text-sm text-tinta-200">Nenhum jogo registrado ainda.</div>
   }
@@ -141,13 +149,13 @@ function TabelaBrasileirao({
                   <td className={cx('border-b border-papel-borda-200/60 px-1.5 py-2 text-center font-mono text-xs font-bold text-tinta-200', getBordaLateral(l.zona))}>
                     {l.posicao}
                   </td>
-                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2" style={{ width: 160, minWidth: 160, maxWidth: 160 }}>
+                  <td className="sticky left-0 z-10 border-b border-r-2 border-papel-borda-200/60 border-r-papel-borda-300 bg-papel-50 px-2 py-2" style={larguraColunaClube ? { width: larguraColunaClube, minWidth: larguraColunaClube, maxWidth: larguraColunaClube } : { minWidth: 140 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <img src={getEscudo(l.time)} alt={l.time} style={{ height: 20, width: 20, flexShrink: 0, objectFit: 'contain' }} />
                       <span
                         title={l.time}
-                        className="font-sans text-xs font-semibold text-tinta-300"
-                        style={{ display: 'inline-block', width: 116, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                        className={NOME_CLUBE_CLASSE + ' text-tinta-300'}
+                        style={larguraTextoClube ? { display: 'inline-block', width: larguraTextoClube, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' } : { whiteSpace: 'nowrap' }}
                       >
                         {l.time}
                       </span>
@@ -186,6 +194,7 @@ function TabelaBrasileirao({
           </div>
         </div>
       </CardEnvelope>
+      {medidorNomeClube}
     </div>
   )
 }
