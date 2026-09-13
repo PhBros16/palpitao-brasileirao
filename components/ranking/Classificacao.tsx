@@ -133,8 +133,8 @@ export function Classificacao({
   const NOME_CLASSE = 'whitespace-nowrap font-sans text-xs font-semibold'
   const [larguraNome, medidorNome] = useMedidaTexto(linhas.map((d) => abreviarNome(d.nome)), NOME_CLASSE)
   // Avatar (24) + emoji no pior caso (18) + 2 gaps (12) + padding pl-1/pr-2
-  // (12) + borda direita (2) = 68px de folga fixa, mais o texto REAL medido.
-  const larguraColunaNome = larguraNome !== null ? larguraNome + 68 : 118
+  // (12) + borda direita (2) + margem de segurança (14) = 82px de folga.
+  const larguraColunaNome = larguraNome !== null ? larguraNome + 82 : 118
   return (
     <div className="flex flex-col gap-4">
       {/* Pódio dentro do card padrão */}
