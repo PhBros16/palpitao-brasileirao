@@ -93,9 +93,10 @@ function TabelaBrasileirao({
 }) {
   const NOME_CLUBE_CLASSE = 'font-sans text-xs font-semibold'
   const [larguraNomeClube, medidorNomeClube] = useMedidaTexto(linhas.map((l) => l.time), NOME_CLUBE_CLASSE)
-  // Ícone (20) + gap (8) + padding horizontal da célula (16) = 44px de folga
-  // fixa, mais a largura de texto REAL medida no DOM (não estimada).
-  const larguraColunaClube = larguraNomeClube !== null ? larguraNomeClube + 44 : undefined
+  // Ícone (20) + gap (8) + padding horizontal da célula (16) + borda direita
+  // (2) + margem de segurança (14, pra cobrir qualquer diferença de
+  // sub-pixel entre a medição e o render real) = 60px de folga fixa.
+  const larguraColunaClube = larguraNomeClube !== null ? larguraNomeClube + 60 : undefined
   const larguraTextoClube = larguraNomeClube ?? undefined
 
   if (linhas.length === 0) {
