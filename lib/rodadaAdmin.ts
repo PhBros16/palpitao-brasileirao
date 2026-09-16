@@ -104,10 +104,14 @@ export async function salvarRodada(
   valeDobro: boolean,
   jogos: JogoAdmin[],
   jogosOriginaisIds: string[],
+  ocultarPalpites = false,
 ): Promise<string> {
   let idFinal = roundId
 
   if (idFinal) {
+    // IMPORTANTE: hide_predictions nunca entra aqui. Uma vez criada a
+    // rodada, ninguém (nem o admin) pode ligar ou desligar essa opção —
+    // só o próprio jogador controla a máscara pessoal dele depois.
     const { error } = await supabase
       .from('rounds')
       .update({ name: nome, number: numero, palpites_open: aberta, is_double: valeDobro })
@@ -116,7 +120,7 @@ export async function salvarRodada(
   } else {
     const { data, error } = await supabase
       .from('rounds')
-      .insert({ name: nome, number: numero, palpites_open: aberta, is_double: valeDobro, finalized: false })
+      .insert({ name: nome, number: numero, palpites_open: aberta, is_double: valeDobro, finalized: false, hide_predictions: ocultarPalpites })
       .select('id')
       .single()
     if (error) throw error
@@ -331,6 +335,29 @@ export async function buscarParticipantesNomes(): Promise<Array<{ id: string; na
   return data ?? []
 }
 
+// ─── Máscara pessoal de palpites ──────────────────────────────────────────
+// Só faz efeito em rodadas com rounds.hide_predictions = true (opção travada
+// na criação da rodada). Dentro disso, cada jogador liga/desliga a própria
+// máscara livremente, o admin não controla isso pra ninguém.
+
+export async function buscarMascaraPalpite(roundId: string, participantId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('palpite_mascaras')
+    .select('ativo')
+    .eq('round_id', roundId)
+    .eq('participant_id', participantId)
+    .maybeSingle()
+  if (error) throw error
+  return data?.ativo ?? false
+}
+
+export async function definirMascaraPalpite(roundId: string, participantId: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('palpite_mascaras')
+    .upsert({ round_id: roundId, participant_id: participantId, ativo, updated_at: new Date().toISOString() }, { onConflict: 'round_id,participant_id' })
+  if (error) throw error
+}
+
 export async function calcularPontosRodada(
   roundId: string,
   resultados: Record<string, { h: number; a: number }>,
@@ -497,6 +524,7 @@ export interface EntradaLog {
   performed_by: string | null
   participant_id: string | null
   created_at: string
+  round_id: string | null
 }
 
 export async function gravarLog(
@@ -520,7 +548,7 @@ export async function gravarLog(
 export async function buscarLog(limite = 50, participantId?: string): Promise<EntradaLog[]> {
   let query = supabase
     .from('admin_log')
-    .select('id, action, payload, performed_by, participant_id, created_at')
+    .select('id, action, payload, performed_by, participant_id, created_at, round_id')
     .order('created_at', { ascending: false })
     .limit(limite)
 
@@ -530,7 +558,38 @@ export async function buscarLog(limite = 50, participantId?: string): Promise<En
 
   const { data, error } = await query
   if (error) throw error
-  return data ?? []
+  const entradas = data ?? []
+
+  const idsRodadas = Array.from(new Set(entradas.map((e) => e.round_id).filter(Boolean))) as string[]
+  if (idsRodadas.length === 0) return entradas
+
+  const { data: rounds } = await supabase.from('rounds').select('id, hide_predictions').in('id', idsRodadas)
+  const roundsComMascara = new Set((rounds ?? []).filter((r) => r.hide_predictions).map((r) => r.id))
+  if (roundsComMascara.size === 0) return entradas
+
+  const { data: mascaras } = await supabase
+    .from('palpite_mascaras')
+    .select('round_id, participant_id, ativo')
+    .in('round_id', Array.from(roundsComMascara))
+  const mascaraAtiva = new Set((mascaras ?? []).filter((m) => m.ativo).map((m) => `${m.round_id}:${m.participant_id}`))
+  if (mascaraAtiva.size === 0) return entradas
+
+  const { data: matchesSemResultado } = await supabase
+    .from('matches')
+    .select('id')
+    .in('round_id', Array.from(roundsComMascara))
+    .is('home_score', null)
+  const semResultado = new Set((matchesSemResultado ?? []).map((m) => m.id))
+
+  return entradas.map((e) => {
+    if (e.action !== 'PALPITE_SALVO' || !e.round_id || !e.participant_id || !Array.isArray((e.payload as any)?.jogos)) return e
+    const chave = `${e.round_id}:${e.participant_id}`
+    if (!mascaraAtiva.has(chave)) return e
+    const jogosRedigidos = (e.payload as any).jogos.map((j: any) =>
+      j.matchId && semResultado.has(j.matchId) ? { ...j, palpite: '🔒 oculto' } : j,
+    )
+    return { ...e, payload: { ...(e.payload as any), jogos: jogosRedigidos } }
+  })
 }
 
 // ─── PINs dos participantes ───────────────────────────────────────────────────
