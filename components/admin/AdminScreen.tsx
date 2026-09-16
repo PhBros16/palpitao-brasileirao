@@ -269,6 +269,7 @@ function SecaoConfiguracaoRodada() {
   const [numero, setNumero] = useState(25)
   const [aberta, setAberta] = useState(true)
   const [valeDobro, setValeDobro] = useState(false)
+  const [ocultarPalpites, setOcultarPalpites] = useState(false)
   const [jogos, setJogos] = useState<Jogo[]>([])
   const [idsOriginais, setIdsOriginais] = useState<string[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -291,7 +292,7 @@ function SecaoConfiguracaoRodada() {
     try {
       const { data: round } = await supabase
         .from('rounds')
-        .select('id, number, name, palpites_open, finalized, is_double')
+        .select('id, number, name, palpites_open, finalized, is_double, hide_predictions')
         .eq('id', id)
         .single()
 
@@ -307,6 +308,7 @@ function SecaoConfiguracaoRodada() {
       setNumero(round.number)
       setAberta(round.palpites_open)
       setValeDobro(round.is_double ?? false)
+      setOcultarPalpites(round.hide_predictions ?? false)
       setEhExtra(round.number >= 100)
 
       const jogosMapeados: Jogo[] = (matches ?? []).map((m) => ({
@@ -333,6 +335,7 @@ function SecaoConfiguracaoRodada() {
     setNumero(numAtual + 1)
     setAberta(true)
     setValeDobro(false)
+    setOcultarPalpites(false)
     setJogos([])
     setIdsOriginais([])
     setEhExtra(false)
@@ -346,6 +349,7 @@ function SecaoConfiguracaoRodada() {
     setNumero(proximoNumeroExtra)
     setAberta(true)
     setValeDobro(false)
+    setOcultarPalpites(false)
     setJogos([])
     setIdsOriginais([])
     setEhExtra(true)
@@ -376,7 +380,7 @@ function SecaoConfiguracaoRodada() {
   async function handleSalvar() {
     setSalvando(true)
     try {
-      const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais)
+      const idFinal = await salvarRodada(roundId, nome, numero, aberta, valeDobro, jogos as JogoAdmin[], idsOriginais, ocultarPalpites)
       setRoundId(idFinal)
       await carregarListaRodadas()
       await carregarRodadaPorId(idFinal)
@@ -483,6 +487,28 @@ function SecaoConfiguracaoRodada() {
           <Toggle checked={valeDobro} onChange={setValeDobro} />
           <span className="font-sans text-sm text-tinta-200">{valeDobro ? '⚡ Pontuação em dobro' : 'Pontuação normal'}</span>
         </Row>
+        <Row label="Ocultar Palpites">
+          {roundId ? (
+            <span className="flex items-center gap-2 font-sans text-sm text-tinta-200">
+              <span className={cx('flex h-5 w-9 items-center rounded-full px-0.5', ocultarPalpites ? 'bg-dourado-500' : 'bg-papel-borda-300')}>
+                <span className={cx('h-4 w-4 rounded-full bg-white shadow', ocultarPalpites ? 'translate-x-4' : 'translate-x-0')} />
+              </span>
+              {ocultarPalpites ? '🔒 Ligado (travado — só o jogador controla a máscara dele agora)' : 'Desligado (travado — não dá mais pra ligar nessa rodada)'}
+            </span>
+          ) : (
+            <>
+              <Toggle checked={ocultarPalpites} onChange={setOcultarPalpites} />
+              <span className="font-sans text-sm text-tinta-200">
+                {ocultarPalpites ? '🔒 Jogadores podem mascarar os próprios palpites' : 'Desligado'}
+              </span>
+            </>
+          )}
+        </Row>
+        {!roundId && (
+          <p className="mt-1 font-mono text-[10px] text-tinta-100">
+            ⚠️ Essa opção só pode ser definida agora, na criação. Depois de salvar a rodada, ninguém consegue mais ligar ou desligar — nem você.
+          </p>
+        )}
       </Card>
 
       {jogos.map((j, idx) => (
