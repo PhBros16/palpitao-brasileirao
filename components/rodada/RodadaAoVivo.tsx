@@ -220,8 +220,8 @@ function CelulaPalpite({ celula }: { celula: PalpiteCelula }) {
   }
   return (
     <div className={cx('flex h-10 flex-col items-center justify-center rounded px-1 text-center', corCelula(celula.categoria))}>
-      <span className="font-mono text-[11px] font-bold leading-tight">
-        {celula.pred_h}×{celula.pred_a}
+      <span className="font-mono text-[11px] font-bold leading-tight" title={celula.oculto ? 'Palpite mascarado pelo jogador' : undefined}>
+        {celula.oculto ? '??×??' : `${celula.pred_h}×${celula.pred_a}`}
       </span>
       {celula.points !== null && celula.categoria !== 'aguardando' && (
         <span className="font-mono text-[8px] font-bold leading-none opacity-90">
@@ -289,7 +289,7 @@ function FrenteFrenteRodadaModal({
                 <div className="grid grid-cols-3 items-center gap-2">
                   <div className={cx('flex flex-col items-center justify-center rounded px-1 py-1', corCelula(cA.categoria))}>
                     <span className="font-mono text-xs font-bold">
-                      {cA.pred_h !== null ? `${cA.pred_h}×${cA.pred_a}` : '—'}
+                      {cA.oculto ? '??×??' : cA.pred_h !== null ? `${cA.pred_h}×${cA.pred_a}` : '—'}
                     </span>
                     {cA.points !== null && cA.categoria !== 'aguardando' && (
                       <span className="font-mono text-[9px] font-bold opacity-90">+{cA.points}</span>
@@ -298,7 +298,7 @@ function FrenteFrenteRodadaModal({
                   <div className="text-center font-mono text-[10px] text-tinta-100">vs</div>
                   <div className={cx('flex flex-col items-center justify-center rounded px-1 py-1', corCelula(cB.categoria))}>
                     <span className="font-mono text-xs font-bold">
-                      {cB.pred_h !== null ? `${cB.pred_h}×${cB.pred_a}` : '—'}
+                      {cB.oculto ? '??×??' : cB.pred_h !== null ? `${cB.pred_h}×${cB.pred_a}` : '—'}
                     </span>
                     {cB.points !== null && cB.categoria !== 'aguardando' && (
                       <span className="font-mono text-[9px] font-bold opacity-90">+{cB.points}</span>
@@ -335,22 +335,24 @@ export function RodadaAoVivo() {
   const [frenteFrente, setFrenteFrente] = useState<{ a: LinhaRodadaAoVivo; b: LinhaRodadaAoVivo } | null>(null)
 
   useEffect(() => {
+    let idSessao: string | undefined
     try {
       const raw = localStorage.getItem('palpitao_sessao')
       if (raw) {
         const sessao = JSON.parse(raw) as { id: string; nome: string }
         setMeuId(sessao.id)
+        idSessao = sessao.id
       }
     } catch { /* ignora */ }
 
-    carregar()
+    carregar(idSessao)
   }, [])
 
-  async function carregar() {
+  async function carregar(idSessao?: string) {
     setCarregando(true)
     setErro(null)
     try {
-      const r = await buscarRodadaAoVivo()
+      const r = await buscarRodadaAoVivo(idSessao ?? meuId ?? undefined)
       setDados(r)
       setUltimaAtualizacao(new Date())
     } catch (e) {
@@ -363,7 +365,7 @@ export function RodadaAoVivo() {
   async function atualizar() {
     setAtualizando(true)
     try {
-      const r = await buscarRodadaAoVivo()
+      const r = await buscarRodadaAoVivo(meuId ?? undefined)
       setDados(r)
       setUltimaAtualizacao(new Date())
     } catch (e) {
