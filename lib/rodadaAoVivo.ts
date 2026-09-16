@@ -38,6 +38,7 @@ export interface PalpiteCelula {
   pred_a: number | null
   points: number | null
   categoria: 'cravou' | 'saldo' | 'vencedor' | 'errou' | 'aguardando' | 'np'
+  oculto: boolean // true = jogador mascarou e o jogo ainda não tem resultado; pred_h/pred_a vêm null de propósito
 }
 
 export interface LinhaRodadaAoVivo {
@@ -64,11 +65,11 @@ export interface RodadaAoVivoDados {
 
 // ─── Função principal ────────────────────────────────────────────────────────
 
-export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
+export async function buscarRodadaAoVivo(meuId?: string): Promise<RodadaAoVivoDados | null> {
   // 1. Rodada ativa (palpites_open=true, se houver mais de uma, pega a maior)
   const { data: rodada } = await supabase
     .from('rounds')
-    .select('id, number, name, is_double')
+    .select('id, number, name, is_double, hide_predictions')
     .eq('palpites_open', true)
     .order('number', { ascending: false })
     .limit(1)
@@ -124,6 +125,18 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
     }
   }
 
+  // 3.6. Quem está com a máscara pessoal ligada nessa rodada (só relevante
+  // se a rodada permite — rodada.hide_predictions travado na criação).
+  const mascarados = new Set<string>()
+  if (rodada.hide_predictions) {
+    const { data: mascaras } = await supabase
+      .from('palpite_mascaras')
+      .select('participant_id, ativo')
+      .eq('round_id', rodada.id)
+      .eq('ativo', true)
+    for (const m of mascaras ?? []) mascarados.add(m.participant_id)
+  }
+
   // 4. Palpites de todos, nessa rodada
   const matchIds = jogos.map((j) => j.matchId)
   const { data: predsRaw } = matchIds.length > 0 ? await supabase
@@ -159,17 +172,24 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
           matchId: j.matchId,
           pred_h: null, pred_a: null, points: null,
           categoria: 'np' as const,
+          oculto: false,
         }
       }
       palpitouAlgo = true
 
-      // Se não tem resultado ainda, categoria = aguardando
+      // Se não tem resultado ainda, categoria = aguardando — e é aqui que a
+      // máscara pessoal atua: some o placar apostado dos OUTROS jogadores
+      // até o resultado oficial sair (a pontuação nunca é mascarada, e uma
+      // vez que o jogo tem resultado, revela SÓ esse jogo, não a rodada toda).
       if (!j.temResultado) {
+        const oculto = part.id !== meuId && mascarados.has(part.id)
         return {
           matchId: j.matchId,
-          pred_h: pred.pred_h, pred_a: pred.pred_a,
+          pred_h: oculto ? null : pred.pred_h,
+          pred_a: oculto ? null : pred.pred_a,
           points: null,
           categoria: 'aguardando' as const,
+          oculto,
         }
       }
 
@@ -208,6 +228,7 @@ export async function buscarRodadaAoVivo(): Promise<RodadaAoVivoDados | null> {
         pred_a: pred.pred_a,
         points: pts,
         categoria,
+        oculto: false,
       }
     })
 
