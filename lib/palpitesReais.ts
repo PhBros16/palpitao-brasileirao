@@ -15,12 +15,13 @@ export interface RodadaPalpites {
   nome: string
   numero: number
   jogos: JogoParaPalpite[]
+  ocultarPalpitesDisponivel: boolean
 }
 
 export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
   const { data: round } = await supabase
     .from('rounds')
-    .select('id, number, name')
+    .select('id, number, name, hide_predictions')
     .eq('palpites_open', true)
     .eq('finalized', false)
     .order('number', { ascending: false })
@@ -28,7 +29,7 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     .maybeSingle()
 
   if (!round) {
-    return { roundId: null, nome: '', numero: 0, jogos: [] }
+    return { roundId: null, nome: '', numero: 0, jogos: [], ocultarPalpitesDisponivel: false }
   }
 
   const { data: matches } = await supabase
@@ -72,6 +73,7 @@ export async function buscarRodadaAtivaPalpites(): Promise<RodadaPalpites> {
     nome: round.name,
     numero: round.number,
     jogos,
+    ocultarPalpitesDisponivel: round.hide_predictions ?? false,
   }
 }
 
@@ -130,15 +132,18 @@ export async function salvarPalpitesReais(
         .map((id) => {
           const m = matchMap.get(id)
           const p = palpites[id]
-          return m ? { jogo: `${m.home}×${m.away}`, palpite: `${p.h}×${p.a}` } : null
+          return m ? { jogo: `${m.home}×${m.away}`, palpite: `${p.h}×${p.a}`, matchId: id } : null
         })
         .filter(Boolean)
+
+      const roundId = matchesData[0]?.round_id ?? null
 
       await supabase.from('admin_log').insert({
         action: 'PALPITE_SALVO',
         payload: { jogos: logJogos },
         performed_by: parts.name,
         participant_id: participantId,
+        round_id: roundId,
       })
     }
   } catch { /* ignora erro de log */ }
