@@ -44,11 +44,21 @@ export function PalpitesRodada({
   jogos,
   palpitesIniciais,
   onSalvar,
+  roundId,
+  participantId,
+  edicaoTardiaAtiva = false,
+  onEdicaoTardiaSalva,
 }: {
   rodadaNome: string
   jogos: JogoPalpite[]
   palpitesIniciais?: Record<string, Palpite>
   onSalvar?: (palpites: Record<string, Palpite>) => void | Promise<void>
+  // Fica tudo opcional — uma rodada sem Modo Palpite Oculto simplesmente não
+  // passa esses props, e edicaoTardiaAtiva=false já basta pra CardJogo ignorar.
+  roundId?: string
+  participantId?: string
+  edicaoTardiaAtiva?: boolean
+  onEdicaoTardiaSalva?: () => void
 }) {
   const [palpites, setPalpites] = useState<Record<string, Palpite>>(palpitesIniciais ?? {})
   const [now, setNow] = useState<number>(() => Date.now())
@@ -210,6 +220,10 @@ export function PalpitesRodada({
               jogo={j}
               palpite={getPalpite(j.id)}
               onChangePalpite={(p) => setPalpite(j.id, p)}
+              roundId={roundId}
+              participantId={participantId}
+              edicaoTardiaDisponivel={edicaoTardiaAtiva && j.isLocked && !j.temResultado}
+              onEdicaoTardiaSalva={onEdicaoTardiaSalva}
             />
           </motion.div>
         ))}
