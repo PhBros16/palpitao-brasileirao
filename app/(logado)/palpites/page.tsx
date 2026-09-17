@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PalpitesRodada } from '@/components/palpites'
 import type { Palpite } from '@/components/palpites/CardJogo'
 import { buscarRodadaAtivaPalpites, buscarPalpitesExistentes, salvarPalpitesReais, type RodadaPalpites } from '@/lib/palpitesReais'
-import { buscarMascaraPalpite, definirMascaraPalpite } from '@/lib/rodadaAdmin'
+import { definirMascaraPalpite, buscarStatusMascara } from '@/lib/rodadaAdmin'
 import { lerCache, salvarCache, CACHE_TTL } from '@/lib/dataCache'
 
 export default function PalpitesPage() {
@@ -18,6 +18,7 @@ export default function PalpitesPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [mascaraAtiva, setMascaraAtiva] = useState(false)
   const [mascaraCarregando, setMascaraCarregando] = useState(false)
+  const [usosTardiosRestantes, setUsosTardiosRestantes] = useState(0)
 
   useEffect(() => {
     try {
@@ -57,7 +58,11 @@ export default function PalpitesPage() {
               setPalpitesIniciais({})
             }
             if (r.ocultarPalpitesDisponivel) {
-              try { setMascaraAtiva(await buscarMascaraPalpite(r.roundId, sessao.id)) } catch { /* mantém o valor atual */ }
+              try {
+                const status = await buscarStatusMascara(r.roundId, sessao.id)
+                setMascaraAtiva(status.ativo)
+                setUsosTardiosRestantes(3 - status.edicoesTardiasUsadas)
+              } catch { /* mantém o valor atual */ }
             }
           }
         })
@@ -121,6 +126,10 @@ export default function PalpitesPage() {
             jogos={rodada.jogos}
             palpitesIniciais={palpitesIniciais}
             onSalvar={(palpites) => salvarPalpitesReais(participantId, palpites)}
+            roundId={rodada.roundId}
+            participantId={participantId}
+            edicaoTardiaAtiva={Boolean(rodada.ocultarPalpitesDisponivel) && mascaraAtiva && usosTardiosRestantes > 0}
+            onEdicaoTardiaSalva={() => setUsosTardiosRestantes((n) => Math.max(0, n - 1))}
           />
         </>
       )}
