@@ -358,6 +358,24 @@ export async function definirMascaraPalpite(roundId: string, participantId: stri
   if (error) throw error
 }
 
+// Status completo da máscara, incluindo quantas edições tardias já foram
+// usadas nesta rodada (limite de 3, checado em registrarEdicaoTardia).
+// Não substitui buscarMascaraPalpite (mantido por compatibilidade com quem só
+// precisa do boolean) — este é o usado pela edição tardia (clique 8x).
+export async function buscarStatusMascara(
+  roundId: string,
+  participantId: string,
+): Promise<{ ativo: boolean; edicoesTardiasUsadas: number }> {
+  const { data, error } = await supabase
+    .from('palpite_mascaras')
+    .select('ativo, edicoes_tardias_usadas')
+    .eq('round_id', roundId)
+    .eq('participant_id', participantId)
+    .maybeSingle()
+  if (error) throw error
+  return { ativo: data?.ativo ?? false, edicoesTardiasUsadas: data?.edicoes_tardias_usadas ?? 0 }
+}
+
 export async function calcularPontosRodada(
   roundId: string,
   resultados: Record<string, { h: number; a: number }>,
@@ -582,11 +600,15 @@ export async function buscarLog(limite = 50, participantId?: string): Promise<En
   const semResultado = new Set((matchesSemResultado ?? []).map((m) => m.id))
 
   return entradas.map((e) => {
-    if (e.action !== 'PALPITE_SALVO' || !e.round_id || !e.participant_id || !Array.isArray((e.payload as any)?.jogos)) return e
+    // EDICAO_TARDIA precisa ser redigida com a mesma regra de PALPITE_SALVO —
+    // senão a edição tardia aparece destravada no log antes do resultado sair.
+    if ((e.action !== 'PALPITE_SALVO' && e.action !== 'EDICAO_TARDIA') || !e.round_id || !e.participant_id || !Array.isArray((e.payload as any)?.jogos)) return e
     const chave = `${e.round_id}:${e.participant_id}`
     if (!mascaraAtiva.has(chave)) return e
     const jogosRedigidos = (e.payload as any).jogos.map((j: any) =>
-      j.matchId && semResultado.has(j.matchId) ? { ...j, palpite: '🔒 oculto' } : j,
+      // palpiteAntigo some junto — senão dava pra inferir o palpite tardio (a
+      // diferença entre o antigo revelado e o oculto) mesmo com o novo escondido.
+      j.matchId && semResultado.has(j.matchId) ? { ...j, palpite: '🔒 oculto', palpiteAntigo: '🔒 oculto' } : j,
     )
     return { ...e, payload: { ...(e.payload as any), jogos: jogosRedigidos } }
   })
