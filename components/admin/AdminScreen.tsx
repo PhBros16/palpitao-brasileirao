@@ -15,6 +15,7 @@ import {
   limparPalpitesRodada,
   buscarParticipantesNomes,
   calcularPontosRodada,
+  excluirRodada,
   buscarPalpitesParticipante,
   corrigirPontoManual,
   buscarHistoricoRodadas,
@@ -393,6 +394,38 @@ function SecaoConfiguracaoRodada() {
     } finally { setSalvando(false) }
   }
 
+  async function handleExcluir() {
+    if (!roundId) return
+    if (!confirm(`Excluir "${nome}" de vez? Isso apaga os jogos dela e não tem como desfazer.`)) return
+    setSalvando(true)
+    try {
+      await excluirRodada(roundId, false)
+      vibrar('sucesso')
+      showToast('Rodada excluída.', 'sucesso')
+      setRoundId(null)
+      await carregarListaRodadas()
+    } catch (e) {
+      const msg = (e as Error).message
+      // "já tem palpite(s) salvo(s)" vem da trava de segurança da RPC —
+      // pede uma segunda confirmação explícita antes de forçar.
+      if (msg.includes('palpite(s) salvo') && confirm(`${msg}\n\nApagar mesmo assim, incluindo os palpites de todo mundo nessa rodada?`)) {
+        try {
+          await excluirRodada(roundId, true)
+          vibrar('sucesso')
+          showToast('Rodada excluída (com palpites).', 'sucesso')
+          setRoundId(null)
+          await carregarListaRodadas()
+        } catch (e2) {
+          vibrar('erro')
+          showToast(`Erro ao excluir: ${(e2 as Error).message}`, 'erro')
+        }
+      } else {
+        vibrar('erro')
+        showToast(`Erro ao excluir: ${msg}`, 'erro')
+      }
+    } finally { setSalvando(false) }
+  }
+
   async function abrirFinalizar() {
     if (!roundId) return
     setSalvando(true)
@@ -547,6 +580,7 @@ function SecaoConfiguracaoRodada() {
       <div className="flex flex-wrap gap-2">
         <Btn variant="gold" onClick={handleSalvar} disabled={salvando}>{salvando ? '...' : '💾 Salvar Rodada'}</Btn>
         <Btn variant="green" onClick={abrirFinalizar} disabled={salvando || !roundId}>✔ Finalizar Rodada</Btn>
+        <Btn variant="danger" onClick={handleExcluir} disabled={salvando || !roundId}>🗑 Excluir Rodada</Btn>
       </div>
 
       <Modal
