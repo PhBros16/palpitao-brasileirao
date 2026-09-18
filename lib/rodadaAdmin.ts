@@ -385,6 +385,10 @@ export interface PalpitePorJogo {
   points: number | null
   predictionId: string | null
   manualOverride: boolean
+  // Modo Palpite Oculto: true = jogo sem resultado + jogador com a própria
+  // máscara ativa. predH/predA já vêm null nesse caso; a correção individual
+  // desse jogo deve ficar bloqueada na UI até o resultado sair.
+  oculto: boolean
 }
 
 export async function buscarPalpitesParticipante(
@@ -406,21 +410,45 @@ export async function buscarPalpitesParticipante(
     .in('match_id', matchIds.length ? matchIds : ['00000000-0000-0000-0000-000000000000'])
   if (pErr) throw pErr
 
+  // Mesma regra de rodadaAoVivo.ts: se a rodada tem Modo Palpite Oculto e
+  // esse participante está com a própria máscara ativa, o palpite de um jogo
+  // sem resultado ainda vem oculto (e a correção individual desse jogo fica
+  // bloqueada até o resultado sair — ver oculto em PalpitePorJogo).
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('hide_predictions')
+    .eq('id', roundId)
+    .maybeSingle()
+
+  let mascaraAtiva = false
+  if (round?.hide_predictions) {
+    const { data: mascara } = await supabase
+      .from('palpite_mascaras')
+      .select('ativo')
+      .eq('round_id', roundId)
+      .eq('participant_id', participantId)
+      .maybeSingle()
+    mascaraAtiva = mascara?.ativo ?? false
+  }
+
   const porJogo = new Map((predictions ?? []).map((p) => [p.match_id, p]))
 
   return (matches ?? []).map((m) => {
     const pred = porJogo.get(m.id)
+    const temResultado = m.home_score !== null && m.away_score !== null
+    const oculto = mascaraAtiva && !temResultado
     return {
       matchId: m.id,
       home: m.home,
       away: m.away,
-      predH: pred?.pred_h ?? null,
-      predA: pred?.pred_a ?? null,
+      predH: oculto ? null : (pred?.pred_h ?? null),
+      predA: oculto ? null : (pred?.pred_a ?? null),
       resultadoH: m.home_score ?? null,
       resultadoA: m.away_score ?? null,
       points: pred?.points ?? null,
       predictionId: pred?.id ?? null,
       manualOverride: pred?.manual_override ?? false,
+      oculto,
     }
   })
 }
