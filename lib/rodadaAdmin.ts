@@ -21,10 +21,6 @@ export interface RodadaAdmin {
   jogos: JogoAdmin[]
 }
 
-function ehIdNovo(id: string) {
-  return !id.includes('-')
-}
-
 export async function buscarRodadaAtiva(): Promise<RodadaAdmin> {
   let { data: round } = await supabase
     .from('rounds')
@@ -105,53 +101,20 @@ export async function salvarRodada(
   jogosOriginaisIds: string[],
   ocultarPalpites = false,
 ): Promise<string> {
-  let idFinal = roundId
-
-  if (idFinal) {
-    // IMPORTANTE: hide_predictions nunca entra aqui. Uma vez criada a
-    // rodada, ninguém (nem o admin) pode ligar ou desligar essa opção —
-    // só o próprio jogador controla a máscara pessoal dele depois.
-    const { error } = await supabase
-      .from('rounds')
-      .update({ name: nome, number: numero, palpites_open: aberta, is_double: valeDobro })
-      .eq('id', idFinal)
-    if (error) throw error
-  } else {
-    const { data, error } = await supabase
-      .from('rounds')
-      .insert({ name: nome, number: numero, palpites_open: aberta, is_double: valeDobro, finalized: false, hide_predictions: ocultarPalpites })
-      .select('id')
-      .single()
-    if (error) throw error
-    idFinal = data.id
-  }
-
-  const idsAtuais = jogos.filter((j) => !ehIdNovo(j.id)).map((j) => j.id)
-  const idsRemovidos = jogosOriginaisIds.filter((id) => !idsAtuais.includes(id))
-  if (idsRemovidos.length > 0) {
-    const { error } = await supabase.from('matches').delete().in('id', idsRemovidos)
-    if (error) throw error
-  }
-
-  for (const j of jogos) {
-    const payload = {
-      round_id: idFinal,
-      home: j.home,
-      away: j.away,
-      match_date: j.date || null,
-      match_time: j.time || null,
-      travado_manual: j.locked,
-    }
-    if (ehIdNovo(j.id)) {
-      const { error } = await supabase.from('matches').insert(payload)
-      if (error) throw error
-    } else {
-      const { error } = await supabase.from('matches').update(payload).eq('id', j.id)
-      if (error) throw error
-    }
-  }
-
-  return idFinal!
+  // rounds + matches (insert/update/delete) tudo numa transação só, dentro de
+  // rpc_salvar_rodada — RLS não deixa mais escrever direto nessas tabelas.
+  const { data, error } = await supabase.rpc('rpc_salvar_rodada', {
+    p_round_id: roundId,
+    p_nome: nome,
+    p_numero: numero,
+    p_aberta: aberta,
+    p_vale_dobro: valeDobro,
+    p_ocultar_palpites: ocultarPalpites,
+    p_jogos: jogos.map((j) => ({ id: j.id, home: j.home, away: j.away, date: j.date, time: j.time, locked: j.locked })),
+    p_ids_originais: jogosOriginaisIds,
+  })
+  if (error) throw error
+  return data as string
 }
 
 export async function buscarJogosSemPlacar(
