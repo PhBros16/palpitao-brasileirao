@@ -342,6 +342,19 @@ export async function buscarStatusMascara(
   return { ativo: data?.ativo ?? false, edicoesTardiasUsadas: data?.edicoes_tardias_usadas ?? 0 }
 }
 
+/**
+ * Apaga a rodada inteira — matches, predictions, round_results, shame e
+ * palpite_mascaras somem em cascata (FKs no banco). Por padrão a RPC recusa
+ * se já existir palpite salvo; forcar=true ignora essa trava.
+ */
+export async function excluirRodada(roundId: string, forcar: boolean): Promise<void> {
+  const { error } = await supabase.rpc('rpc_excluir_rodada', {
+    p_round_id: roundId,
+    p_forcar: forcar,
+  })
+  if (error) throw error
+}
+
 export async function calcularPontosRodada(
   roundId: string,
   resultados: Record<string, { h: number; a: number }>,
