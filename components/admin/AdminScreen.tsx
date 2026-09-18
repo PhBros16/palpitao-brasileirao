@@ -47,7 +47,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2 py-1.5">
-      <span className="min-w-[88px] font-mono text-[10px] uppercase tracking-wider text-tinta-100">
+      <span className="w-[88px] shrink-0 font-mono text-[10px] uppercase tracking-wider text-tinta-100">
         {label}
       </span>
       {children}
@@ -441,7 +441,7 @@ function SecaoConfiguracaoRodada() {
                 carregarRodadaPorId(e.target.value)
               }
             }}
-            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
+            className="min-w-0 flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
           >
             {/* Sem isso, quando roundId vira null (modo "criando nova"), o
                 <select> não acha nenhuma option com value="" e o navegador
@@ -719,7 +719,7 @@ function SecaoResultadoCorrecao() {
           <select
             value={roundId ?? ''}
             onChange={(e) => carregarRodadaParaPlacares(e.target.value)}
-            className="flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
+            className="min-w-0 flex-1 rounded border border-papel-borda-300 bg-papel-50 px-2 py-1.5 font-sans text-sm font-semibold text-tinta-300 outline-none"
           >
             {listaRodadas.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
