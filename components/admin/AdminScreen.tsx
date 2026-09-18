@@ -664,12 +664,7 @@ function SecaoResultadoCorrecao() {
         resultados[j.id] = { h: parseInt(h, 10), a: parseInt(a, 10) }
       }
 
-      await calcularPontosRodada(roundId, resultados, valeDobro)
-
-      if (apagados.length > 0) {
-        await supabase.from('matches').update({ home_score: null, away_score: null }).in('id', apagados)
-        await supabase.from('predictions').update({ points: null }).in('match_id', apagados)
-      }
+      await calcularPontosRodada(roundId, resultados, valeDobro, apagados)
 
       await gravarLog('PONTOS_CALCULADOS', { roundId })
       vibrar('sucesso')
