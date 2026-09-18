@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { calcPoints } from './domain/pontuacao'
 
 export interface JogoAdmin {
   id: string
@@ -352,9 +351,13 @@ export async function buscarMascaraPalpite(roundId: string, participantId: strin
 }
 
 export async function definirMascaraPalpite(roundId: string, participantId: string, ativo: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('palpite_mascaras')
-    .upsert({ round_id: roundId, participant_id: participantId, ativo, updated_at: new Date().toISOString() }, { onConflict: 'round_id,participant_id' })
+  // Confere de novo, no banco, que a rodada tem o modo habilitado — RLS não
+  // permite mais INSERT/UPDATE direto nessa tabela pra fechar esse caminho.
+  const { error } = await supabase.rpc('rpc_definir_mascara', {
+    p_round_id: roundId,
+    p_participant_id: participantId,
+    p_ativo: ativo,
+  })
   if (error) throw error
 }
 
@@ -380,40 +383,19 @@ export async function calcularPontosRodada(
   roundId: string,
   resultados: Record<string, { h: number; a: number }>,
   valeDobro: boolean,
+  apagados: string[] = [],
 ): Promise<void> {
-  for (const [matchId, r] of Object.entries(resultados)) {
-    const { error } = await supabase
-      .from('matches')
-      .update({ home_score: r.h, away_score: r.a })
-      .eq('id', matchId)
-    if (error) throw error
-  }
-
-  const matchIds = Object.keys(resultados)
-  if (matchIds.length === 0) return
-
-  const { data: predictions, error: predErr } = await supabase
-    .from('predictions')
-    .select('id, match_id, pred_h, pred_a, manual_override')
-    .in('match_id', matchIds)
-  if (predErr) throw predErr
-
-  for (const p of predictions ?? []) {
-    // Predição com ponto setado manualmente pelo admin (ex.: prêmio de outro
-    // campeonato) — não deixa o recálculo em massa da rodada sobrescrever.
-    if (p.manual_override) continue
-
-    const resultado = resultados[p.match_id]
-    if (!resultado) continue
-    const pontos = calcPoints({ h: p.pred_h, a: p.pred_a }, { h: resultado.h, a: resultado.a })
-    if (pontos === null) continue
-    const pontosFinal = valeDobro ? pontos * 2 : pontos
-    const { error } = await supabase
-      .from('predictions')
-      .update({ points: pontosFinal })
-      .eq('id', p.id)
-    if (error) throw error
-  }
+  // Todo o trabalho (gravar resultado, recalcular points respeitando
+  // manual_override, e zerar os "apagados") roda dentro de
+  // rpc_calcular_pontos_rodada, numa transação só — RLS não deixa mais
+  // escrever direto em predictions.points, só por essa RPC.
+  const { error } = await supabase.rpc('rpc_calcular_pontos_rodada', {
+    p_round_id: roundId,
+    p_resultados: resultados,
+    p_apagados: apagados,
+    p_vale_dobro: valeDobro,
+  })
+  if (error) throw error
 }
 
 export interface PalpitePorJogo {
@@ -471,12 +453,12 @@ export async function corrigirPontoManual(
   predictionId: string,
   novoValor: number,
 ): Promise<void> {
-  // Marca manual_override=true: protege esse ponto de ser sobrescrito na
-  // próxima vez que a rodada for recalculada em massa (calcularPontosRodada).
-  const { error } = await supabase
-    .from('predictions')
-    .update({ points: novoValor, manual_override: true })
-    .eq('id', predictionId)
+  // Marca manual_override=true dentro de rpc_corrigir_ponto_manual — RLS não
+  // deixa mais escrever direto em predictions.points/manual_override.
+  const { error } = await supabase.rpc('rpc_corrigir_ponto_manual', {
+    p_prediction_id: predictionId,
+    p_novo_valor: novoValor,
+  })
   if (error) throw error
 }
 
