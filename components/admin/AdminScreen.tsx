@@ -811,22 +811,26 @@ function SecaoResultadoCorrecao() {
               <div key={pj.matchId} className="border-b border-papel-borda-200/60 py-2.5 last:border-0">
                 <p className="mb-1.5 font-sans text-xs font-semibold text-tinta-300">{pj.home} × {pj.away}</p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="font-sans text-xs text-tinta-100">Palpite: <b className="font-mono text-tinta-300">{pj.predH !== null ? `${pj.predH}×${pj.predA}` : 'NP'}</b></span>
+                  <span className="font-sans text-xs text-tinta-100">Palpite: <b className="font-mono text-tinta-300">{pj.oculto ? '🔒 oculto' : pj.predH !== null ? `${pj.predH}×${pj.predA}` : 'NP'}</b></span>
                   <span className="font-sans text-xs text-tinta-100">Resultado: <b className="font-mono text-dourado-500">{pj.resultadoH !== null ? `${pj.resultadoH}×${pj.resultadoA}` : '—'}</b></span>
                   <span className="font-sans text-xs text-tinta-100">Pontos: <b className="font-mono text-dourado-500">{pj.points ?? '—'}</b></span>
                   {pj.manualOverride && (
                     <span className="rounded bg-dourado-500/20 px-1.5 py-0.5 font-mono text-[10px] text-dourado-500" title="Setado manualmente — protegido de recálculo em massa da rodada">🔒 manual</span>
                   )}
-                  <span className="flex items-center gap-1.5 font-mono text-xs text-tinta-100">
-                    Corrigir:
-                    <input type="number" inputMode="numeric" min={0} placeholder="—"
-                      value={correcaoBuf[pj.predictionId ?? ''] ?? ''}
-                      onChange={(e) => setCorrecaoBuf((b) => ({ ...b, [pj.predictionId ?? '']: e.target.value }))}
-                      disabled={!pj.predictionId}
-                      className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1.5 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none disabled:opacity-40" />
-                    <button type="button" onClick={() => handleCorrigir(pj.predictionId)} disabled={!pj.predictionId}
-                      className="rounded border border-papel-borda-300 px-2 py-0.5 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40">✓ Ok</button>
-                  </span>
+                  {pj.oculto ? (
+                    <span className="font-mono text-[10px] text-tinta-100" title="Modo Palpite Oculto ativo — só dá pra corrigir depois do resultado sair">🔒 aguardando resultado pra liberar correção</span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 font-mono text-xs text-tinta-100">
+                      Corrigir:
+                      <input type="number" inputMode="numeric" min={0} placeholder="—"
+                        value={correcaoBuf[pj.predictionId ?? ''] ?? ''}
+                        onChange={(e) => setCorrecaoBuf((b) => ({ ...b, [pj.predictionId ?? '']: e.target.value }))}
+                        disabled={!pj.predictionId}
+                        className="w-12 rounded border border-papel-borda-300 bg-papel-50 px-1.5 py-0.5 text-center font-mono text-xs text-tinta-300 outline-none disabled:opacity-40" />
+                      <button type="button" onClick={() => handleCorrigir(pj.predictionId)} disabled={!pj.predictionId}
+                        className="rounded border border-papel-borda-300 px-2 py-0.5 font-mono text-[10px] text-tinta-200 hover:bg-papel-100 disabled:opacity-40">✓ Ok</button>
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
