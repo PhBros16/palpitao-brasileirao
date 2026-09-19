@@ -553,6 +553,10 @@ export async function buscarLog(limite = 50, participantId?: string): Promise<En
   let query = supabase
     .from('admin_log')
     .select('id, action, payload, performed_by, participant_id, created_at, round_id')
+    // EDICAO_TARDIA (clique 8x, Modo Palpite Oculto) não aparece no Log de Ações.
+    // O registro continua gravado em admin_log pela RPC — só não é exibido.
+    // Filtrado na query (e não no componente) pra não consumir o limite de linhas.
+    .neq('action', 'EDICAO_TARDIA')
     .order('created_at', { ascending: false })
     .limit(limite)
 
@@ -586,9 +590,7 @@ export async function buscarLog(limite = 50, participantId?: string): Promise<En
   const semResultado = new Set((matchesSemResultado ?? []).map((m) => m.id))
 
   return entradas.map((e) => {
-    // EDICAO_TARDIA precisa ser redigida com a mesma regra de PALPITE_SALVO —
-    // senão a edição tardia aparece destravada no log antes do resultado sair.
-    if ((e.action !== 'PALPITE_SALVO' && e.action !== 'EDICAO_TARDIA') || !e.round_id || !e.participant_id || !Array.isArray((e.payload as any)?.jogos)) return e
+    if (e.action !== 'PALPITE_SALVO' || !e.round_id || !e.participant_id || !Array.isArray((e.payload as any)?.jogos)) return e
     const chave = `${e.round_id}:${e.participant_id}`
     if (!mascaraAtiva.has(chave)) return e
     const jogosRedigidos = (e.payload as any).jogos.map((j: any) =>
